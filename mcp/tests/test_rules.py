@@ -4,6 +4,7 @@ import pytest
 from afya_mcp.rules import (
     NoChartForPatient,
     band_points,
+    colour_for,
     is_colour_rise,
     load_chart,
     load_registry,
@@ -82,3 +83,43 @@ def test_colour_rise():
     assert is_colour_rise("YELLOW", "ORANGE")
     assert not is_colour_rise("ORANGE", "YELLOW")
     assert not is_colour_rise("GREEN", "GREEN")
+
+
+@pytest.mark.parametrize("level", ["voice", "pain", "unresponsive"])
+def test_any_reduced_consciousness_implies_the_orange_sign(level):
+    result = s(consciousness=level)
+    assert result.signs == ["LOC_REDUCED_CONFUSED"] and result.colour == "ORANGE"
+
+
+# Temperature is charted to one decimal (35-38.4); the integer charts score a fraction with the lower integer band.
+@pytest.mark.parametrize("name, value, expected", [
+    ("temperature", 34.99, 2), ("temperature", 38.41, 2), ("temperature", 38.4, 0),
+    ("heart_rate", 40.5, 2), ("heart_rate", 100.5, 0), ("systolic_bp", 199.5, 0), ("resp_rate", 8.5, 2),
+])
+def test_decimal_values_between_integer_edges(name, value, expected):
+    assert band_points(value, CHART["numeric"][name]["bands"]) == expected
+
+
+def test_unknown_categorical_value_raises():
+    with pytest.raises(ValueError):
+        s(mobility="crawling")
+
+
+def test_categorical_values_are_case_insensitive():
+    assert s(consciousness="ALERT").tews == 0
+
+
+def test_nan_is_rejected():
+    with pytest.raises(ValueError):
+        s(heart_rate=float("nan"))
+
+
+def test_no_age_and_no_height_has_no_chart():
+    with pytest.raises(NoChartForPatient):
+        select_chart(None, None, load_registry())
+
+
+def test_every_tews_maps_to_the_chart_colour():
+    expected = {0: "GREEN", 2: "GREEN", 3: "YELLOW", 4: "YELLOW", 5: "ORANGE", 6: "ORANGE", 7: "RED", 15: "RED"}
+    for tews, colour in expected.items():
+        assert colour_for(tews, CHART) == colour

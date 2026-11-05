@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 12 done · 11 drafted · 64 to do · 0 blocked · 87 stories
+**Progress:** 13 done · 10 drafted · 64 to do · 0 blocked · 87 stories
 
 ---
 
@@ -83,7 +83,7 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 |---|---|---|---|---|---|---|
 | E1-1 | [x] | Chart registry with the adult 2012 chart as YAML | M | Day 1 | 1.5 h | E0-2 |
 | E1-2 | [x] | Sign allow-list (2 RED, 12 ORANGE, 5 YELLOW) with own glosses | M | Day 1 | 0.5 h | E1-1 |
-| E1-3 | [~] | Chart selection by age/height; "no chart" otherwise | M | Day 2 | 1 h | E1-1 |
+| E1-3 | [x] | Chart selection by age/height; "no chart" otherwise | M | Day 2 | 1 h | E1-1 |
 | E1-4 | [x] | Pure scorer `score(values, chart)` | M | Day 1 | 1.5 h | E1-1 |
 | E1-5 ✅ | [x] | Plausibility limits in YAML (provisional) | M | Day 1 | 0.5 h | – |
 | E1-6 ✅ | [x] | Trigger rule in code | M | Day 1 | 1 h | E1-4 |
@@ -92,11 +92,11 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 
 **E1-1** · Files: `rules/charts/sats_adult_2012.yaml` · Acceptance: bands, colours, target times; numbers match the EMSSA 2012 adult chart. · Notes: manual page references added Day 1 (`source_pages`: target times pp. 6–7, adult chart and signs p. 8, adult TEWS pp. 26–27).
 **E1-2** · Acceptance: codes match the verified adult discriminator list (architecture §2); glosses are our own words.
-**E1-3** · Files: `mcp/afya_mcp/rules.py` (`select_chart`) · Acceptance: adult = over 12 y or over 150 cm; otherwise `NoChartForPatient` → UI notice "no chart for this patient yet". · Notes: function + test done; still to wire into `compute_tews` (E4-3).
+**E1-3** · Files: `mcp/afya_mcp/rules.py` (`select_chart`) · Acceptance: adult = over 12 y or over 150 cm; otherwise `NoChartForPatient` → UI notice "no chart for this patient yet". · Notes: function + test done; wired into `compute_tews` (E4-3). Code review: unknown age and height → `NoChartForPatient`; age is calendar-exact around the 12th birthday (tests).
 **E1-4** · Acceptance: returns tews, colour by TEWS, signs implied by inputs, final colour = highest of TEWS and signs, points and cited IDs per input; missing inputs reported, never guessed.
 **E1-5** · Files: `rules/plausibility.yaml` · Acceptance: limits loaded by code; outside → nothing saved, re-measure notice. · Notes: `load_plausibility` + `check_plausible` done Day 1 with tests (HR 400, °F temperature, etc.); values provisional until reviewed with the nurse (E9-4). The "nothing saved" part is enforced in `record_vitals` (E4-2).
-**E1-6** · Acceptance: proposal only on (a) colour rise, (b) current ORANGE/RED sign, (c) nurse-reported worsening; smaller changes logged only; never downgrades. Tests for B→B2, M1→M2, improvement, C (confused). · Notes: `evaluate_trigger` done Day 1: trigger reference is the colour a nurse last **confirmed**; urgent = ORANGE/RED signs only (a YELLOW sign alone is logged); incomplete scores still trigger and say "lower bound"; unknown sign codes raise. 20 tests in `mcp/tests/test_plausibility_trigger.py`.
-**E1-7 / E1-8** · Files: `mcp/tests/test_rules.py` · Notes: 44 tests passing on Day 1 (64 in total with E1-5/E1-6).
+**E1-6** · Acceptance: proposal only on (a) colour rise, (b) current ORANGE/RED sign, (c) nurse-reported worsening; smaller changes logged only; never downgrades. Tests for B→B2, M1→M2, improvement, C (confused). · Notes: `evaluate_trigger` done Day 1: trigger reference is the colour a nurse last **confirmed**; urgent = ORANGE/RED signs only (a YELLOW sign alone is logged); incomplete scores still trigger and say "lower bound"; unknown sign codes raise. 20 tests in `mcp/tests/test_plausibility_trigger.py`. Code review: if no colour was ever confirmed, the previous reading is the reference (only the very first reading is a baseline), so a never-confirmed visit that worsens still gets a proposal; "lower bound" is also logged when nothing triggers.
+**E1-7 / E1-8** · Files: `mcp/tests/test_rules.py` · Notes: 44 tests passing on Day 1 (64 in total with E1-5/E1-6). Code review added decimal edges, case, NaN and TEWS→colour tests. Chart fix: every AVPU level below alert (voice, pain, unresponsive) now implies the ORANGE reduced-consciousness sign, not only "confused" — to re-check against manual p. 8.
 
 ---
 
@@ -155,10 +155,10 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 | E4-7 | [ ] | `notify_staff` | M | Day 8 | 1 h | E3-1 |
 | E4-8 | [ ] | Audit every tool call | M | Day 5–8 | incl. | E3-3 |
 
-**E4-1** · Files: `mcp/afya_mcp/server.py` · Acceptance: `/healthz` OK; read tools only on `/read/mcp`, act tools only on `/act/mcp`. · Notes: done Day 2; verified with Starlette TestClient (`/healthz` OK; read = compute_tews, check_deterioration, get_queue_state; act = record_vitals, raise_recheck_flag, notify_staff). **SDK pinned to `mcp<2`**: v2 renamed FastMCP to MCPServer.
-**E4-2** · Acceptance: input = LOINC-coded list + idempotency key; plausibility check first; FHIR conditional create with `identifier=urn:afya:req|<key>`; updates `visits.latest_obs_id` in the same transaction; retry returns the same IDs. · Notes: FHIR part done Day 2 (`services.record_vitals`: plausibility first, one Observation per reading with LOINC components, conditional create on `urn:afya:req|<key>`; tests prove a retry creates nothing new and HR 400 saves nothing). **Still to do:** the `visits.latest_obs_id` update once E3 (Postgres) runs.
-**E4-3** · Acceptance: input = observation ID only; reads values from HAPI itself; selects the chart (E1-3); returns score, colour, chart_id and cited IDs. · Notes: done Day 2; age from `Patient.birthDate`, height from extension `urn:afya:height-cm`; a child returns `no_chart`.
-**E4-4** · Acceptance: compares with earlier scored readings; returns change, trigger type (E1-6) and cited records. · Notes: done Day 2; input is `visit_id`; confirmed colour read from `Encounter.priority` (system `urn:afya:sats-colour`); returns per-input point changes with the record before/after (feeds the evidence table, E7-4); FHIR errors raise `FhirUnavailable` for the agent's retry path. Code: `mcp/afya_mcp/fhir.py`, `services.py`; tests use an in-memory FHIR (`tests/fake_fhir.py`). 73 tests passing.
+**E4-1** · Files: `mcp/afya_mcp/server.py` · Acceptance: `/healthz` OK; read tools only on `/read/mcp`, act tools only on `/act/mcp`. · Notes: done Day 2; verified with Starlette TestClient (`/healthz` OK; read = compute_tews, check_deterioration, get_queue_state; act = record_vitals, raise_recheck_flag, notify_staff). **SDK pinned to `mcp<2`**: v2 renamed FastMCP to MCPServer. Code review: FastMCP's default DNS-rebinding check only accepted `Host: localhost`, so `http://afya-mcp:9000` got HTTP 421; allowed hosts now set (`AFYA_MCP_ALLOWED_HOSTS`, default `afya-mcp:*,localhost:*,127.0.0.1:*`) and tested. Tools are async and run the blocking FHIR client in a worker thread.
+**E4-2** · Acceptance: input = LOINC-coded list + idempotency key; plausibility check first; FHIR conditional create with `identifier=urn:afya:req|<key>`; updates `visits.latest_obs_id` in the same transaction; retry returns the same IDs. · Notes: FHIR part done Day 2 (`services.record_vitals`: plausibility first, one Observation per reading with LOINC components, conditional create on `urn:afya:req|<key>`; tests prove a retry creates nothing new and HR 400 saves nothing). Code review: unknown inputs, unknown categorical values, empty entries, unsafe idempotency keys and a visit of another patient are rejected (`status: invalid`, nothing saved). **Still to do:** the `visits.latest_obs_id` update once E3 (Postgres) runs.
+**E4-3** · Acceptance: input = observation ID only; reads values from HAPI itself; selects the chart (E1-3); returns score, colour, chart_id and cited IDs. · Notes: done Day 2; age from `Patient.birthDate`, height from extension `urn:afya:height-cm`; a child returns `no_chart`. Code review: accepts `Observation/<id>` or `<id>` and refuses other types; readings with another unit (e.g. °F), another code or status `entered-in-error` return `not_usable` instead of being scored.
+**E4-4** · Acceptance: compares with earlier scored readings; returns change, trigger type (E1-6) and cited records. · Notes: done Day 2; input is `visit_id`; confirmed colour read from `Encounter.priority` (system `urn:afya:sats-colour`); returns per-input point changes with the record before/after (feeds the evidence table, E7-4); FHIR errors raise `FhirUnavailable` for the agent's retry path. Code: `mcp/afya_mcp/fhir.py`, `services.py`; tests use an in-memory FHIR (`tests/fake_fhir.py`). Code review: FHIR 4xx now raise `FhirNotFound`/`FhirRejected` (no retry), 5xx/429/timeouts `FhirUnavailable`; search filters on `status` and `http://loinc.org|85353-1`; unknown `Encounter.priority` colours raise. 124 tests passing.
 **E4-5** · Acceptance: minutes waited vs SATS target per patient; overdue re-checks (site intervals from E9-4, labelled "site rule"); unread proposals with age.
 **E4-6** · Acceptance: input = command ID only; claim (E3-5) → FHIR conditional create Flag (identifier derived from the command) + Encounter priority → mark done + audit in one transaction; safe on retry or crash.
 **E4-7** · Acceptance: fixed text only (restates an existing proposal's colour and cited IDs, or "vitals due"); never changes the queue; audited.

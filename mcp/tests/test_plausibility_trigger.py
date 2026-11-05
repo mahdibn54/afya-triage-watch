@@ -107,3 +107,23 @@ def test_incomplete_score_still_triggers_and_says_so():
 def test_unknown_sign_code_is_rejected():
     with pytest.raises(ValueError):
         evaluate_trigger("GREEN", s(), ["MAKE_ME_GREEN"], CHART)
+
+
+def test_previous_reading_is_reference_only_without_confirmed_colour():
+    t = evaluate_trigger(None, s(heart_rate=135, resp_rate=30, mobility="with_help"), [], CHART,
+                         previous_colour="GREEN")
+    assert t.kind == "colour_rise" and t.from_colour == "GREEN" and t.to_colour == "RED"
+    t = evaluate_trigger("ORANGE", s(), [], CHART, previous_colour="GREEN")   # confirmed wins
+    assert not t.propose and t.to_colour == "ORANGE"
+
+
+def test_incomplete_score_without_rise_is_logged_as_lower_bound():
+    values = dict(BASE)
+    del values["heart_rate"]
+    t = evaluate_trigger("GREEN", score(values, CHART), [], CHART)
+    assert not t.propose and any("lower bound" in r for r in t.reasons)
+
+
+def test_model_sign_never_lowers_the_proposal():
+    t = evaluate_trigger("RED", s(), ["CHEST_PAIN"], CHART)
+    assert not t.propose and t.to_colour == "RED"

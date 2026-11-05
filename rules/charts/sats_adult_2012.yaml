@@ -46,7 +46,9 @@ categorical:
   consciousness:
     code: "afya:avpu"
     values: { alert: 0, confused: 1, voice: 1, pain: 2, unresponsive: 3 }
-    implies_sign: { confused: LOC_REDUCED_CONFUSED }
+    # Every AVPU level below "alert" is a reduced level of consciousness (ORANGE warning sign on the adult chart).
+    implies_sign: { confused: LOC_REDUCED_CONFUSED, voice: LOC_REDUCED_CONFUSED, pain: LOC_REDUCED_CONFUSED,
+                    unresponsive: LOC_REDUCED_CONFUSED }
   trauma:
     code: "afya:trauma"
     values: { "no": 0, "yes": 1 }

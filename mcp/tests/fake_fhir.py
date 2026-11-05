@@ -32,6 +32,8 @@ class FakeFhir:
         out = list(self.data.get(rtype, {}).values())
         if "encounter" in params:
             out = [r for r in out if r.get("encounter", {}).get("reference") == params["encounter"]]
+        if "status" in params:
+            out = [r for r in out if r.get("status") in params["status"].split(",")]
         if params.get("_sort") == "-date":
             out.sort(key=lambda r: r.get("effectiveDateTime", ""), reverse=True)
         return copy.deepcopy(out[: int(params.get("_count", "100"))])

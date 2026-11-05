@@ -43,6 +43,8 @@ def load_registry(rules_dir: Path = RULES_DIR) -> list[dict[str, Any]]:
 
 def select_chart(age_years: float | None, height_cm: float | None, registry: list[dict[str, Any]]) -> dict[str, Any]:
     """Pick the chart that applies to this patient. Adult: over 12 years or over 150 cm."""
+    if age_years is None and height_cm is None:
+        raise NoChartForPatient("no chart: age and height unknown")
     for chart in registry:
         min_age = chart.get("min_age_years_exclusive")
         min_height = chart.get("min_height_cm_exclusive")
@@ -82,7 +84,10 @@ def score(values: dict[str, Any], chart: dict[str, Any], cited: dict[str, str] |
         if values.get(name) is None:
             missing.append(name)
         else:
-            points[name] = band_points(float(values[name]), spec["bands"])
+            value = float(values[name])
+            if value != value:   # NaN would fall through every band to the top row
+                raise ValueError(f"{name} is not a number")
+            points[name] = band_points(value, spec["bands"])
 
     for name, spec in chart["categorical"].items():
         raw = values.get(name)
@@ -164,12 +169,15 @@ def evaluate_trigger(
     model_signs: list[str],
     chart: dict[str, Any],
     nurse_reported_worsening: bool = False,
+    previous_colour: str | None = None,
 ) -> Trigger:
     """Decide in code whether a new reading becomes a proposal. The model can never switch this off.
 
     confirmed_colour: the colour a nurse last confirmed for this visit (None on the first reading).
     after: score of the new reading (its colour already includes signs implied by inputs, e.g. "confused").
     model_signs: sign codes from map_signs that code has already validated (allow-list, current, literal quote).
+    previous_colour: colour of the previous scored reading. Used as the reference only when no colour has been
+    confirmed yet, so a visit that was never confirmed still gets a proposal when it worsens.
     Proposal only on: a colour rise, a current ORANGE/RED sign above the confirmed colour, or a nurse-reported
     worsening. Anything else is logged only. The agent never proposes a downgrade.
     """
@@ -177,8 +185,13 @@ def evaluate_trigger(
         if code not in chart["signs"]:
             raise ValueError(f"sign {code!r} is not on the allow-list")
 
+    note: list[str] = []
     if confirmed_colour is None:
-        return Trigger(None, None, after.colour, ["first reading: baseline only"])
+        if previous_colour is None:
+            return Trigger(None, None, after.colour, ["first reading: baseline only"])
+        confirmed_colour = previous_colour
+        note = ["no colour confirmed yet: compared with the previous reading"]
+    incomplete = [] if after.complete else ["score incomplete: colour is a lower bound"]
 
     rank = COLOUR_RANK.__getitem__
     sign_colours = [chart["signs"][c]["colour"] for c in model_signs]
@@ -186,18 +199,17 @@ def evaluate_trigger(
     to_colour = max([confirmed_colour, after.colour, *urgent_sign_colours], key=rank)
 
     if rank(after.colour) > rank(confirmed_colour):
-        reasons = [f"colour rise {confirmed_colour} -> {after.colour} (TEWS {after.tews})"]
-        if not after.complete:
-            reasons.append("score incomplete: colour is a lower bound")
+        reasons = [f"colour rise {confirmed_colour} -> {after.colour} (TEWS {after.tews})", *incomplete, *note]
         return Trigger("colour_rise", confirmed_colour, to_colour, reasons)
 
     if urgent_sign_colours and rank(max(urgent_sign_colours, key=rank)) > rank(confirmed_colour):
         signs = [c for c in model_signs if chart["signs"][c]["colour"] in URGENT_SIGN_COLOURS]
-        return Trigger("sign", confirmed_colour, to_colour, [f"warning sign {', '.join(signs)}"])
+        return Trigger("sign", confirmed_colour, to_colour, [f"warning sign {', '.join(signs)}", *note])
 
     if nurse_reported_worsening:
-        return Trigger("nurse_reported", confirmed_colour, to_colour, ["nurse reported worsening"])
+        return Trigger("nurse_reported", confirmed_colour, to_colour, ["nurse reported worsening", *note])
 
     if rank(after.colour) < rank(confirmed_colour):
-        return Trigger(None, confirmed_colour, confirmed_colour, ["improved: logged only, never downgraded"])
-    return Trigger(None, confirmed_colour, confirmed_colour, ["no colour change: logged only"])
+        return Trigger(None, confirmed_colour, confirmed_colour,
+                       ["improved: logged only, never downgraded", *incomplete, *note])
+    return Trigger(None, confirmed_colour, confirmed_colour, ["no colour change: logged only", *incomplete, *note])

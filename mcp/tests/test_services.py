@@ -1,11 +1,20 @@
 """E4-2 record_vitals, E4-3 compute_tews, E4-4 check_deterioration against an in-memory FHIR store."""
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
 from afya_mcp import services
-from afya_mcp.fhir import COLOUR_SYSTEM, FhirUnavailable, observation_values, vitals_observation
-from afya_mcp.rules import load_plausibility, load_registry
+from afya_mcp.fhir import (
+    COLOUR_SYSTEM,
+    COMPONENTS,
+    FhirUnavailable,
+    UnusableObservation,
+    age_years,
+    observation_values,
+    ref_id,
+    vitals_observation,
+)
+from afya_mcp.rules import load_chart, load_plausibility, load_registry
 from fake_fhir import FakeFhir
 
 REG = load_registry()
@@ -29,7 +38,7 @@ def fhir():
 
 
 def record(fhir, values, key, when, patient="p014", visit="v014"):
-    return services.record_vitals(fhir, LIMITS, patient, visit, values, key, when)
+    return services.record_vitals(fhir, LIMITS, REG, patient, visit, values, key, when)
 
 
 # ---------- mapping ----------
@@ -102,3 +111,112 @@ def test_fhir_down_raises_for_the_agent_to_retry(fhir):
     fhir.down = True
     with pytest.raises(FhirUnavailable):
         services.check_deterioration(fhir, REG, "v014")
+
+
+# ---------- audit follow-ups ----------
+
+def test_components_match_the_chart_yaml():
+    chart = load_chart()
+    for name, spec in chart["numeric"].items():
+        assert COMPONENTS[name][1:] == (spec["loinc"], spec["unit"]), name
+    assert COMPONENTS["spo2"][1:] == (chart["not_scored"]["spo2"]["loinc"], chart["not_scored"]["spo2"]["unit"])
+
+
+def test_fahrenheit_is_never_scored_as_celsius(fhir):
+    obs = vitals_observation("p014", "v014", BASE, "kf", T0)
+    temp = next(c for c in obs["component"] if c["code"]["coding"][0]["code"] == "8310-5")
+    temp["valueQuantity"].update(value=98.6, unit="[degF]", code="[degF]")
+    with pytest.raises(UnusableObservation):
+        observation_values(obs)
+    fhir.put({**obs, "id": "f1"})
+    assert services.compute_tews(fhir, REG, "Observation/f1")["status"] == "not_usable"
+
+
+def test_component_with_foreign_system_is_ignored():
+    obs = vitals_observation("p014", "v014", {"heart_rate": 80}, "ks", T0)
+    obs["component"][0]["code"]["coding"][0]["system"] = "http://example.org"
+    assert observation_values(obs) == {}
+
+
+@pytest.mark.parametrize("values, key", [
+    ({**BASE, "hr": 80}, "k"),                       # unknown input would be silently dropped
+    ({**BASE, "consciousness": "asleep"}, "k"),      # would only fail later at scoring time
+    ({**BASE, "heart_rate": "fast"}, "k"),
+    ({}, "k"),
+    (BASE, "a&b=c"),                                 # would change the If-None-Exist query
+])
+def test_record_vitals_rejects_bad_entries_and_saves_nothing(fhir, values, key):
+    out = record(fhir, values, key, T0)
+    assert out["status"] == "invalid" and not out["saved"]
+    assert fhir.creates == 0
+
+
+def test_record_vitals_refuses_a_visit_of_another_patient(fhir):
+    out = record(fhir, BASE, "k", T0, patient="child", visit="v014")
+    assert out["status"] == "invalid" and fhir.creates == 0
+
+
+def test_compute_tews_accepts_bare_id_and_rejects_other_types(fhir):
+    oid = record(fhir, BASE, "kb", T0)["observation_id"]
+    assert services.compute_tews(fhir, REG, oid.split("/")[1])["status"] == "scored"
+    with pytest.raises(ValueError):
+        services.compute_tews(fhir, REG, "Patient/p014")
+
+
+def test_entered_in_error_reading_is_skipped(fhir):
+    record(fhir, dict(BASE, resp_rate=22, heart_rate=105), "r1", T0)
+    bad = record(fhir, dict(BASE, heart_rate=135, resp_rate=30, mobility="stretcher"), "r2",
+                 T0 + timedelta(minutes=30))["observation_id"]
+    fhir.data["Observation"][bad.split("/")[1]]["status"] = "entered-in-error"
+    out = services.check_deterioration(fhir, REG, "Encounter/v014")
+    assert out["latest"]["tews"] == 3 and not out["trigger"]["propose"]
+
+
+def test_never_confirmed_visit_still_proposes_on_a_rise(fhir):
+    fhir.put({"resourceType": "Encounter", "id": "vnew", "status": "in-progress",
+              "subject": {"reference": "Patient/p014"}})
+    record(fhir, BASE, "n1", T0, visit="vnew")
+    assert services.check_deterioration(fhir, REG, "vnew")["trigger"]["propose"] is False   # baseline
+    record(fhir, dict(BASE, resp_rate=30, heart_rate=135, mobility="with_help"), "n2", T0 + timedelta(minutes=20),
+           visit="vnew")
+    out = services.check_deterioration(fhir, REG, "vnew")
+    assert out["trigger"]["kind"] == "colour_rise" and out["trigger"]["to"] == "RED"
+    assert any("previous reading" in r for r in out["trigger"]["reasons"])
+
+
+def test_unknown_confirmed_colour_raises(fhir):
+    fhir.data["Encounter"]["v014"]["priority"]["coding"][0]["code"] = "BLUE"
+    record(fhir, BASE, "u1", T0)
+    with pytest.raises(ValueError):
+        services.check_deterioration(fhir, REG, "v014")
+
+
+def test_changes_list_inputs_that_went_missing(fhir):
+    record(fhir, BASE, "m1", T0)
+    record(fhir, {k: v for k, v in BASE.items() if k != "heart_rate"} | {"resp_rate": 22}, "m2",
+           T0 + timedelta(minutes=10))
+    changed = {c["input"]: (c["points_before"], c["points_after"])
+               for c in services.check_deterioration(fhir, REG, "v014")["changes"]}
+    assert changed == {"resp_rate": (0, 2), "heart_rate": (0, None)}
+
+
+@pytest.mark.parametrize("birth, on, expected_adult", [
+    ("2000-06-15", date(2012, 6, 14), False),   # day before 12th birthday
+    ("2000-06-15", date(2012, 6, 15), False),   # exactly 12: not "over 12"
+    ("2000-06-15", date(2012, 6, 16), True),
+    ("2000-02-29", date(2013, 3, 1), True),     # leap-day birthday
+])
+def test_age_around_the_twelfth_birthday(birth, on, expected_adult):
+    assert (age_years({"birthDate": birth}, on) > 12) is expected_adult
+
+
+def test_partial_birth_dates():
+    assert 33 < age_years({"birthDate": "1990-03"}, date(2023, 4, 1)) < 33.1
+    assert age_years({"birthDate": "1990"}, date(2023, 4, 1)) == pytest.approx(32.75, abs=0.01)
+
+
+@pytest.mark.parametrize("ref, expected", [
+    ("Patient/1", "1"), ("Patient/1/_history/2", "1"), ("http://h/fhir/Patient/1", "1"), ("1", "1"),
+])
+def test_ref_id_forms(ref, expected):
+    assert ref_id(ref, "Patient") == expected

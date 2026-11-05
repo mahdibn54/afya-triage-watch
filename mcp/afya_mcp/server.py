@@ -11,7 +11,9 @@ from __future__ import annotations
 import contextlib
 import os
 from functools import lru_cache
+from typing import Any
 
+import anyio
 from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
 from starlette.responses import PlainTextResponse
@@ -20,8 +22,28 @@ from starlette.routing import Mount, Route
 from . import rules, services
 from .fhir import HttpFhir
 
-read = FastMCP("afya-read", stateless_http=True)
-act = FastMCP("afya-act", stateless_http=True)
+
+def _server_settings() -> dict[str, Any]:
+    """FastMCP defaults to host 127.0.0.1, which (mcp >= 1.10) turns on DNS-rebinding protection that only accepts
+    Host: localhost. Containers call us as http://afya-mcp:9000, so list the accepted hosts explicitly."""
+    hosts = [h.strip() for h in os.environ.get("AFYA_MCP_ALLOWED_HOSTS",
+                                               "afya-mcp:*,localhost:*,127.0.0.1:*").split(",") if h.strip()]
+    try:
+        from mcp.server.transport_security import TransportSecuritySettings
+    except ImportError:          # mcp 1.9: no Host check at all
+        return {"host": "0.0.0.0"}
+    return {"host": "0.0.0.0",
+            "transport_security": TransportSecuritySettings(enable_dns_rebinding_protection=True,
+                                                            allowed_hosts=hosts)}
+
+
+read = FastMCP("afya-read", stateless_http=True, **_server_settings())
+act = FastMCP("afya-act", stateless_http=True, **_server_settings())
+
+
+async def _run(fn: Any, *args: Any) -> Any:
+    """FastMCP calls sync tools on the event loop; the FHIR client is blocking, so run it in a worker thread."""
+    return await anyio.to_thread.run_sync(fn, *args)
 
 
 @lru_cache(maxsize=1)
@@ -40,17 +62,23 @@ def _plausibility() -> dict:
 
 
 @read.tool()
-def compute_tews(observation_id: str) -> dict:
-    """Score one stored reading with the SATS chart that fits the patient. Takes only the record ID
-    (e.g. "Observation/123") and reads the values itself; every point cites that record."""
-    return services.compute_tews(_fhir(), _registry(), observation_id)
+async def compute_tews(observation_id: str) -> dict:
+    """Score one stored vital-signs reading with the SATS chart that fits the patient (fixed code, not you).
+    Input: the reading's record ID only, e.g. "Observation/123". Never pass vital-sign numbers.
+    Output: status ("scored", "no_chart" for patients without a chart yet, "not_usable"), tews, colour,
+    colour_by_tews, signs implied by the inputs, points per input, missing inputs (the colour is then a lower
+    bound) and, per input, the record it came from. Quote these record IDs when you explain a flag."""
+    return await _run(services.compute_tews, _fhir(), _registry(), observation_id)
 
 
 @read.tool()
-def check_deterioration(visit_id: str) -> dict:
+async def check_deterioration(visit_id: str) -> dict:
     """Compare the latest reading of a visit with the previous one and with the colour a nurse last confirmed.
-    Returns the changes per vital sign, the records behind them, and the code-decided trigger."""
-    return services.check_deterioration(_fhir(), _registry(), visit_id)
+    Input: the visit (Encounter) ID, e.g. "Encounter/v014" or "v014".
+    Output: latest and previous score, per-input point changes with the records behind them, and the trigger
+    decided by code: trigger.propose=true means a second look must be proposed to the nurse; you cannot cancel
+    it and you can never propose a lower colour than trigger.to."""
+    return await _run(services.check_deterioration, _fhir(), _registry(), visit_id)
 
 
 @read.tool()
@@ -60,10 +88,11 @@ def get_queue_state() -> dict:
 
 
 @act.tool()
-def record_vitals(patient_id: str, visit_id: str, values: dict, idempotency_key: str) -> dict:
+async def record_vitals(patient_id: str, visit_id: str, values: dict, idempotency_key: str) -> dict:
     """Save a nurse's entry as one FHIR Observation (conditional create on the idempotency key).
-    Impossible values are not saved: the result asks the nurse to re-measure."""
-    return services.record_vitals(_fhir(), _plausibility(), patient_id, visit_id, values, idempotency_key)
+    Unknown inputs or values are rejected ("invalid"); impossible values are not saved ("remeasure")."""
+    return await _run(services.record_vitals, _fhir(), _plausibility(), _registry(), patient_id, visit_id, values,
+                      idempotency_key)
 
 
 @act.tool()
