@@ -1,6 +1,6 @@
 # Nurse UI: design spec ("make the agent visible")
 
-> **Scope frozen 2026-11-05.** Build the simple version described in the backlog (E7). Items marked *parked* below
+> **Scope frozen.** Build the simple version described in the backlog (E7). Items marked *parked* below
 > stay here for later; see "Parked UI extras" in `Afya_Tasks_BMAD.md`.
 
 Goal: in 3 minutes a jury should **see** three things without explanation:
@@ -38,7 +38,7 @@ Playwright for one end-to-end test of the P-014 flow (also used to rehearse the 
 | W5 | **Agent trace ("glass box")** | A timeline per run: every tool call labelled **ours** or **borrowed (WSO2)**, every model call with tokens, latency and cost, the decision and its cited IDs. *(Replay: parked.)* | Agentic depth (30 pts) and "tool calls on screen" for the video |
 | W6 | **Demo scenario loader** (DEMO_MODE only) | Buttons to load the P-014 scenario and add its next reading; short timers set in `.env` for the video. *(Simulated clock: parked.)* | A reliable 3-minute video and a live demo that cannot stall |
 
-### Parked (only if there is spare time after 12 Nov)
+### Parked (only if there is spare time after Day 8)
 
 | # | Feature | Notes |
 |---|---|---|

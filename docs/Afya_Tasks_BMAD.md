@@ -3,16 +3,16 @@
 > **This file is the only backlog.** There are no GitHub issues. Every task, its status and its details live
 > here. Update the story's status (and its notes, if needed) in the same pull request that does the work.
 
-**Architecture:** v4.1, accepted 2026-11-05 ([`architecture-v4.1.pdf`](architecture-v4.1.pdf))
+**Architecture:** v4.1, accepted ([`architecture-v4.1.pdf`](architecture-v4.1.pdf))
 **Challenge:** African Agentic AI Challenge, Healthcare track "The Triage Desk", sub-theme *Deterioration Watch*
 **Repo:** https://github.com/mahdibn54/afya-triage-watch
 **Team:** **M** = Mahdi (agent core) · **B** = Brother (product, infra, data, proof)
-**Deadlines:** code freeze **14 Nov** · submission **16 Nov** (Nairobi) · jury **17 Nov**
+**Deadlines:** code freeze **Day 10** · submission day (Nairobi) · jury the day after
 **Budget:** $0, plus OpenRouter capped at $10–20
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 12 done · 11 drafted · 64 to do · 0 blocked · 87 stories · last updated **2026-11-06**
+**Progress:** 12 done · 11 drafted · 64 to do · 0 blocked · 87 stories
 
 ---
 
@@ -24,11 +24,11 @@
 4. In the same PR, set the story's status to `[x]` here and add anything useful to its **Notes**.
 5. The other person reviews; merge only when CI is green.
 6. Daily 15-minute check-in: what's done, what's next, what's blocked (`[!]` + reason here).
-7. Nothing new after **12 Nov**. Late ideas go to "Parking lot" at the end.
+7. Nothing new after **Day 8**. Late ideas go to "Parking lot" at the end.
 
 ## Who does what
 
-Remaining estimate: **Mahdi ≈ 53 h** (light on 7–8 Nov because of vaccines) · **Brother ≈ 50 h**.
+Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) · **Brother ≈ 50 h**.
 
 | Mahdi: the agent core (explained in the live review) | Brother: product, infra, data and proof |
 |---|---|
@@ -59,19 +59,19 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on 7–8 Nov because of vaccines) 
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E0-1 | [x] | Public repo, MIT licence, README, `.gitignore`, `.env.example` | M | 5 Nov | 0.5 h | – |
-| E0-2 | [x] | SATS NOTICE and licence carve-out for `rules/charts/` | M | 5 Nov | 0.5 h | E0-1 |
-| E0-3 | [ ] | Send the email to EMSSA (draft at the end of this file) | M | 5 Nov | 0.3 h | – |
-| E0-4 | [ ] | Ask Clinton: exact submission time, format, brother listed as team member | M | 5 Nov | 0.2 h | – |
-| E0-5 | [~] | Agree the API contract | M+B | 5 Nov | 1 h | – |
-| E0-6 | [ ] | CI on every push | B | 6 Nov | 1 h | E0-1 |
-| E0-7 | [ ] | Invite brother as collaborator (`dhekerbenamor@gmail.com`) | M | 5 Nov | 0.1 h | E0-1 |
+| E0-1 | [x] | Public repo, MIT licence, README, `.gitignore`, `.env.example` | M | Day 1 | 0.5 h | – |
+| E0-2 | [x] | SATS NOTICE and licence carve-out for `rules/charts/` | M | Day 1 | 0.5 h | E0-1 |
+| E0-3 | [ ] | Send the email to EMSSA (draft at the end of this file) | M | Day 1 | 0.3 h | – |
+| E0-4 | [ ] | Ask Clinton: exact submission time, format, brother listed as team member | M | Day 1 | 0.2 h | – |
+| E0-5 | [~] | Agree the API contract | M+B | Day 1 | 1 h | – |
+| E0-6 | [ ] | CI on every push | B | Day 2 | 1 h | E0-1 |
+| E0-7 | [ ] | Invite brother as collaborator (`dhekerbenamor@gmail.com`) | M | Day 1 | 0.1 h | E0-1 |
 
 **E0-1** · Files: `LICENSE`, `README.md`, `.gitignore`, `.env.example` · Acceptance: repo public; `.env` ignored. · Notes: done in commit `1645177`. Commits use mahdibenamor13@gmail.com.
 **E0-2** · Files: `rules/charts/NOTICE.md`, licence line in `LICENSE` and `README.md` · Acceptance: chart folder explicitly outside MIT, EMSSA attributed, no manual text copied.
 **E0-3** · Acceptance: email sent; reply (or none) recorded here. Until permission, the chart folder stays "non-commercial research only".
 **E0-4** · Acceptance: answers recorded here: deadline timestamp + timezone, required deliverables, team listing.
-**E0-5** · Files: `docs/api.md` · Acceptance: both agree; brother can build the UI against fake JSON matching it. · Notes: draft written 5 Nov.
+**E0-5** · Files: `docs/api.md` · Acceptance: both agree; brother can build the UI against fake JSON matching it. · Notes: draft written Day 1.
 **E0-6** · Files: `.github/workflows/ci.yml` · Acceptance: on push and PR runs `ruff`, `mypy`, `pytest` (mcp + api) and `npm run build` (web); red CI blocks merge.
 **E0-7** · Acceptance: invitation accepted. · Notes: needs GitHub's email verification (sudo mode) by Mahdi first. GitHub personal repos have no "maintainer" role: collaborator = push, merge, manage issues/labels.
 
@@ -81,22 +81,22 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on 7–8 Nov because of vaccines) 
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E1-1 | [x] | Chart registry with the adult 2012 chart as YAML | M | 5 Nov | 1.5 h | E0-2 |
-| E1-2 | [x] | Sign allow-list (2 RED, 12 ORANGE, 5 YELLOW) with own glosses | M | 5 Nov | 0.5 h | E1-1 |
-| E1-3 | [~] | Chart selection by age/height; "no chart" otherwise | M | 6 Nov | 1 h | E1-1 |
-| E1-4 | [x] | Pure scorer `score(values, chart)` | M | 5 Nov | 1.5 h | E1-1 |
-| E1-5 ✅ | [x] | Plausibility limits in YAML (provisional) | M | 5 Nov | 0.5 h | – |
-| E1-6 ✅ | [x] | Trigger rule in code | M | 5 Nov | 1 h | E1-4 |
-| E1-7 | [x] | Fixture tests (11 patients from architecture §11) | M | 5 Nov | 1 h | E1-4 |
-| E1-8 | [x] | Band-edge tests from an independent reading of the chart | M | 5 Nov | 1 h | E1-4 |
+| E1-1 | [x] | Chart registry with the adult 2012 chart as YAML | M | Day 1 | 1.5 h | E0-2 |
+| E1-2 | [x] | Sign allow-list (2 RED, 12 ORANGE, 5 YELLOW) with own glosses | M | Day 1 | 0.5 h | E1-1 |
+| E1-3 | [~] | Chart selection by age/height; "no chart" otherwise | M | Day 2 | 1 h | E1-1 |
+| E1-4 | [x] | Pure scorer `score(values, chart)` | M | Day 1 | 1.5 h | E1-1 |
+| E1-5 ✅ | [x] | Plausibility limits in YAML (provisional) | M | Day 1 | 0.5 h | – |
+| E1-6 ✅ | [x] | Trigger rule in code | M | Day 1 | 1 h | E1-4 |
+| E1-7 | [x] | Fixture tests (11 patients from architecture §11) | M | Day 1 | 1 h | E1-4 |
+| E1-8 | [x] | Band-edge tests from an independent reading of the chart | M | Day 1 | 1 h | E1-4 |
 
-**E1-1** · Files: `rules/charts/sats_adult_2012.yaml` · Acceptance: bands, colours, target times; numbers match the EMSSA 2012 adult chart. · Notes: manual page references added 5 Nov (`source_pages`: target times pp. 6–7, adult chart and signs p. 8, adult TEWS pp. 26–27).
+**E1-1** · Files: `rules/charts/sats_adult_2012.yaml` · Acceptance: bands, colours, target times; numbers match the EMSSA 2012 adult chart. · Notes: manual page references added Day 1 (`source_pages`: target times pp. 6–7, adult chart and signs p. 8, adult TEWS pp. 26–27).
 **E1-2** · Acceptance: codes match the verified adult discriminator list (architecture §2); glosses are our own words.
 **E1-3** · Files: `mcp/afya_mcp/rules.py` (`select_chart`) · Acceptance: adult = over 12 y or over 150 cm; otherwise `NoChartForPatient` → UI notice "no chart for this patient yet". · Notes: function + test done; still to wire into `compute_tews` (E4-3).
 **E1-4** · Acceptance: returns tews, colour by TEWS, signs implied by inputs, final colour = highest of TEWS and signs, points and cited IDs per input; missing inputs reported, never guessed.
-**E1-5** · Files: `rules/plausibility.yaml` · Acceptance: limits loaded by code; outside → nothing saved, re-measure notice. · Notes: `load_plausibility` + `check_plausible` done 5 Nov with tests (HR 400, °F temperature, etc.); values provisional until reviewed with the nurse (E9-4). The "nothing saved" part is enforced in `record_vitals` (E4-2).
-**E1-6** · Acceptance: proposal only on (a) colour rise, (b) current ORANGE/RED sign, (c) nurse-reported worsening; smaller changes logged only; never downgrades. Tests for B→B2, M1→M2, improvement, C (confused). · Notes: `evaluate_trigger` done 5 Nov: trigger reference is the colour a nurse last **confirmed**; urgent = ORANGE/RED signs only (a YELLOW sign alone is logged); incomplete scores still trigger and say "lower bound"; unknown sign codes raise. 20 tests in `mcp/tests/test_plausibility_trigger.py`.
-**E1-7 / E1-8** · Files: `mcp/tests/test_rules.py` · Notes: 44 tests passing on 5 Nov (64 in total with E1-5/E1-6).
+**E1-5** · Files: `rules/plausibility.yaml` · Acceptance: limits loaded by code; outside → nothing saved, re-measure notice. · Notes: `load_plausibility` + `check_plausible` done Day 1 with tests (HR 400, °F temperature, etc.); values provisional until reviewed with the nurse (E9-4). The "nothing saved" part is enforced in `record_vitals` (E4-2).
+**E1-6** · Acceptance: proposal only on (a) colour rise, (b) current ORANGE/RED sign, (c) nurse-reported worsening; smaller changes logged only; never downgrades. Tests for B→B2, M1→M2, improvement, C (confused). · Notes: `evaluate_trigger` done Day 1: trigger reference is the colour a nurse last **confirmed**; urgent = ORANGE/RED signs only (a YELLOW sign alone is logged); incomplete scores still trigger and say "lower bound"; unknown sign codes raise. 20 tests in `mcp/tests/test_plausibility_trigger.py`.
+**E1-7 / E1-8** · Files: `mcp/tests/test_rules.py` · Notes: 44 tests passing on Day 1 (64 in total with E1-5/E1-6).
 
 ---
 
@@ -104,17 +104,17 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on 7–8 Nov because of vaccines) 
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E2-1 | [~] | docker-compose with all services and health checks | B | 6 Nov | 3 h | E0-5 |
-| E2-2 | [~] | Private networks; only the UI published on 127.0.0.1:3000 | B | 6 Nov | 1 h | E2-1 |
-| E2-3 | [~] | nginx gateway, GET only | B | 9 Nov | 1 h | E2-2 |
-| E2-4 | [ ] | WSO2 config and FHIRPath response trimming | B | 9 Nov | 1 h | E2-2 |
-| E2-5 | [ ] | Host Ollama for the GPU, bound to the Docker bridge | B | 6 Nov | 0.5 h | – |
-| E2-6 | [ ] | Seed job loading the 20 synthetic patients into HAPI | B | 8 Nov | 1 h | E5-1 |
-| E2-7 | [ ] | Clean-machine test | B | 14 Nov | 1 h | all |
+| E2-1 | [~] | docker-compose with all services and health checks | B | Day 2 | 3 h | E0-5 |
+| E2-2 | [~] | Private networks; only the UI published on 127.0.0.1:3000 | B | Day 2 | 1 h | E2-1 |
+| E2-3 | [~] | nginx gateway, GET only | B | Day 5 | 1 h | E2-2 |
+| E2-4 | [ ] | WSO2 config and FHIRPath response trimming | B | Day 5 | 1 h | E2-2 |
+| E2-5 | [ ] | Host Ollama for the GPU, bound to the Docker bridge | B | Day 2 | 0.5 h | – |
+| E2-6 | [ ] | Seed job loading the 20 synthetic patients into HAPI | B | Day 4 | 1 h | E5-1 |
+| E2-7 | [ ] | Clean-machine test | B | Day 10 | 1 h | all |
 
-**E2-1** · Files: `docker-compose.yml` · Acceptance: `docker compose up --build` starts postgres → db-init → lg-init → hapi → gateway → wso2-fhir-mcp → afya-mcp → api (→ web with `--profile web`) without manual steps. · Notes: drafted by M on 5 Nov; `docker compose config` valid. **To verify on first run:** HAPI H2 volume path (`/app/target`), lg-init grants, `wso2-fhir-mcp` MCP path (`/mcp`).
+**E2-1** · Files: `docker-compose.yml` · Acceptance: `docker compose up --build` starts postgres → db-init → lg-init → hapi → gateway → wso2-fhir-mcp → afya-mcp → api (→ web with `--profile web`) without manual steps. · Notes: drafted by M on Day 1; `docker compose config` valid. **To verify on first run:** HAPI H2 volume path (`/app/target`), lg-init grants, `wso2-fhir-mcp` MCP path (`/mcp`).
 **E2-2** · Acceptance: networks `app`, `mcp`, `fhir_ro`, `fhir_rw` internal; only `web` published. Test: `docker compose exec wso2-fhir-mcp` cannot resolve `hapi`. · Notes: drafted.
-**E2-3** · Files: `gateway/nginx.conf` · Acceptance: GET/HEAD only; 403 for `;` `..` `%2e` `%2f` `%3b` `%5c` `$` in the path; method-override headers cleared; reference params like `subject=Patient%2F1` in the query still work. · Notes: `nginx -t` OK on 5 Nov. WSO2 0.11.0 uses GET for search and read (checked in its source).
+**E2-3** · Files: `gateway/nginx.conf` · Acceptance: GET/HEAD only; 403 for `;` `..` `%2e` `%2f` `%3b` `%5c` `$` in the path; method-override headers cleared; reference params like `subject=Patient%2F1` in the query still work. · Notes: `nginx -t` OK on Day 1. WSO2 0.11.0 uses GET for search and read (checked in its source).
 **E2-4** · Acceptance: WSO2 reaches HAPI only via `http://gateway/fhir`; `FHIR_SERVER_DISABLE_AUTHORIZATION=True` only on the private network; a FHIRPath filter returns id, code, value, unit, time.
 **E2-5** · Acceptance: `ollama pull qwen3:8b qwen3:4b-instruct qwen3:30b-a3b`; `OLLAMA_HOST=172.17.0.1:11434` (Docker bridge, not 0.0.0.0); API reaches it via `host.docker.internal`. Record tokens/s here.
 **E2-6** · Files: `seed/` · Acceptance: idempotent; loads the 20 patients and their visits into HAPI and `afya.visits`.
@@ -126,14 +126,14 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on 7–8 Nov because of vaccines) 
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E3-1 | [~] | db-init runs the schema as `afya_owner` | B | 9 Nov | 1.5 h | E2-1 |
-| E3-2 | [~] | Roles: `afya_app` least privilege | B | 9 Nov | 0.5 h | E3-1 |
-| E3-3 | [~] | Audit log append-only (grants + triggers) | B | 9 Nov | 0.5 h | E3-1 |
-| E3-4 | [~] | LangGraph checkpoints in schema `lg` | B | 9 Nov | 0.5 h | E3-1 |
-| E3-5 | [ ] | Approve, claim, mark-done, startup-sweep queries | M | 11 Nov | 2 h | E3-1 |
-| E3-6 | [ ] | Dedup key and insert | M | 12 Nov | 1 h | E3-1 |
+| E3-1 | [~] | db-init runs the schema as `afya_owner` | B | Day 5 | 1.5 h | E2-1 |
+| E3-2 | [~] | Roles: `afya_app` least privilege | B | Day 5 | 0.5 h | E3-1 |
+| E3-3 | [~] | Audit log append-only (grants + triggers) | B | Day 5 | 0.5 h | E3-1 |
+| E3-4 | [~] | LangGraph checkpoints in schema `lg` | B | Day 5 | 0.5 h | E3-1 |
+| E3-5 | [ ] | Approve, claim, mark-done, startup-sweep queries | M | Day 7 | 2 h | E3-1 |
+| E3-6 | [ ] | Dedup key and insert | M | Day 8 | 1 h | E3-1 |
 
-**E3-1** · Files: `db/init.sh`, `db/schema.sql` · Acceptance: runs on every start without errors (idempotent). · Notes: DDL written 5 Nov; B runs and verifies it.
+**E3-1** · Files: `db/init.sh`, `db/schema.sql` · Acceptance: runs on every start without errors (idempotent). · Notes: DDL written Day 1; B runs and verifies it.
 **E3-2** · Acceptance: `afya_app` is LOGIN, NOSUPERUSER, not a member of `afya_owner`, has no CREATE; owner and superuser passwords exist only in `db-init`.
 **E3-3** · Acceptance: as `afya_app`, UPDATE, DELETE and TRUNCATE on `afya.audit_log` all fail; INSERT works (identity column needs no sequence grant: confirm). Wording: "append-only for the application role".
 **E3-4** · Files: `api/afya_api/lg_setup.py` · Acceptance: `lg-init` creates the checkpoint tables as owner; `afya_app` can read/write them but not alter them.
@@ -146,19 +146,19 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on 7–8 Nov because of vaccines) 
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E4-1 ✅ | [x] | Server with two mounts: `/read/mcp` and `/act/mcp` | M | 9 Nov | 1 h | – |
-| E4-2 | [~] | `record_vitals` | M | 9 Nov | 2 h | E3-1 |
-| E4-3 ✅ | [x] | `compute_tews` | M | 6 Nov | 1 h | E1-4 |
-| E4-4 ✅ | [x] | `check_deterioration` | M | 6 Nov | 1.5 h | E4-3 |
-| E4-5 | [ ] | `get_queue_state` | M | 10 Nov | 1.5 h | E3-1 |
-| E4-6 | [ ] | `raise_recheck_flag` via the executor registry | M | 11 Nov | 2.5 h | E3-5 |
-| E4-7 | [ ] | `notify_staff` | M | 12 Nov | 1 h | E3-1 |
-| E4-8 | [ ] | Audit every tool call | M | 9–12 Nov | incl. | E3-3 |
+| E4-1 ✅ | [x] | Server with two mounts: `/read/mcp` and `/act/mcp` | M | Day 5 | 1 h | – |
+| E4-2 | [~] | `record_vitals` | M | Day 5 | 2 h | E3-1 |
+| E4-3 ✅ | [x] | `compute_tews` | M | Day 2 | 1 h | E1-4 |
+| E4-4 ✅ | [x] | `check_deterioration` | M | Day 2 | 1.5 h | E4-3 |
+| E4-5 | [ ] | `get_queue_state` | M | Day 6 | 1.5 h | E3-1 |
+| E4-6 | [ ] | `raise_recheck_flag` via the executor registry | M | Day 7 | 2.5 h | E3-5 |
+| E4-7 | [ ] | `notify_staff` | M | Day 8 | 1 h | E3-1 |
+| E4-8 | [ ] | Audit every tool call | M | Day 5–8 | incl. | E3-3 |
 
-**E4-1** · Files: `mcp/afya_mcp/server.py` · Acceptance: `/healthz` OK; read tools only on `/read/mcp`, act tools only on `/act/mcp`. · Notes: done 6 Nov; verified with Starlette TestClient (`/healthz` OK; read = compute_tews, check_deterioration, get_queue_state; act = record_vitals, raise_recheck_flag, notify_staff). **SDK pinned to `mcp<2`**: v2 renamed FastMCP to MCPServer.
-**E4-2** · Acceptance: input = LOINC-coded list + idempotency key; plausibility check first; FHIR conditional create with `identifier=urn:afya:req|<key>`; updates `visits.latest_obs_id` in the same transaction; retry returns the same IDs. · Notes: FHIR part done 6 Nov (`services.record_vitals`: plausibility first, one Observation per reading with LOINC components, conditional create on `urn:afya:req|<key>`; tests prove a retry creates nothing new and HR 400 saves nothing). **Still to do:** the `visits.latest_obs_id` update once E3 (Postgres) runs.
-**E4-3** · Acceptance: input = observation ID only; reads values from HAPI itself; selects the chart (E1-3); returns score, colour, chart_id and cited IDs. · Notes: done 6 Nov; age from `Patient.birthDate`, height from extension `urn:afya:height-cm`; a child returns `no_chart`.
-**E4-4** · Acceptance: compares with earlier scored readings; returns change, trigger type (E1-6) and cited records. · Notes: done 6 Nov; input is `visit_id`; confirmed colour read from `Encounter.priority` (system `urn:afya:sats-colour`); returns per-input point changes with the record before/after (feeds the evidence table, E7-4); FHIR errors raise `FhirUnavailable` for the agent's retry path. Code: `mcp/afya_mcp/fhir.py`, `services.py`; tests use an in-memory FHIR (`tests/fake_fhir.py`). 73 tests passing.
+**E4-1** · Files: `mcp/afya_mcp/server.py` · Acceptance: `/healthz` OK; read tools only on `/read/mcp`, act tools only on `/act/mcp`. · Notes: done Day 2; verified with Starlette TestClient (`/healthz` OK; read = compute_tews, check_deterioration, get_queue_state; act = record_vitals, raise_recheck_flag, notify_staff). **SDK pinned to `mcp<2`**: v2 renamed FastMCP to MCPServer.
+**E4-2** · Acceptance: input = LOINC-coded list + idempotency key; plausibility check first; FHIR conditional create with `identifier=urn:afya:req|<key>`; updates `visits.latest_obs_id` in the same transaction; retry returns the same IDs. · Notes: FHIR part done Day 2 (`services.record_vitals`: plausibility first, one Observation per reading with LOINC components, conditional create on `urn:afya:req|<key>`; tests prove a retry creates nothing new and HR 400 saves nothing). **Still to do:** the `visits.latest_obs_id` update once E3 (Postgres) runs.
+**E4-3** · Acceptance: input = observation ID only; reads values from HAPI itself; selects the chart (E1-3); returns score, colour, chart_id and cited IDs. · Notes: done Day 2; age from `Patient.birthDate`, height from extension `urn:afya:height-cm`; a child returns `no_chart`.
+**E4-4** · Acceptance: compares with earlier scored readings; returns change, trigger type (E1-6) and cited records. · Notes: done Day 2; input is `visit_id`; confirmed colour read from `Encounter.priority` (system `urn:afya:sats-colour`); returns per-input point changes with the record before/after (feeds the evidence table, E7-4); FHIR errors raise `FhirUnavailable` for the agent's retry path. Code: `mcp/afya_mcp/fhir.py`, `services.py`; tests use an in-memory FHIR (`tests/fake_fhir.py`). 73 tests passing.
 **E4-5** · Acceptance: minutes waited vs SATS target per patient; overdue re-checks (site intervals from E9-4, labelled "site rule"); unread proposals with age.
 **E4-6** · Acceptance: input = command ID only; claim (E3-5) → FHIR conditional create Flag (identifier derived from the command) + Encounter priority → mark done + audit in one transaction; safe on retry or crash.
 **E4-7** · Acceptance: fixed text only (restates an existing proposal's colour and cited IDs, or "vitals due"); never changes the queue; audited.
@@ -170,17 +170,17 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on 7–8 Nov because of vaccines) 
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E5-1 | [ ] | 20 synthetic patients (B writes, M reviews labels) | B | 7–8 Nov | 3 h | E1-7 |
-| E5-2 | [ ] | Event-run graph, one thread per vitals event | M | 10 Nov | 3 h | E4-* |
-| E5-3 | [ ] | `map_signs` (model call A) | M | 10 Nov | 2 h | E1-2 |
-| E5-4 | [ ] | `investigate` (model call B, read-only loop) | M | 11 Nov | 3 h | E5-2 |
-| E5-5 | [ ] | Urgency rule: the model can only add | M | 11 Nov | 0.5 h | E5-4 |
-| E5-6 | [ ] | Rationale filter | M | 11 Nov | 1 h | E5-4 |
-| E5-7 | [ ] | Watch loop and immediate RED/ORANGE notifications | M | 12 Nov | 2 h | E4-7 |
-| E5-8 | [ ] | Supersession and "not reviewed" | M | 12 Nov | 1 h | E5-2 |
-| E5-9 | [ ] | Model settings and limits | M | 10 Nov | 1 h | E2-5 |
-| E5-10 | [ ] | Model-down fallback | M | 12 Nov | 0.5 h | E5-2 |
-| E5-11 | [ ] | OpenRouter client (guarded) | M | 13 Nov | 1 h | E5-9 |
+| E5-1 | [ ] | 20 synthetic patients (B writes, M reviews labels) | B | Day 3–4 | 3 h | E1-7 |
+| E5-2 | [ ] | Event-run graph, one thread per vitals event | M | Day 6 | 3 h | E4-* |
+| E5-3 | [ ] | `map_signs` (model call A) | M | Day 6 | 2 h | E1-2 |
+| E5-4 | [ ] | `investigate` (model call B, read-only loop) | M | Day 7 | 3 h | E5-2 |
+| E5-5 | [ ] | Urgency rule: the model can only add | M | Day 7 | 0.5 h | E5-4 |
+| E5-6 | [ ] | Rationale filter | M | Day 7 | 1 h | E5-4 |
+| E5-7 | [ ] | Watch loop and immediate RED/ORANGE notifications | M | Day 8 | 2 h | E4-7 |
+| E5-8 | [ ] | Supersession and "not reviewed" | M | Day 8 | 1 h | E5-2 |
+| E5-9 | [ ] | Model settings and limits | M | Day 6 | 1 h | E2-5 |
+| E5-10 | [ ] | Model-down fallback | M | Day 8 | 0.5 h | E5-2 |
+| E5-11 | [ ] | OpenRouter client (guarded) | M | Day 9 | 1 h | E5-9 |
 
 **E5-1** · Files: `evals/fixtures/synthetic/*.json` · Acceptance: 8 positive (YELLOW→ORANGE, GREEN→YELLOW, ORANGE→RED, sign-only SOB, sign-only confused, gradual rise over 3 readings, Swahili-only complaint, code-switched or misspelt complaint) and 12 negative (stable, B→B2, M1→M2, improvement, first visit, HR 400, temperature in °F, missing mobility, negation, injection, child, boundary HR 100→101); invented complaints in English, Swahili and French; ground truth from the scorer; split 6 tuning / 14 held out.
 **E5-2** · Acceptance: validate → record → score → deteriorate → map_signs → trigger → investigate → proposal + `interrupt()` → fixed executor; thread ID `visit:obs_id`; checkpoints in Postgres.
@@ -190,7 +190,7 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on 7–8 Nov because of vaccines) 
 **E5-6** · Acceptance: prompt forbids conditions, causes, drugs, doses, treatments; denylist check (sepsis, pneumonia, malaria, infection, diagnos*, likely, suspect, give, administer, mg, antibiotic, paracetamol…); failing text replaced by a code-built sentence and logged.
 **E5-7** · Acceptance: RED/ORANGE proposals notify at creation; loop every `WATCH_INTERVAL_SECONDS` (60; 30 in demo): vitals-due reminders, unread ORANGE after 5 min and RED after 1 min → `notify_staff`; nothing in the queue changes.
 **E5-8** · Acceptance: newer vitals mark the old proposal `superseded`; if never reviewed it stays visible as "not reviewed" until a nurse acknowledges it.
-**E5-9** · Acceptance: on 9 Nov benchmark `qwen3:8b` (GPU) vs `qwen3:30b-a3b` (MoE, 3B active, CPU + 30 GB RAM) on the 6 tuning patients: sign accuracy, tool-call validity, seconds per run; pick the default by these numbers and record them in Notes. Settings for the chosen model: `think:false`, `num_ctx` 8192, `num_predict` 384, temperature 0 (signs) / 0.2 (investigate), top_p 0.8, top_k 20, seed logged; 60 s per call, 240 s per run; one retry on invalid JSON; timeout → rules only; circuit breaker (2 failures → skip model 5 min); warm-up call at start.
+**E5-9** · Acceptance: on Day 5 benchmark `qwen3:8b` (GPU) vs `qwen3:30b-a3b` (MoE, 3B active, CPU + 30 GB RAM) on the 6 tuning patients: sign accuracy, tool-call validity, seconds per run; pick the default by these numbers and record them in Notes. Settings for the chosen model: `think:false`, `num_ctx` 8192, `num_predict` 384, temperature 0 (signs) / 0.2 (investigate), top_p 0.8, top_k 20, seed logged; 60 s per call, 240 s per run; one retry on invalid JSON; timeout → rules only; circuit breaker (2 failures → skip model 5 min); warm-up call at start.
 **E5-10** · Acceptance: with the model off, score, trigger and proposal still work; card shows "no model" and the raw complaint.
 **E5-11** · Acceptance: `ALLOW_REMOTE_MODEL=false` by default; refuses input not from `evals/fixtures/synthetic/`; provider pinned; records billed `usage.cost`; key only in `.env`.
 
@@ -200,13 +200,13 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on 7–8 Nov because of vaccines) 
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E6-1a | [ ] | Read endpoints: `/login-as`, `/me`, `/queue`, `/audit` | B | 9–10 Nov | 1.5 h | E0-5 |
-| E6-1b | [ ] | Write endpoints: `/vitals`, `/proposals`, approve, reject | M | 10–11 Nov | 1.5 h | E0-5 |
-| E6-2 | [ ] | Demo sign-in session | B | 9 Nov | 1 h | E6-1a |
-| E6-3 | [ ] | Approve = one transaction, then resume the graph | M | 11 Nov | 1.5 h | E3-5 |
-| E6-4 | [ ] | Startup sweep | M | 12 Nov | 0.5 h | E3-5 |
-| E6-5 | [ ] | UI data endpoints: visit timeline, run trace, proposal gates | M | 11 Nov | 2.5 h | E4-8 |
-| E6-6 | [ ] | Demo endpoint: load the P-014 scenario (DEMO_MODE only) | M | 12 Nov | 0.5 h | E5-7 |
+| E6-1a | [ ] | Read endpoints: `/login-as`, `/me`, `/queue`, `/audit` | B | Day 5–6 | 1.5 h | E0-5 |
+| E6-1b | [ ] | Write endpoints: `/vitals`, `/proposals`, approve, reject | M | Day 6–7 | 1.5 h | E0-5 |
+| E6-2 | [ ] | Demo sign-in session | B | Day 5 | 1 h | E6-1a |
+| E6-3 | [ ] | Approve = one transaction, then resume the graph | M | Day 7 | 1.5 h | E3-5 |
+| E6-4 | [ ] | Startup sweep | M | Day 8 | 0.5 h | E3-5 |
+| E6-5 | [ ] | UI data endpoints: visit timeline, run trace, proposal gates | M | Day 7 | 2.5 h | E4-8 |
+| E6-6 | [ ] | Demo endpoint: load the P-014 scenario (DEMO_MODE only) | M | Day 8 | 0.5 h | E5-7 |
 
 **E6-1a / E6-1b** · Files: `api/afya_api/` · Acceptance: match `docs/api.md` exactly; JSON errors with clear messages.
 **E6-2** · Acceptance: only when `DEMO_MODE=1`; signed session cookie (SameSite=Strict, secret from `SESSION_SECRET`); user always from the session, never the body; `auth: demo_switcher` in audit rows.
@@ -219,22 +219,22 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on 7–8 Nov because of vaccines) 
 
 ## E7 · Nurse UI (Next.js), design spec in [`web-design.md`](web-design.md)
 
-Scope frozen 2026-11-05: only the UI that proves the rubric, in its simplest form. Extras are parked at the end of this file.
+Scope frozen: only the UI that proves the rubric, in its simplest form. Extras are parked at the end of this file.
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E7-0 | [ ] | App setup: Next.js + Tailwind + shadcn/ui + TanStack Query + generated API types + Dockerfile + `/api` proxy | B | 5 Nov | 1.5 h | – |
-| E7-1 | [ ] | **W1** Waiting-room board with time-to-target bars | B | 5–6 Nov | 3 h | E0-5 |
-| E7-2 | [ ] | Vitals entry form | B | 6 Nov | 2 h | E0-5 |
-| E7-3 | [ ] | Approval card + **W3** complaint with highlighted quotes | B | 7 Nov | 3.5 h | E0-5 |
-| E7-4 | [ ] | **W2** Evidence table on the approval card | B | 8 Nov | 1.5 h | E7-3 |
-| E7-5 | [ ] | **W5** Agent trace as a plain list | B | 11 Nov | 2 h | E6-5 |
-| E7-6 | [ ] | "Sign in as…" switcher with DEMO badge | B | 9 Nov | 1 h | E6-2 |
-| E7-7 | [ ] | **W4** Gate steps as a simple list of ticks | B | 10 Nov | 1 h | E6-5 |
-| E7-8 | [ ] | Notices | B | 10 Nov | 2 h | E7-1 |
-| E7-9 | [ ] | **W6** Demo scenario loader | B | 12 Nov | 1 h | E6-6 |
-| E7-10 | [ ] | Wire everything to the real API, remove fake JSON | B | 11–12 Nov | 2 h | E6-1a, E6-1b |
-| E7-11 | [ ] | Playwright end-to-end test of the P-014 flow | B | 12 Nov | 1.5 h | E7-10 |
+| E7-0 | [ ] | App setup: Next.js + Tailwind + shadcn/ui + TanStack Query + generated API types + Dockerfile + `/api` proxy | B | Day 1 | 1.5 h | – |
+| E7-1 | [ ] | **W1** Waiting-room board with time-to-target bars | B | Day 1–2 | 3 h | E0-5 |
+| E7-2 | [ ] | Vitals entry form | B | Day 2 | 2 h | E0-5 |
+| E7-3 | [ ] | Approval card + **W3** complaint with highlighted quotes | B | Day 3 | 3.5 h | E0-5 |
+| E7-4 | [ ] | **W2** Evidence table on the approval card | B | Day 4 | 1.5 h | E7-3 |
+| E7-5 | [ ] | **W5** Agent trace as a plain list | B | Day 7 | 2 h | E6-5 |
+| E7-6 | [ ] | "Sign in as…" switcher with DEMO badge | B | Day 5 | 1 h | E6-2 |
+| E7-7 | [ ] | **W4** Gate steps as a simple list of ticks | B | Day 6 | 1 h | E6-5 |
+| E7-8 | [ ] | Notices | B | Day 6 | 2 h | E7-1 |
+| E7-9 | [ ] | **W6** Demo scenario loader | B | Day 8 | 1 h | E6-6 |
+| E7-10 | [ ] | Wire everything to the real API, remove fake JSON | B | Day 7–8 | 2 h | E6-1a, E6-1b |
+| E7-11 | [ ] | Playwright end-to-end test of the P-014 flow | B | Day 8 | 1.5 h | E7-10 |
 
 **E7-0** · Files: `web/` · Acceptance: `npx create-next-app@latest` (TypeScript, App Router); Tailwind + shadcn/ui; TanStack Query; `openapi-typescript` generates `web/src/api/types.ts` from FastAPI's `/openapi.json`; production build on port 3000; `/api/*` proxied to `API_INTERNAL_URL`; enabled with `--profile web`.
 **E7-1** · Acceptance: one row per waiting patient: confirmed colour chip with label and shape (■ ▲ ● ○), time-to-target bar filling towards the SATS target with a countdown, flags, notices; sorted by time left; "last updated n s ago"; works on fake JSON first; tablet-sized touch targets.
@@ -255,13 +255,13 @@ Scope frozen 2026-11-05: only the UI that proves the rubric, in its simplest for
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E8-1 | [ ] | Eval harness `make eval` | M | 9 Nov | 3 h | E5-2 |
-| E8-2 | [ ] | Group A: fixed-code and security tests (run once) | B | 12 Nov | 3 h | E2-3, E3-* |
-| E8-3 | [ ] | Group B: model-dependent runs | M | 13 Nov | 2 h + runs | E5-* |
-| E8-4 | [ ] | Group C: rules-only baseline | M | 13 Nov | 0.5 h | E8-3 |
-| E8-5 | [ ] | Metrics | M | 13 Nov | 1 h | E8-1 |
-| E8-6 | [ ] | Write EVALS.md | M | 13 Nov | 1.5 h | E8-3 |
-| E8-7 | [ ] | Secrets check on committed logs | B | 13 Nov | 0.2 h | E8-1 |
+| E8-1 | [ ] | Eval harness `make eval` | M | Day 5 | 3 h | E5-2 |
+| E8-2 | [ ] | Group A: fixed-code and security tests (run once) | B | Day 8 | 3 h | E2-3, E3-* |
+| E8-3 | [ ] | Group B: model-dependent runs | M | Day 9 | 2 h + runs | E5-* |
+| E8-4 | [ ] | Group C: rules-only baseline | M | Day 9 | 0.5 h | E8-3 |
+| E8-5 | [ ] | Metrics | M | Day 9 | 1 h | E8-1 |
+| E8-6 | [ ] | Write EVALS.md | M | Day 9 | 1.5 h | E8-3 |
+| E8-7 | [ ] | Secrets check on committed logs | B | Day 9 | 0.2 h | E8-1 |
 
 **E8-1** · Files: `evals/`, `Makefile` · Acceptance: runs groups A/B/C; raw JSONL per run in `evals/runs/`; rebuilds the EVALS.md tables from logs.
 **E8-2** · Acceptance (pytest against the real stack): stable · small rise · mixed change · improvement (no downgrade) · first visit · HR 400 · missing value · child (no chart) · manager 403 · double click 409 · expired/stale/reused command · duplicate trigger · write through WSO2 blocked · WSO2 cannot reach HAPI directly · gateway bypasses (`..;`, `%2e`, `$operation`, batch Bundle, method-override headers) · forged write-tool call refused · lost Flag response → one Flag · FHIR down → retry then warn · model down still proposes · audit_log UPDATE/DELETE/TRUNCATE refused · unreviewed superseded proposal still visible.
@@ -277,10 +277,10 @@ Scope frozen 2026-11-05: only the UI that proves the rubric, in its simplest for
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E9-1 | [ ] | Interview questions | M | 6 Nov | 0.5 h | – |
-| E9-2 | [ ] | Interview a nurse who does outpatient triage | M | 7–8 Nov | 1.5 h | E9-1 |
-| E9-3 | [ ] | `FIELD_NOTES.md` | M | 8 Nov | 1 h | E9-2 |
-| E9-4 | [ ] | Her values into YAML as "site rule" | M | 9 Nov | 0.5 h | E9-3 |
+| E9-1 | [ ] | Interview questions | M | Day 2 | 0.5 h | – |
+| E9-2 | [ ] | Interview a nurse who does outpatient triage | M | Day 3–4 | 1.5 h | E9-1 |
+| E9-3 | [ ] | `FIELD_NOTES.md` | M | Day 4 | 1 h | E9-2 |
+| E9-4 | [ ] | Her values into YAML as "site rule" | M | Day 5 | 0.5 h | E9-3 |
 
 **E9-1** · Acceptance: covers re-check intervals per colour, alert fatigue, what a second-look card must show, plausibility limits, local terms for symptoms (Swahili/French), whether she uses SATS day to day.
 **E9-2** · Acceptance: verbal consent recorded (purpose, public repo, named or role only); no patient identifiers; cases paraphrased.
@@ -293,19 +293,19 @@ Scope frozen 2026-11-05: only the UI that proves the rubric, in its simplest for
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E10-1 | [~] | README | B | 13 Nov | 2 h | – |
-| E10-2 | [ ] | One-page ARCHITECTURE.md | M | 13 Nov | 1.5 h | – |
-| E10-3 | [ ] | 300-word description | B | 13 Nov | 0.5 h | – |
-| E10-4 | [ ] | Demo video (under 3 min, unedited) | B | 14 Nov | 2 h | E2-7 |
-| E10-5 | [ ] | Pitch deck + workflow GIF | B | 14 Nov | 2 h | – |
-| E10-6 | [ ] | Tag the submitted commit | M | 16 Nov | 0.1 h | all |
+| E10-1 | [~] | README | B | Day 9 | 2 h | – |
+| E10-2 | [ ] | One-page ARCHITECTURE.md | M | Day 9 | 1.5 h | – |
+| E10-3 | [ ] | 300-word description | B | Day 9 | 0.5 h | – |
+| E10-4 | [ ] | Demo video (under 3 min, unedited) | B | Day 10 | 2 h | E2-7 |
+| E10-5 | [ ] | Pitch deck + workflow GIF | B | Day 10 | 2 h | – |
+| E10-6 | [ ] | Tag the submitted commit | M | submission day | 0.1 h | all |
 
-**E10-1** · Acceptance: one-command run, hardware note, honest gaps, "path to a pilot" paragraph (Kenya DPA 2019, no compliance claim), licence split, say/avoid wording. · Notes: first version written 5 Nov.
+**E10-1** · Acceptance: one-command run, hardware note, honest gaps, "path to a pilot" paragraph (Kenya DPA 2019, no compliance claim), licence split, say/avoid wording. · Notes: first version written Day 1.
 **E10-2** · Acceptance: one page: agent shape, MCP servers built vs borrowed and why, Postgres → FHIR write order, "append-only for the app role".
 **E10-3** · Acceptance: what it does, sub-theme, the facility and workflow it serves; ~300 words; English.
 **E10-4** · Acceptance: P-014 run with tool calls on screen, nurse confirms, one recovery (HR 400), a watch-loop reminder; public on YouTube or Vimeo.
 **E10-5** · Acceptance: 5–7 slides: problem, how it works, safety gates, evals, path to a pilot.
-**E10-6** · Acceptance: `git tag submission-2026-11-16`; no commit after the deadline.
+**E10-6** · Acceptance: `git tag submission`; no commit after the deadline.
 
 ---
 
@@ -313,10 +313,10 @@ Scope frozen 2026-11-05: only the UI that proves the rubric, in its simplest for
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E11-1 | [ ] | Rehearse "add the child chart" in 15 min | M | 14 Nov | 1 h | E1-3 |
-| E11-2 | [ ] | Rehearse "add SpO2" and "change the reminder timer" | M | 14 Nov | 0.5 h | E4-2, E5-7 |
-| E11-3 | [ ] | Rehearse "add referral routing" | M | 15 Nov | 1 h | E4-6 |
-| E11-4 | [ ] | 10-minute code walkthrough script | M | 15 Nov | 1 h | – |
+| E11-1 | [ ] | Rehearse "add the child chart" in 15 min | M | Day 10 | 1 h | E1-3 |
+| E11-2 | [ ] | Rehearse "add SpO2" and "change the reminder timer" | M | Day 10 | 0.5 h | E4-2, E5-7 |
+| E11-3 | [ ] | Rehearse "add referral routing" | M | Day 11 (travel) | 1 h | E4-6 |
+| E11-4 | [ ] | 10-minute code walkthrough script | M | Day 11 (travel) | 1 h | – |
 
 **E11-1** · Acceptance: new YAML in `rules/charts/` + selection works + 2 tests, under 15 minutes, timed.
 **E11-2** · Acceptance: SpO2 recorded and shown (not scored); reminder timer changed via config only.
@@ -329,18 +329,18 @@ Scope frozen 2026-11-05: only the UI that proves the rubric, in its simplest for
 
 | Day | Mahdi | Brother |
 |---|---|---|
-| **5 Nov** | ✅ E0-1, E0-2, E1-1, E1-2, E1-4, E1-7, E1-8 · E0-3, E0-4, E0-7 | E0-5, E7-0, E7-1 |
-| **6 Nov** | ✅ E1-5, E1-6, E1-1 page refs (done 5 Nov) · E9-1 if possible | E0-6, E2-1, E2-2, E2-5, E7-2 |
-| **7–8 Nov** (vaccines, light) | E9-2, E9-3, review E5-1 labels | E5-1, E7-3, E7-4, E2-6 |
-| **9 Nov** | ✅ E4-1, E4-3, E4-4 (done 6 Nov) · E4-2 DB part, E8-1, E9-4 → **end-to-end skeleton** | E3-1..4, E2-3, E2-4, E6-2, E7-6 |
-| **10 Nov** | E4-5, E5-2, E5-3, E5-9, E6-1b | E6-1a, E7-7, E7-8 |
-| **11 Nov** | E3-5, E4-6, E5-4..6, E6-3, E6-5 | E7-5, E7-10 |
-| **12 Nov** | E3-6, E4-7, E5-7, E5-8, E5-10, E6-4, E6-6 | E7-9, E7-10, E7-11, E8-2 |
-| **13 Nov** | E5-11, E8-3..6, E10-2 (code freeze before the final eval run) | E8-7, E10-1, E10-3 · buffer |
-| **14 Nov** | E11-1, E11-2 | E2-7, E10-4, E10-5 |
-| **15 Nov** | Travel to Nairobi · E11-3, E11-4 | – |
-| **16 Nov** | Submit · E10-6 | – |
-| **17 Nov** | Jury: walkthrough + live change | – |
+| **Day 1** | ✅ E0-1, E0-2, E1-1, E1-2, E1-4, E1-7, E1-8 · E0-3, E0-4, E0-7 | E0-5, E7-0, E7-1 |
+| **Day 2** | ✅ E1-5, E1-6, E1-1 page refs (done Day 1) · E9-1 if possible | E0-6, E2-1, E2-2, E2-5, E7-2 |
+| **Day 3–4** (vaccines, light) | E9-2, E9-3, review E5-1 labels | E5-1, E7-3, E7-4, E2-6 |
+| **Day 5** | ✅ E4-1, E4-3, E4-4 (done Day 2) · E4-2 DB part, E8-1, E9-4 → **end-to-end skeleton** | E3-1..4, E2-3, E2-4, E6-2, E7-6 |
+| **Day 6** | E4-5, E5-2, E5-3, E5-9, E6-1b | E6-1a, E7-7, E7-8 |
+| **Day 7** | E3-5, E4-6, E5-4..6, E6-3, E6-5 | E7-5, E7-10 |
+| **Day 8** | E3-6, E4-7, E5-7, E5-8, E5-10, E6-4, E6-6 | E7-9, E7-10, E7-11, E8-2 |
+| **Day 9** | E5-11, E8-3..6, E10-2 (code freeze before the final eval run) | E8-7, E10-1, E10-3 · buffer |
+| **Day 10** | E11-1, E11-2 | E2-7, E10-4, E10-5 |
+| **Day 11 (travel)** | Travel to Nairobi · E11-3, E11-4 | – |
+| **Submission day** | Submit · E10-6 | – |
+| **Jury day** | Jury: walkthrough + live change | – |
 
 ---
 
@@ -348,30 +348,30 @@ Scope frozen 2026-11-05: only the UI that proves the rubric, in its simplest for
 
 | Risk | Mitigation |
 |---|---|
-| Vaccine side effects 6–8 Nov | Light tasks only for Mahdi; brother carries UI and data |
-| Qwen3 8B slow or unreliable at tool calls | Benchmark on 9 Nov; `qwen3:4b-instruct` as low-memory option; fixed-code fallback |
+| Vaccine side effects Day 2–4 | Light tasks only for Mahdi; brother carries UI and data |
+| Qwen3 8B slow or unreliable at tool calls | Benchmark on Day 5; `qwen3:4b-instruct` as low-memory option; fixed-code fallback |
 | WSO2 or HAPI setup takes longer | Time-box to 1 day; fallback: our own Postgres tables + the official `fetch` MCP server |
-| Scope creep | Cuts listed in architecture §13; nothing new after 12 Nov |
-| Repo does not run on the jury's machine | Clean-machine test 14 Nov; README states hardware needs |
-| Late commit disqualifies | Freeze 14 Nov; tag the submission commit |
+| Scope creep | Cuts listed in architecture §13; nothing new after Day 8 |
+| Repo does not run on the jury's machine | Clean-machine test Day 10; README states hardware needs |
+| Late commit disqualifies | Freeze Day 10; tag the submission commit |
 
 ## Decisions log
 
-| Date | Decision |
-|---|---|
-| 2026-11-05 | Architecture v4.1 accepted as final. |
-| 2026-11-05 | Backlog lives only in this file; no GitHub issues. |
-| 2026-11-05 | Repo public from day one; commits use mahdibenamor13@gmail.com. |
-| 2026-11-05 | Gateway GET-only (WSO2 0.11.0 uses GET for search and read). |
-| 2026-11-05 | SATS manual has no open licence: copy numbers only, attribute, ask EMSSA. |
-| 2026-11-05 | Owners rebalanced: Mahdi ≈ 52 h, brother ≈ 45 h. |
-| 2026-11-05 | UI follows the "make the agent visible" spec (`web-design.md`). |
-| 2026-11-06 | MCP Python SDK pinned to `mcp>=1.9,<2` (v2 renamed FastMCP; LangChain adapters target v1). |
-| 2026-11-06 | One reading = one FHIR Observation (vital-signs panel, LOINC components); confirmed colour on `Encounter.priority`. |
-| 2026-11-05 | Model choice decided by a 9 Nov benchmark: qwen3:8b vs qwen3:30b-a3b (both open weights, both local). |
-| 2026-11-05 | **Scope frozen:** UI trimmed to what proves the rubric, simplest form; extras parked (not deleted). Demo = 5/100 points; risk is a repo that does not run. |
+| Decision |
+|---|
+| Architecture v4.1 accepted as final. |
+| Backlog lives only in this file; no GitHub issues. |
+| Repo public from day one; commits use mahdibenamor13@gmail.com. |
+| Gateway GET-only (WSO2 0.11.0 uses GET for search and read). |
+| SATS manual has no open licence: copy numbers only, attribute, ask EMSSA. |
+| Owners rebalanced: Mahdi ≈ 52 h, brother ≈ 45 h. |
+| UI follows the "make the agent visible" spec (`web-design.md`). |
+| MCP Python SDK pinned to `mcp>=1.9,<2` (v2 renamed FastMCP; LangChain adapters target v1). |
+| One reading = one FHIR Observation (vital-signs panel, LOINC components); confirmed colour on `Encounter.priority`. |
+| Model choice decided by a Day 5 benchmark: qwen3:8b vs qwen3:30b-a3b (both open weights, both local). |
+| **Scope frozen:** UI trimmed to what proves the rubric, simplest form; extras parked (not deleted). Demo = 5/100 points; risk is a repo that does not run. |
 
-## Parking lot (after 12 Nov, not before)
+## Parking lot (after Day 8, not before)
 
 - Child SATS charts as a real feature (beyond the rehearsal)
 - Hash chain on the audit log
@@ -379,7 +379,7 @@ Scope frozen 2026-11-05: only the UI that proves the rubric, in its simplest for
 - Live push updates instead of polling
 - W11 installable PWA + connection-lost banner, W12 offline vitals queue
 
-### Parked UI extras (from `web-design.md`, kept in case there is spare time after 12 Nov)
+### Parked UI extras (from `web-design.md`, kept in case there is spare time after Day 8)
 
 | Was | Item | Est. | Needs |
 |---|---|---|---|
@@ -401,7 +401,7 @@ Scope frozen 2026-11-05: only the UI that proves the rubric, in its simplest for
 >
 > Dear EMSSA team,
 >
-> We are building a non-commercial research prototype for the African Agentic AI Challenge (Nairobi, November 2026). It helps triage nurses notice patients who may be getting worse while waiting. It uses synthetic data only and is not for clinical use.
+> We are building a non-commercial research prototype for the African Agentic AI Challenge (final in Nairobi). It helps triage nurses notice patients who may be getting worse while waiting. It uses synthetic data only and is not for clinical use.
 >
 > We would like to include the adult TEWS score bands and colour categories from the SATS Training Manual (2012) as numeric values in a configuration file. We would attribute them to EMSSA with a link to emssa.org.za/sats and copy no manual text. Could you confirm whether this is acceptable, and under what licence the manual may be used?
 >
