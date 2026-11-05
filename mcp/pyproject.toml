@@ -10,6 +10,7 @@ dependencies = [
   "uvicorn",
   "pyyaml",
   "httpx",
+  "anyio",
   "psycopg[binary]>=3.2",
 ]
 

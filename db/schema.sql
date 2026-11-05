@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS commands (
   expires_at    timestamptz NOT NULL,
   claimed_at    timestamptz,
   attempts      int NOT NULL DEFAULT 0,
-  done_at       timestamptz
+  done_at       timestamptz,
+  CONSTRAINT commands_done_needs_claim CHECK (done_at IS NULL OR claimed_at IS NOT NULL)
 );
 
 CREATE TABLE IF NOT EXISTS audit_log (
@@ -59,6 +60,28 @@ CREATE TABLE IF NOT EXISTS audit_log (
   payload  jsonb NOT NULL
 );
 
+-- Proposals are single-use: once decided they cannot change status, and only a nurse or clinician can approve.
+-- (The reviewed flag may still go false -> true: a nurse acknowledges a superseded proposal.)
+CREATE OR REPLACE FUNCTION proposals_guard() RETURNS trigger LANGUAGE plpgsql AS
+$$
+BEGIN
+  IF OLD.status <> 'pending' THEN
+    IF NEW.status <> OLD.status OR NEW.decided_by IS DISTINCT FROM OLD.decided_by
+       OR NEW.decided_at IS DISTINCT FROM OLD.decided_at THEN
+      RAISE EXCEPTION 'proposal % is already %', OLD.id, OLD.status USING ERRCODE = 'check_violation';
+    END IF;
+  ELSIF NEW.status = 'approved' THEN
+    IF NEW.decided_by IS NULL OR NOT EXISTS (SELECT 1 FROM users WHERE id = NEW.decided_by
+                                             AND role IN ('nurse', 'clinician')) THEN
+      RAISE EXCEPTION 'only a nurse or clinician can approve a proposal' USING ERRCODE = 'insufficient_privilege';
+    END IF;
+  END IF;
+  RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS proposals_guard ON proposals;
+CREATE TRIGGER proposals_guard BEFORE UPDATE ON proposals
+  FOR EACH ROW EXECUTE FUNCTION proposals_guard();
+
 -- Append-only: block UPDATE, DELETE and TRUNCATE (the app role also has no grant for them).
 CREATE OR REPLACE FUNCTION audit_immutable() RETURNS trigger LANGUAGE plpgsql AS
 $$ BEGIN RAISE EXCEPTION 'audit_log is append-only'; END $$;
@@ -68,6 +91,21 @@ CREATE TRIGGER audit_nomod BEFORE UPDATE OR DELETE ON audit_log
 DROP TRIGGER IF EXISTS audit_notrunc ON audit_log;
 CREATE TRIGGER audit_notrunc BEFORE TRUNCATE ON audit_log
   FOR EACH STATEMENT EXECUTE FUNCTION audit_immutable();
+
+-- Databases created before the inline CHECK above existed get it here (a no-op on fresh ones).
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'commands_done_needs_claim'
+                 AND conrelid = 'afya.commands'::regclass) THEN
+    ALTER TABLE commands ADD CONSTRAINT commands_done_needs_claim CHECK (done_at IS NULL OR claimed_at IS NOT NULL);
+  END IF;
+END $$;
+
+-- Indexes for the queue, sweep and audit lookups.
+CREATE INDEX IF NOT EXISTS proposals_pending_created ON proposals (created_at) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS commands_open_claimed ON commands (claimed_at) WHERE done_at IS NULL;
+CREATE INDEX IF NOT EXISTS commands_visit ON commands (visit_id);
+CREATE INDEX IF NOT EXISTS audit_visit_at ON audit_log (visit_id, at);
+CREATE INDEX IF NOT EXISTS audit_run ON audit_log (run_id);
 
 -- Demo users (synthetic). Real sign-in is a stated gap.
 INSERT INTO users (id, name, role) VALUES
@@ -82,8 +120,14 @@ ON CONFLICT (id) DO NOTHING;
 GRANT USAGE ON SCHEMA afya, lg TO afya_app;
 GRANT SELECT, INSERT, UPDATE ON visits, proposals, commands TO afya_app;
 GRANT SELECT ON users TO afya_app;
-GRANT SELECT, INSERT ON audit_log TO afya_app;   -- no UPDATE / DELETE / TRUNCATE
+-- audit_log: read everything, insert only the columns the app supplies (id and at always come from defaults).
+REVOKE ALL ON audit_log FROM afya_app;
+GRANT SELECT ON audit_log TO afya_app;
+GRANT INSERT (kind, actor, auth, visit_id, run_id, payload) ON audit_log TO afya_app;   -- no UPDATE / DELETE / TRUNCATE
 -- LangGraph checkpoint tables are created later in schema lg by lg-init (as afya_owner):
 ALTER DEFAULT PRIVILEGES FOR ROLE afya_owner IN SCHEMA lg
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO afya_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA lg TO afya_app;
+-- Sequences created later in lg (none today; keeps a future serial/identity column usable).
+ALTER DEFAULT PRIVILEGES FOR ROLE afya_owner IN SCHEMA lg GRANT USAGE, SELECT ON SEQUENCES TO afya_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA lg TO afya_app;

@@ -1,6 +1,6 @@
 #!/bin/sh
 # db-init: creates roles, then runs schema.sql as the owner role.
-# Runs as the superuser. Owner and superuser passwords exist only in this container.
+# Runs as the superuser. Owner and superuser passwords exist only here and in lg-init.
 set -eu
 
 until pg_isready -q; do sleep 1; done
@@ -19,6 +19,7 @@ ALTER ROLE afya_app IN DATABASE afya SET search_path = afya, lg;
 GRANT CONNECT, CREATE ON DATABASE afya TO afya_owner;
 GRANT CONNECT ON DATABASE afya TO afya_app;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+REVOKE TEMP ON DATABASE afya FROM PUBLIC;
 SQL
 
 echo "db-init: schema (as afya_owner)"
