@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 7 done · 12 drafted · 73 to do · 0 blocked · 92 stories · last updated **2026-11-05**
+**Progress:** 7 done · 12 drafted · 68 to do · 0 blocked · 87 stories · last updated **2026-11-05**
 
 ---
 
@@ -28,7 +28,7 @@
 
 ## Who does what
 
-Remaining estimate (Must only): **Mahdi ≈ 54 h** (light on 7–8 Nov because of vaccines) · **Brother ≈ 57 h**.
+Remaining estimate: **Mahdi ≈ 53 h** (light on 7–8 Nov because of vaccines) · **Brother ≈ 50 h**.
 
 | Mahdi: the agent core (explained in the live review) | Brother: product, infra, data and proof |
 |---|---|
@@ -38,7 +38,7 @@ Remaining estimate (Must only): **Mahdi ≈ 54 h** (light on 7–8 Nov because o
 | Approve/claim/sweep logic and write endpoints (E3-5, E3-6, E6-1b, E6-3, E6-4) | Read endpoints + demo session (E6-1a, E6-2), host Ollama setup (E2-5) |
 | Eval harness, model runs, EVALS.md (E8-1, E8-3…E8-6) | 20 synthetic patients (E5-1), fixed-code/security tests (E8-2), secrets check (E8-7) |
 | Nurse interview + FIELD_NOTES (E9) | README, 300-word text, video, deck (E10-1, E10-3…E10-5), seed job (E2-6) |
-| UI data and demo endpoints (E6-5, E6-6) | Top-notch UI per `web-design.md`: board, evidence sparklines, highlighted quotes, gate stepper, agent trace, demo director (E7) |
+| UI data and demo endpoints (E6-5, E6-6) | Nurse UI per `web-design.md`: board, approval card with highlighted quotes and evidence, gate ticks, agent trace, demo loader (E7) |
 | ARCHITECTURE.md, live-review rehearsals (E10-2, E11) | |
 
 ---
@@ -116,7 +116,7 @@ Remaining estimate (Must only): **Mahdi ≈ 54 h** (light on 7–8 Nov because o
 **E2-2** · Acceptance: networks `app`, `mcp`, `fhir_ro`, `fhir_rw` internal; only `web` published. Test: `docker compose exec wso2-fhir-mcp` cannot resolve `hapi`. · Notes: drafted.
 **E2-3** · Files: `gateway/nginx.conf` · Acceptance: GET/HEAD only; 403 for `;` `..` `%2e` `%2f` `%3b` `%5c` `$` in the path; method-override headers cleared; reference params like `subject=Patient%2F1` in the query still work. · Notes: `nginx -t` OK on 5 Nov. WSO2 0.11.0 uses GET for search and read (checked in its source).
 **E2-4** · Acceptance: WSO2 reaches HAPI only via `http://gateway/fhir`; `FHIR_SERVER_DISABLE_AUTHORIZATION=True` only on the private network; a FHIRPath filter returns id, code, value, unit, time.
-**E2-5** · Acceptance: `ollama pull qwen3:8b qwen3:4b-instruct`; `OLLAMA_HOST=172.17.0.1:11434` (Docker bridge, not 0.0.0.0); API reaches it via `host.docker.internal`. Record tokens/s here.
+**E2-5** · Acceptance: `ollama pull qwen3:8b qwen3:4b-instruct qwen3:30b-a3b`; `OLLAMA_HOST=172.17.0.1:11434` (Docker bridge, not 0.0.0.0); API reaches it via `host.docker.internal`. Record tokens/s here.
 **E2-6** · Files: `seed/` · Acceptance: idempotent; loads the 20 patients and their visits into HAPI and `afya.visits`.
 **E2-7** · Acceptance: fresh clone on another machine or user → README steps only → full P-014 demo works. Time it and note it here.
 
@@ -190,7 +190,7 @@ Remaining estimate (Must only): **Mahdi ≈ 54 h** (light on 7–8 Nov because o
 **E5-6** · Acceptance: prompt forbids conditions, causes, drugs, doses, treatments; denylist check (sepsis, pneumonia, malaria, infection, diagnos*, likely, suspect, give, administer, mg, antibiotic, paracetamol…); failing text replaced by a code-built sentence and logged.
 **E5-7** · Acceptance: RED/ORANGE proposals notify at creation; loop every `WATCH_INTERVAL_SECONDS` (60; 30 in demo): vitals-due reminders, unread ORANGE after 5 min and RED after 1 min → `notify_staff`; nothing in the queue changes.
 **E5-8** · Acceptance: newer vitals mark the old proposal `superseded`; if never reviewed it stays visible as "not reviewed" until a nurse acknowledges it.
-**E5-9** · Acceptance: `qwen3:8b`, `think:false`, `num_ctx` 8192, `num_predict` 384, temperature 0 (signs) / 0.2 (investigate), top_p 0.8, top_k 20, seed logged; 60 s per call, 240 s per run; one retry on invalid JSON; timeout → rules only; circuit breaker (2 failures → skip model 5 min); warm-up call at start.
+**E5-9** · Acceptance: on 9 Nov benchmark `qwen3:8b` (GPU) vs `qwen3:30b-a3b` (MoE, 3B active, CPU + 30 GB RAM) on the 6 tuning patients: sign accuracy, tool-call validity, seconds per run; pick the default by these numbers and record them in Notes. Settings for the chosen model: `think:false`, `num_ctx` 8192, `num_predict` 384, temperature 0 (signs) / 0.2 (investigate), top_p 0.8, top_k 20, seed logged; 60 s per call, 240 s per run; one retry on invalid JSON; timeout → rules only; circuit breaker (2 failures → skip model 5 min); warm-up call at start.
 **E5-10** · Acceptance: with the model off, score, trigger and proposal still work; card shows "no model" and the raw complaint.
 **E5-11** · Acceptance: `ALLOW_REMOTE_MODEL=false` by default; refuses input not from `evals/fixtures/synthetic/`; provider pinned; records billed `usage.cost`; key only in `.env`.
 
@@ -206,55 +206,48 @@ Remaining estimate (Must only): **Mahdi ≈ 54 h** (light on 7–8 Nov because o
 | E6-3 | [ ] | Approve = one transaction, then resume the graph | M | 11 Nov | 1.5 h | E3-5 |
 | E6-4 | [ ] | Startup sweep | M | 12 Nov | 0.5 h | E3-5 |
 | E6-5 | [ ] | UI data endpoints: visit timeline, run trace, proposal gates | M | 11 Nov | 2.5 h | E4-8 |
-| E6-6 | [ ] | Demo endpoints: load scenario, simulated clock (DEMO_MODE only) | M | 12 Nov | 1.5 h | E5-7 |
-| E6-7 | [ ] | *Should* · Handover endpoint | M | 13 Nov | 0.5 h* | E6-1a |
+| E6-6 | [ ] | Demo endpoint: load the P-014 scenario (DEMO_MODE only) | M | 12 Nov | 0.5 h | E5-7 |
 
 **E6-1a / E6-1b** · Files: `api/afya_api/` · Acceptance: match `docs/api.md` exactly; JSON errors with clear messages.
 **E6-2** · Acceptance: only when `DEMO_MODE=1`; signed session cookie (SameSite=Strict, secret from `SESSION_SECRET`); user always from the session, never the body; `auth: demo_switcher` in audit rows.
 **E6-3** · Acceptance: body = colour, signs kept, override reason; role check 403 → single-use update 409 → decision + audit + command in one transaction → resume LangGraph with the command ID.
 **E6-4** · Acceptance: on start, resumes approved commands not done (idempotent).
-**E6-5** · Acceptance: `GET /visits/{id}/timeline` (readings with per-input points, record IDs, chart bands), `GET /runs/{run_id}/trace` (ordered steps: server ours/borrowed, tool or model, trimmed args, result summary, latency, tokens, cost), `GET /proposals/{id}/gates` (time per gate step + refused attempts); all built from `audit_log` and FHIR, no new state.
-**E6-6** · Acceptance: `POST /demo/scenario` loads P-014; `POST /demo/clock {speed}` scales the watch loop and countdowns; both return 404 unless `DEMO_MODE=1`.
-**E6-7** · Acceptance: `GET /handover`: open proposals, unreviewed items, patients past target; code-built, no model.
+**E6-5** · Acceptance: `GET /visits/{id}/timeline` (readings with per-input points and record IDs), `GET /runs/{run_id}/trace` (ordered steps: server ours/borrowed, tool or model, trimmed args, result summary, latency, tokens, cost), `GET /proposals/{id}/gates` (time per gate step + refused attempts); all built from `audit_log` and FHIR, no new state.
+**E6-6** · Acceptance: `POST /demo/scenario` loads P-014 and `POST /demo/scenario/next` adds its next reading; both return 404 unless `DEMO_MODE=1`.
 
 ---
 
 ## E7 · Nurse UI (Next.js), design spec in [`web-design.md`](web-design.md)
 
-Must = core of the demo (W1–W6). Should = only after every Must is `[x]`, in order. Estimates for Should are not in the totals.
+Scope frozen 2026-11-05: only the UI that proves the rubric, in its simplest form. Extras are parked at the end of this file.
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
 | E7-0 | [ ] | App setup: Next.js + Tailwind + shadcn/ui + TanStack Query + generated API types + Dockerfile + `/api` proxy | B | 5 Nov | 1.5 h | – |
-| E7-1 | [ ] | **W1** Waiting-room board with time-to-target bars + wall mode | B | 5–6 Nov | 4 h | E0-5 |
+| E7-1 | [ ] | **W1** Waiting-room board with time-to-target bars | B | 5–6 Nov | 3 h | E0-5 |
 | E7-2 | [ ] | Vitals entry form | B | 6 Nov | 2 h | E0-5 |
 | E7-3 | [ ] | Approval card + **W3** complaint with highlighted quotes | B | 7 Nov | 3.5 h | E0-5 |
-| E7-4 | [ ] | **W2** Evidence sparklines drawn over SATS score bands | B | 8 Nov | 3 h | E7-3 |
-| E7-5 | [ ] | **W5** Agent trace (glass box) with Replay | B | 11 Nov | 4 h | E6-5 |
+| E7-4 | [ ] | **W2** Evidence table on the approval card | B | 8 Nov | 1.5 h | E7-3 |
+| E7-5 | [ ] | **W5** Agent trace as a plain list | B | 11 Nov | 2 h | E6-5 |
 | E7-6 | [ ] | "Sign in as…" switcher with DEMO badge | B | 9 Nov | 1 h | E6-2 |
-| E7-7 | [ ] | **W4** Gate stepper on every proposal | B | 10 Nov | 2 h | E6-5 |
+| E7-7 | [ ] | **W4** Gate steps as a simple list of ticks | B | 10 Nov | 1 h | E6-5 |
 | E7-8 | [ ] | Notices | B | 10 Nov | 2 h | E7-1 |
-| E7-9 | [ ] | **W6** Demo director with simulated clock | B | 12 Nov | 2 h | E6-6 |
+| E7-9 | [ ] | **W6** Demo scenario loader | B | 12 Nov | 1 h | E6-6 |
 | E7-10 | [ ] | Wire everything to the real API, remove fake JSON | B | 11–12 Nov | 2 h | E6-1a, E6-1b |
 | E7-11 | [ ] | Playwright end-to-end test of the P-014 flow | B | 12 Nov | 1.5 h | E7-10 |
-| E7-12 | [ ] | *Should* · **W7** Live cost & latency badge | B | 13 Nov | 0.5 h* | E6-5 |
-| E7-13 | [ ] | *Should* · **W8** UI in English, Kiswahili, French | B | 13 Nov | 3 h* | E7-10 |
-| E7-14 | [ ] | *Should* · **W9** Keyboard shortcuts | B | 13 Nov | 1 h* | E7-10 |
-| E7-15 | [ ] | *Should* · **W10** Shift handover sheet | B | 13 Nov | 1.5 h* | E6-7 |
 
 **E7-0** · Files: `web/` · Acceptance: `npx create-next-app@latest` (TypeScript, App Router); Tailwind + shadcn/ui; TanStack Query; `openapi-typescript` generates `web/src/api/types.ts` from FastAPI's `/openapi.json`; production build on port 3000; `/api/*` proxied to `API_INTERNAL_URL`; enabled with `--profile web`.
-**E7-1** · Acceptance: one row per waiting patient: confirmed colour chip with label and shape (■ ▲ ● ○), time-to-target bar filling towards the SATS target with a countdown, flags, notices; sorted by time left; "last updated n s ago"; wall mode (full screen, large type, no controls). Works on fake JSON first; tablet-sized touch targets.
+**E7-1** · Acceptance: one row per waiting patient: confirmed colour chip with label and shape (■ ▲ ● ○), time-to-target bar filling towards the SATS target with a countdown, flags, notices; sorted by time left; "last updated n s ago"; works on fake JSON first; tablet-sized touch targets.
 **E7-2** · Acceptance: coded fields (RR, HR, SBP, temperature, SpO2, mobility, consciousness, trauma) + free-text complaint; sends an idempotency key; shows the re-measure notice inline.
 **E7-3** · Acceptance: proposed vs current colour; complaint shown with matched phrases highlighted (sliced from `quote_span`, plain text only) and linked to sign chips; "other" mentions greyed with the reason; sign tickboxes; colour override + reason; approve/reject; 403/409 shown clearly.
-**E7-4** · Acceptance: one sparkline per vital across the visit's readings, with SATS bands shaded behind it (from the chart YAML via the API); each dot shows value, points and record ID; the reading that crossed into a higher band is emphasised.
-**E7-5** · Acceptance: per run, an ordered timeline: tool calls tagged **ours** / **borrowed (WSO2)**, model calls with tokens, latency, cost, the decision with cited IDs; Replay steps through it; the manager can read it; used in the demo video.
+**E7-4** · Acceptance: a table of the cited readings: vital, previous value → new value, points before → after, record ID; rows that moved into a higher band are emphasised.
+**E7-5** · Acceptance: per run, an ordered list: tool calls tagged **ours** / **borrowed (WSO2)**, model calls with tokens and latency, the decision with cited IDs; the manager can read it; used in the demo video.
 **E7-6** · Acceptance: nurse / clinician / manager; visible DEMO badge; the manager sees no approve button anywhere.
-**E7-7** · Acceptance: steps Proposed → Paused for nurse → Confirmed by <name> → Command claimed → Written to record → Audited, each with its time; refused attempts shown as a red ✕ with role and time.
+**E7-7** · Acceptance: a list of ticks Proposed → Paused for nurse → Confirmed by <name> → Command claimed → Written to record → Audited, each with its time; refused attempts listed with role and time.
 **E7-8** · Acceptance: `remeasure`, `no_chart`, `not_reviewed`, `instruction_like_text`, `vitals_due`, `clinician_reminded`, `model_unavailable`, each with clear wording from the say/avoid table.
-**E7-9** · Acceptance: only with `DEMO_MODE=1`: load the P-014 scenario, add the next reading, clock ×1 / ×10 / ×30; the watch-loop reminder appears within seconds at ×30.
+**E7-9** · Acceptance: only with `DEMO_MODE=1`: a button loads the P-014 scenario and another adds its next reading. For the video, set `WATCH_INTERVAL_SECONDS` and the unread-reminder time low in `.env`.
 **E7-10** · Acceptance: the full P-014 flow works by clicking only; nothing changes colour before approval.
 **E7-11** · Acceptance: Playwright script runs P-014 end to end (vitals → proposal → manager refused → nurse confirms → ORANGE with flag) and passes in CI against the compose stack.
-**E7-12…E7-15** · Acceptance: as described in `web-design.md` W7–W10.
 
 ---
 
@@ -336,14 +329,14 @@ Must = core of the demo (W1–W6). Should = only after every Must is `[x]`, in o
 
 | Day | Mahdi | Brother |
 |---|---|---|
-| **5 Nov** | ✅ E0-1, E0-2, E1-1, E1-2, E1-4, E1-7, E1-8 · E0-3, E0-4, E0-7 | E0-5, E7-0, E7-1 (W1) |
+| **5 Nov** | ✅ E0-1, E0-2, E1-1, E1-2, E1-4, E1-7, E1-8 · E0-3, E0-4, E0-7 | E0-5, E7-0, E7-1 |
 | **6 Nov** | E1-3, E1-5, E1-6, E9-1 | E0-6, E2-1, E2-2, E2-5, E7-2 |
-| **7–8 Nov** (vaccines, light) | E9-2, E9-3, review E5-1 labels | E5-1, E7-3 (W3), E7-4 (W2), E2-6 |
+| **7–8 Nov** (vaccines, light) | E9-2, E9-3, review E5-1 labels | E5-1, E7-3, E7-4, E2-6 |
 | **9 Nov** | E4-1..3, E8-1, E9-4 → **end-to-end skeleton** | E3-1..4, E2-3, E2-4, E6-2, E7-6 |
-| **10 Nov** | E4-4, E4-5, E5-2, E5-3, E5-9, E6-1b | E6-1a, E7-7 (W4), E7-8 |
-| **11 Nov** | E3-5, E4-6, E5-4..6, E6-3, E6-5 | E7-5 (W5), E7-10 |
-| **12 Nov** | E3-6, E4-7, E5-7, E5-8, E5-10, E6-4, E6-6 | E7-9 (W6), E7-10, E7-11, E8-2 |
-| **13 Nov** | E5-11, E8-3..6, E10-2 (code freeze before the final eval run) · E6-7 if time | E8-7, E10-1, E10-3 · Should items E7-12…15 if time |
+| **10 Nov** | E4-4, E4-5, E5-2, E5-3, E5-9, E6-1b | E6-1a, E7-7, E7-8 |
+| **11 Nov** | E3-5, E4-6, E5-4..6, E6-3, E6-5 | E7-5, E7-10 |
+| **12 Nov** | E3-6, E4-7, E5-7, E5-8, E5-10, E6-4, E6-6 | E7-9, E7-10, E7-11, E8-2 |
+| **13 Nov** | E5-11, E8-3..6, E10-2 (code freeze before the final eval run) | E8-7, E10-1, E10-3 · buffer |
 | **14 Nov** | E11-1, E11-2 | E2-7, E10-4, E10-5 |
 | **15 Nov** | Travel to Nairobi · E11-3, E11-4 | – |
 | **16 Nov** | Submit · E10-6 | – |
@@ -372,7 +365,9 @@ Must = core of the demo (W1–W6). Should = only after every Must is `[x]`, in o
 | 2026-11-05 | Gateway GET-only (WSO2 0.11.0 uses GET for search and read). |
 | 2026-11-05 | SATS manual has no open licence: copy numbers only, attribute, ask EMSSA. |
 | 2026-11-05 | Owners rebalanced: Mahdi ≈ 52 h, brother ≈ 45 h. |
-| 2026-11-05 | UI upgraded to the "make the agent visible" spec (`web-design.md`): W1–W6 Must, W7–W10 Should. |
+| 2026-11-05 | UI follows the "make the agent visible" spec (`web-design.md`). |
+| 2026-11-05 | Model choice decided by a 9 Nov benchmark: qwen3:8b vs qwen3:30b-a3b (both open weights, both local). |
+| 2026-11-05 | **Scope frozen:** UI trimmed to what proves the rubric, simplest form; extras parked (not deleted). Demo = 5/100 points; risk is a repo that does not run. |
 
 ## Parking lot (after 12 Nov, not before)
 
@@ -381,6 +376,20 @@ Must = core of the demo (W1–W6). Should = only after every Must is `[x]`, in o
 - Real sign-in (OIDC)
 - Live push updates instead of polling
 - W11 installable PWA + connection-lost banner, W12 offline vitals queue
+
+### Parked UI extras (from `web-design.md`, kept in case there is spare time after 12 Nov)
+
+| Was | Item | Est. | Needs |
+|---|---|---|---|
+| E7-1 | Wall mode for the clinic TV | 1 h | E7-1 |
+| E7-4 | Evidence sparklines drawn over shaded SATS bands (replaces the table) | 1.5 h | E6-5 + bands in `/visits/{id}/timeline` |
+| E7-5 | Replay button on the agent trace | 2 h | E7-5 |
+| E7-7 | Animated gate stepper | 1 h | E7-7 |
+| E7-9 / E6-6 | Simulated clock ×1/×10/×30 (`POST /demo/clock`) | 1 h B + 1 h M | E6-6 |
+| E7-12 | W7 live cost & latency badge | 0.5 h | E6-5 |
+| E7-13 | W8 UI in English, Kiswahili, French | 3 h | E7-10 |
+| E7-14 | W9 keyboard shortcuts | 1 h | E7-10 |
+| E7-15 / E6-7 | W10 shift handover sheet (`GET /handover`) | 1.5 h B + 0.5 h M | E7-10 |
 
 ---
 
