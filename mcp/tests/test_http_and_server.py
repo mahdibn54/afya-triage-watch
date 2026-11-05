@@ -52,7 +52,7 @@ def _tools(c, mount):
     r = c.post(f"/{mount}/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
                headers={"Accept": "application/json, text/event-stream"})
     assert r.status_code == 200, r.text
-    return {t["name"] for line in r.text.splitlines() if line.startswith("data:")
+    return {t["name"]: t["inputSchema"] for line in r.text.splitlines() if line.startswith("data:")
             for t in __import__("json").loads(line[5:])["result"]["tools"]}
 
 
@@ -61,8 +61,14 @@ def test_mounts_split_read_and_act_and_check_the_host():
     from afya_mcp.server import app
     with TestClient(app, base_url="http://afya-mcp:9000") as c:
         assert c.get("/healthz").text == "ok"
-        assert _tools(c, "read") == {"compute_tews", "check_deterioration", "get_queue_state"}
-        assert _tools(c, "act") == {"record_vitals", "raise_recheck_flag", "notify_staff"}
+        read, act = _tools(c, "read"), _tools(c, "act")
+        assert set(read) == {"compute_tews", "check_deterioration", "get_queue_state"}
+        assert set(act) == {"record_vitals", "raise_recheck_flag", "notify_staff"}
+        # E4-8: the model-facing tools have no actor field (always logged as 'agent'); act tools require one.
+        for schema in read.values():
+            assert "actor" not in schema["properties"] and "run_id" not in schema.get("required", [])
+        for schema in act.values():
+            assert "actor" in schema["required"]
         r = c.post("http://evil.example:9000/read/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
                    headers={"Accept": "application/json, text/event-stream"})
         assert r.status_code == 421

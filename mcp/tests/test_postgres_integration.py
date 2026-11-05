@@ -315,3 +315,21 @@ def test_command_check_refuses_done_without_claim(conn):
     with pytest.raises(psycopg.errors.CheckViolation):
         conn.execute("INSERT INTO commands (proposal_id, visit_id, obs_id, colour, evidence_hash, expires_at, done_at) "
                      "VALUES (%s, %s, 'o1', 'RED', 'h', now(), now())", (p["id"], p["visit_id"]))
+
+
+# ---------- E4-8: audit rows through the real table ----------
+
+def test_pg_auditor_writes_one_row_and_checks_roles(conn):
+    from afya_mcp import audit
+    a = audit.PgAuditor()
+    assert (a.role("nurse-a"), a.role("mgr-k"), a.role("nobody")) == ("nurse", "manager", None)
+    v, run = new_id("v"), new_id("run")
+    audit.call(a, "record_vitals", audit.ACT, {"visit_id": f"Encounter/{v}", "values": {"heart_rate": 80}},
+               lambda: {"status": "saved"}, actor="nurse-a", run_id=run)
+    with pytest.raises(audit.ActorRefused):
+        audit.call(a, "record_vitals", audit.ACT, {"visit_id": v}, lambda: None, actor="nobody", run_id=run)
+    rows = conn.execute("SELECT kind, actor, auth, visit_id, payload FROM audit_log WHERE run_id = %s ORDER BY id",
+                        (run,)).fetchall()
+    assert [(r["kind"], r["actor"], r["auth"], r["visit_id"]) for r in rows] == [
+        ("record_vitals", "nurse-a", "demo_switcher", v), ("record_vitals_refused", "system", "service", v)]
+    assert rows[0]["payload"]["output"] == {"status": "saved"} and "latency_ms" in rows[0]["payload"]

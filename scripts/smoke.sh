@@ -99,7 +99,7 @@ PY
 echo "== afya-mcp against real HAPI"
 check "afya-mcp /healthz" dc exec -T afya-mcp python -c "import urllib.request as u;assert u.urlopen('http://127.0.0.1:9000/healthz',timeout=5).read().strip()==b'ok'"
 check "api /healthz" dc exec -T api python -c "import urllib.request as u;assert u.urlopen('http://127.0.0.1:8080/healthz',timeout=5).status==200"
-check "compute_tews on seeded Patient+Encounter+Observation" mcpx <<'PY'
+check "compute_tews on seeded Patient+Encounter+Observation (audited as agent)" mcpx <<'PY'
 import asyncio, sys, uuid, httpx
 from datetime import date, timedelta
 from mcp import ClientSession
@@ -130,7 +130,7 @@ sys.exit(0 if asyncio.run(main()) else 1)
 PY
 
 check "api imports afya_mcp.workflow (shared SQL module)" dc exec -T api python -c "import afya_mcp.workflow, afya_mcp.db"
-check "record_vitals via /act/mcp sets visits.latest_obs_id" mcpx <<'PY'
+check "record_vitals via /act/mcp sets visits.latest_obs_id and writes one audit row" mcpx <<'PY'
 import asyncio, json, os, sys, uuid, httpx, psycopg
 from datetime import date, timedelta
 from mcp import ClientSession
@@ -151,13 +151,16 @@ async def main():
         async with ClientSession(r, w) as s:
             await s.initialize()
             res = await s.call_tool("record_vitals", {"patient_id": pid, "visit_id": eid, "values": values,
-                                                      "idempotency_key": "smoke-" + uuid.uuid4().hex})
+                                                      "idempotency_key": "smoke-" + uuid.uuid4().hex,
+                                                      "actor": "nurse-a"})
             return json.loads(res.content[0].text)["observation_id"].split("/")[1]
 
 oid = asyncio.run(main())
 with psycopg.connect(os.environ["DATABASE_URL"]) as c:
     row = c.execute("select latest_obs_id, patient_id from visits where id = %s", (eid,)).fetchone()
-sys.exit(0 if row == (oid, pid) else 1)
+    audited = c.execute("select count(*) from audit_log where kind = 'record_vitals' and actor = 'nurse-a' "
+                        "and visit_id = %s and payload ? 'latency_ms'", (eid,)).fetchone()[0]
+sys.exit(0 if row == (oid, pid) and audited == 1 else 1)
 PY
 
 echo "== host exposure"
