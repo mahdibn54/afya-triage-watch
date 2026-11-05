@@ -13,6 +13,12 @@ The signed-in user always comes from the session cookie, never from a request bo
 | POST | `/proposals/{id}/approve` | nurse, clinician | `{ colour, signs_kept[], override_reason? }` | `200 { command_id }` · `403` wrong role · `409` already decided |
 | POST | `/proposals/{id}/reject` | nurse, clinician | `{ reason }` | `200` · `403` · `409` |
 | GET | `/audit?visit_id=&limit=` | signed in (manager: read only) | – | `[{ at, kind, actor, auth, run_id, payload }]` |
+| GET | `/visits/{id}/timeline` | signed in | – | `{ chart_id, bands: {input: [{from, to, points}]}, readings: [{obs_id, at, values: {input: {value, points}}, tews, colour}] }` (W2) |
+| GET | `/runs/{run_id}/trace` | signed in | – | `[{ step, at, kind: "tool"\|"model"\|"decision"\|"gate", server: "ours"\|"borrowed", name, args_summary, result_summary, latency_ms, tokens_in, tokens_out, cost_usd, cited_ids[] }]` (W5) |
+| GET | `/proposals/{id}/gates` | signed in | – | `[{ gate: "proposed"\|"paused"\|"confirmed"\|"claimed"\|"written"\|"audited", at, by?, refused?: [{ by, role, at }] }]` (W4) |
+| POST | `/demo/scenario` | DEMO_MODE only | `{ "name": "p014" }` | `{ visit_id }` · 404 when DEMO_MODE is off (W6) |
+| POST | `/demo/clock` | DEMO_MODE only | `{ "speed": 1 \| 10 \| 30 }` | `{ speed }` · 404 when DEMO_MODE is off (W6) |
+| GET | `/handover` | signed in | – | `{ open_proposals[], unreviewed[], past_target[] }` (W10, Should) |
 
 Notices shown in the UI: `remeasure`, `no_chart`, `not_reviewed`, `instruction_like_text`, `vitals_due`,
 `clinician_reminded`, `model_unavailable`.
