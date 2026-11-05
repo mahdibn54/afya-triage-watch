@@ -2,17 +2,22 @@
 # "Adult SATS Chart" and the adult TEWS table. Numbers and colours only; no manual text is copied.
 # Source: https://emssa.org.za/sats  — see NOTICE.md. Not covered by the repository's MIT licence.
 chart_id: sats_adult_2012
+source_pages:   # printed page numbers in the EMSSA SATS Training Manual (2012)
+  target_times: "6-7 (Table 3)"
+  adult_chart_and_signs: "8 (Adult SATS Chart)"
+  adult_tews: "26-27 (Figure 14)"
 applies_to: "age over 12 years or height over 150 cm"
 min_age_years_exclusive: 12
 min_height_cm_exclusive: 150
 
-# TEWS total -> colour and time-to-be-seen target (minutes). Highest matching row wins.
+# TEWS total -> colour and time-to-be-seen target (minutes). Highest matching row wins. Manual pp. 6-7 and 8.
 colours:
   - { min_tews: 7, colour: RED,    target_minutes: 0 }
   - { min_tews: 5, colour: ORANGE, target_minutes: 10 }
   - { min_tews: 3, colour: YELLOW, target_minutes: 60 }
   - { min_tews: 0, colour: GREEN,  target_minutes: 240 }
 
+# Numeric and categorical inputs: manual pp. 26-27 (Figure 14).
 # Numeric inputs: bands are checked in order; the first band whose bound matches gives the points.
 # "lt" = strictly below, "le" = at or below, no bound = everything else.
 numeric:
@@ -50,7 +55,7 @@ categorical:
 not_scored:
   spo2: { loinc: "59408-5", unit: "%" }
 
-# Warning signs the model may map from a complaint (adult chart). Glosses are our own wording.
+# Warning signs the model may map from a complaint (adult chart, manual p. 8). Glosses are our own wording.
 signs:
   AIRWAY_OBSTRUCTED:        { colour: RED,    gloss: "airway blocked or not breathing" }
   SEIZURE_CURRENT:          { colour: RED,    gloss: "fitting right now" }

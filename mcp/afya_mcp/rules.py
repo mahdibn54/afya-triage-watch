@@ -107,3 +107,96 @@ def score(values: dict[str, Any], chart: dict[str, Any], cited: dict[str, str] |
 
 def is_colour_rise(before: str, after: str) -> bool:
     return COLOUR_RANK[after] > COLOUR_RANK[before]
+
+
+# ---------- plausibility (E1-5) ----------
+
+@dataclass
+class Implausible:
+    name: str
+    value: float
+    min: float
+    max: float
+
+
+def load_plausibility(rules_dir: Path = RULES_DIR) -> dict[str, Any]:
+    with open(rules_dir / "plausibility.yaml", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+def check_plausible(values: dict[str, Any], plausibility: dict[str, Any]) -> list[Implausible]:
+    """Return every value outside its limits. Empty list = plausible. Missing values are not checked here.
+
+    Anything returned means: save nothing, score nothing, ask the nurse to re-measure.
+    """
+    problems: list[Implausible] = []
+    for name, lim in plausibility["limits"].items():
+        raw = values.get(name)
+        if raw is None:
+            continue
+        value = float(raw)
+        if not lim["min"] <= value <= lim["max"]:
+            problems.append(Implausible(name, value, lim["min"], lim["max"]))
+    return problems
+
+
+# ---------- trigger rule (E1-6) ----------
+
+URGENT_SIGN_COLOURS = {"ORANGE", "RED"}
+
+
+@dataclass
+class Trigger:
+    kind: str | None          # "colour_rise" | "sign" | "nurse_reported" | None (log only)
+    from_colour: str | None   # colour the nurse last confirmed (None = first reading)
+    to_colour: str            # proposed colour; never lower than from_colour
+    reasons: list[str]
+
+    @property
+    def propose(self) -> bool:
+        return self.kind is not None
+
+
+def evaluate_trigger(
+    confirmed_colour: str | None,
+    after: Score,
+    model_signs: list[str],
+    chart: dict[str, Any],
+    nurse_reported_worsening: bool = False,
+) -> Trigger:
+    """Decide in code whether a new reading becomes a proposal. The model can never switch this off.
+
+    confirmed_colour: the colour a nurse last confirmed for this visit (None on the first reading).
+    after: score of the new reading (its colour already includes signs implied by inputs, e.g. "confused").
+    model_signs: sign codes from map_signs that code has already validated (allow-list, current, literal quote).
+    Proposal only on: a colour rise, a current ORANGE/RED sign above the confirmed colour, or a nurse-reported
+    worsening. Anything else is logged only. The agent never proposes a downgrade.
+    """
+    for code in model_signs:
+        if code not in chart["signs"]:
+            raise ValueError(f"sign {code!r} is not on the allow-list")
+
+    if confirmed_colour is None:
+        return Trigger(None, None, after.colour, ["first reading: baseline only"])
+
+    rank = COLOUR_RANK.__getitem__
+    sign_colours = [chart["signs"][c]["colour"] for c in model_signs]
+    urgent_sign_colours = [c for c in sign_colours if c in URGENT_SIGN_COLOURS]
+    to_colour = max([confirmed_colour, after.colour, *urgent_sign_colours], key=rank)
+
+    if rank(after.colour) > rank(confirmed_colour):
+        reasons = [f"colour rise {confirmed_colour} -> {after.colour} (TEWS {after.tews})"]
+        if not after.complete:
+            reasons.append("score incomplete: colour is a lower bound")
+        return Trigger("colour_rise", confirmed_colour, to_colour, reasons)
+
+    if urgent_sign_colours and rank(max(urgent_sign_colours, key=rank)) > rank(confirmed_colour):
+        signs = [c for c in model_signs if chart["signs"][c]["colour"] in URGENT_SIGN_COLOURS]
+        return Trigger("sign", confirmed_colour, to_colour, [f"warning sign {', '.join(signs)}"])
+
+    if nurse_reported_worsening:
+        return Trigger("nurse_reported", confirmed_colour, to_colour, ["nurse reported worsening"])
+
+    if rank(after.colour) < rank(confirmed_colour):
+        return Trigger(None, confirmed_colour, confirmed_colour, ["improved: logged only, never downgraded"])
+    return Trigger(None, confirmed_colour, confirmed_colour, ["no colour change: logged only"])

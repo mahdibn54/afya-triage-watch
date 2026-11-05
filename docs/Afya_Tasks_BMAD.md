@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 7 done · 12 drafted · 68 to do · 0 blocked · 87 stories · last updated **2026-11-05**
+**Progress:** 9 done · 11 drafted · 67 to do · 0 blocked · 87 stories · last updated **2026-11-05**
 
 ---
 
@@ -85,18 +85,18 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on 7–8 Nov because of vaccines) 
 | E1-2 | [x] | Sign allow-list (2 RED, 12 ORANGE, 5 YELLOW) with own glosses | M | 5 Nov | 0.5 h | E1-1 |
 | E1-3 | [~] | Chart selection by age/height; "no chart" otherwise | M | 6 Nov | 1 h | E1-1 |
 | E1-4 | [x] | Pure scorer `score(values, chart)` | M | 5 Nov | 1.5 h | E1-1 |
-| E1-5 | [~] | Plausibility limits in YAML (provisional) | M | 6 Nov | 0.5 h | – |
-| E1-6 | [ ] | Trigger rule in code | M | 6 Nov | 1 h | E1-4 |
+| E1-5 ✅ | [x] | Plausibility limits in YAML (provisional) | M | 5 Nov | 0.5 h | – |
+| E1-6 ✅ | [x] | Trigger rule in code | M | 5 Nov | 1 h | E1-4 |
 | E1-7 | [x] | Fixture tests (11 patients from architecture §11) | M | 5 Nov | 1 h | E1-4 |
 | E1-8 | [x] | Band-edge tests from an independent reading of the chart | M | 5 Nov | 1 h | E1-4 |
 
-**E1-1** · Files: `rules/charts/sats_adult_2012.yaml` · Acceptance: bands, colours, target times; numbers match the EMSSA 2012 adult chart. · Notes: add the manual page reference per band (E1-1b, 15 min).
+**E1-1** · Files: `rules/charts/sats_adult_2012.yaml` · Acceptance: bands, colours, target times; numbers match the EMSSA 2012 adult chart. · Notes: manual page references added 5 Nov (`source_pages`: target times pp. 6–7, adult chart and signs p. 8, adult TEWS pp. 26–27).
 **E1-2** · Acceptance: codes match the verified adult discriminator list (architecture §2); glosses are our own words.
 **E1-3** · Files: `mcp/afya_mcp/rules.py` (`select_chart`) · Acceptance: adult = over 12 y or over 150 cm; otherwise `NoChartForPatient` → UI notice "no chart for this patient yet". · Notes: function + test done; still to wire into `compute_tews` (E4-3).
 **E1-4** · Acceptance: returns tews, colour by TEWS, signs implied by inputs, final colour = highest of TEWS and signs, points and cited IDs per input; missing inputs reported, never guessed.
-**E1-5** · Files: `rules/plausibility.yaml` · Acceptance: limits loaded by code; outside → nothing saved, re-measure notice. · Notes: values provisional until reviewed with the nurse (E9-4); loader not written yet.
-**E1-6** · Acceptance: proposal only on (a) colour rise, (b) current ORANGE/RED sign, (c) nurse-reported worsening; smaller changes logged only; never downgrades. Tests for B→B2, M1→M2, improvement, C (confused).
-**E1-7 / E1-8** · Files: `mcp/tests/test_rules.py` · Notes: 44 tests passing on 5 Nov.
+**E1-5** · Files: `rules/plausibility.yaml` · Acceptance: limits loaded by code; outside → nothing saved, re-measure notice. · Notes: `load_plausibility` + `check_plausible` done 5 Nov with tests (HR 400, °F temperature, etc.); values provisional until reviewed with the nurse (E9-4). The "nothing saved" part is enforced in `record_vitals` (E4-2).
+**E1-6** · Acceptance: proposal only on (a) colour rise, (b) current ORANGE/RED sign, (c) nurse-reported worsening; smaller changes logged only; never downgrades. Tests for B→B2, M1→M2, improvement, C (confused). · Notes: `evaluate_trigger` done 5 Nov: trigger reference is the colour a nurse last **confirmed**; urgent = ORANGE/RED signs only (a YELLOW sign alone is logged); incomplete scores still trigger and say "lower bound"; unknown sign codes raise. 20 tests in `mcp/tests/test_plausibility_trigger.py`.
+**E1-7 / E1-8** · Files: `mcp/tests/test_rules.py` · Notes: 44 tests passing on 5 Nov (64 in total with E1-5/E1-6).
 
 ---
 
@@ -330,7 +330,7 @@ Scope frozen 2026-11-05: only the UI that proves the rubric, in its simplest for
 | Day | Mahdi | Brother |
 |---|---|---|
 | **5 Nov** | ✅ E0-1, E0-2, E1-1, E1-2, E1-4, E1-7, E1-8 · E0-3, E0-4, E0-7 | E0-5, E7-0, E7-1 |
-| **6 Nov** | E1-3, E1-5, E1-6, E9-1 | E0-6, E2-1, E2-2, E2-5, E7-2 |
+| **6 Nov** | ✅ E1-5, E1-6, E1-1 page refs (done 5 Nov) · E9-1 if possible | E0-6, E2-1, E2-2, E2-5, E7-2 |
 | **7–8 Nov** (vaccines, light) | E9-2, E9-3, review E5-1 labels | E5-1, E7-3, E7-4, E2-6 |
 | **9 Nov** | E4-1..3, E8-1, E9-4 → **end-to-end skeleton** | E3-1..4, E2-3, E2-4, E6-2, E7-6 |
 | **10 Nov** | E4-4, E4-5, E5-2, E5-3, E5-9, E6-1b | E6-1a, E7-7, E7-8 |
