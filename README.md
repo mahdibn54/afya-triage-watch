@@ -39,12 +39,18 @@ Only the nurse UI is published, on `http://127.0.0.1:3000`. Hardware: 16 GB RAM 
 cd mcp && pip install -e ".[dev]" && pytest
 ```
 
-## Known gaps (stated honestly)
+## Scope and limitations
 
-- Demo sign-in only ("sign in as…"); production needs proper sign-in (OIDC).
-- The local FHIR store is unauthenticated and reachable only on private Docker networks.
-- Adult SATS chart only; child charts are not included yet.
-- Plausibility limits are provisional until reviewed with a triage nurse (`FIELD_NOTES.md`).
+This is a research prototype built for a competition. The choices below keep it small, runnable on one laptop and
+easy to audit; each one has a clear path to production.
+
+| Area | In this prototype | For a real deployment |
+|---|---|---|
+| Sign-in | Demo users with a "sign in as…" switcher, every action logged with its user and role | Facility single sign-on (OIDC) |
+| FHIR store | HAPI FHIR on a private Docker network, reachable only through our gateway and tools | The facility's FHIR server with authentication |
+| Triage scale | SATS adult chart (patients over 12 years or over 150 cm); the chart registry is built for more | SATS child charts added as new chart files |
+| Plausibility limits | Provisional values, reviewed with a practising triage nurse | Limits agreed with the facility's clinical lead |
+| Data | Synthetic patients only | Real data only under the facility's governance and data-protection approvals |
 
 ## Licence
 
