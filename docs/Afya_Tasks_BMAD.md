@@ -8,6 +8,23 @@
 
 Status keys: `[ ]` to do · `[~]` in progress · `[x]` done · `[!]` blocked
 
+## Who does what (rebalanced 2026-11-05)
+
+✅ = done on 5 Nov (in the first commit). Remaining estimates: **Mahdi ≈ 52 h** (with 6–8 Nov light because of vaccines) · **Brother ≈ 45 h**.
+
+| Mahdi: the agent core (explained in the live review) | Brother: product, infra, data and proof |
+|---|---|
+| SATS rules and scorer ✅ | Next.js nurse UI, approval card, notices, audit viewer, sign-in switcher (E7) |
+| afya-mcp tools (E4) | docker-compose, networks, nginx gateway, clean-machine test (E2) |
+| LangGraph agent: signs, investigate loop, watch loop, fallbacks (E5-2…E5-11) | Postgres: run and verify roles, schema, audit triggers, checkpoints (E3-1…E3-4) |
+| Approve/claim/sweep logic and write endpoints (E3-5, E3-6, E6-1b, E6-3, E6-4) | Read endpoints + demo session (E6-1a, E6-2), host Ollama setup (E2-5) |
+| Eval harness, model runs, EVALS.md (E8-1, E8-3…E8-6) | 20 synthetic patients (E5-1), fixed-code/security tests (E8-2), secrets check (E8-7) |
+| Nurse interview + FIELD_NOTES (E9) | README, 300-word text, video, deck (E10-1, E10-3…E10-5) |
+| ARCHITECTURE.md, live-review rehearsals (E10-2, E11) | Seed job (E2-6) |
+
+Working agreement: one branch per story (`E7-3-approval-card`), pull request reviewed by the other person,
+merge to `main` only when CI is green. Daily 15-minute check-in. Nothing new after 12 Nov.
+
 ---
 
 ## 0. Definition of Done (applies to every story)
@@ -25,8 +42,8 @@ Status keys: `[ ]` to do · `[~]` in progress · `[x]` done · `[!]` blocked
 
 | ID | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|
-| E0-1 | Create the public GitHub repo with MIT `LICENSE`, `README` skeleton, `.gitignore` (incl. `.env`), `.env.example` | M | 5 Nov | 0.5 h | – |
-| E0-2 | Write `rules/charts/NOTICE` and a separate licence note: SATS bands and colours only, own codes, EMSSA attribution, excluded from MIT | M | 5 Nov | 0.5 h | E0-1 |
+| E0-1 ✅ | Create the public GitHub repo with MIT `LICENSE`, `README` skeleton, `.gitignore` (incl. `.env`), `.env.example` | M | 5 Nov | 0.5 h | – |
+| E0-2 ✅ | Write `rules/charts/NOTICE` and a separate licence note: SATS bands and colours only, own codes, EMSSA attribution, excluded from MIT | M | 5 Nov | 0.5 h | E0-1 |
 | E0-3 | Email EMSSA asking for permission or confirmation of SATS use (draft below) | M | 5 Nov | 0.3 h | – |
 | E0-4 | Ask Clinton for the exact submission timestamp, the format (repo, video, deck), and whether the brother can be listed as a team member | M | 5 Nov | 0.2 h | – |
 | E0-5 | Agree the API contract (7 endpoints, PDF §13); B starts on fake JSON | M+B | 5 Nov | 1 h | – |
@@ -40,14 +57,14 @@ Status keys: `[ ]` to do · `[~]` in progress · `[x]` done · `[!]` blocked
 
 | ID | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|
-| E1-1 | Chart registry: `rules/charts/sats_adult_2012.yaml` holding the TEWS bands, colours, target times and manual page per band | M | 5 Nov | 1.5 h | E0-2 |
-| E1-2 | Sign allow-list in YAML: 2 RED, 12 ORANGE, 5 YELLOW codes with short own glosses (verified list, PDF §2) | M | 5 Nov | 0.5 h | E1-1 |
+| E1-1 ✅ | Chart registry: `rules/charts/sats_adult_2012.yaml` holding the TEWS bands, colours, target times and manual page per band | M | 5 Nov | 1.5 h | E0-2 |
+| E1-2 ✅ | Sign allow-list in YAML: 2 RED, 12 ORANGE, 5 YELLOW codes with short own glosses (verified list, PDF §2) | M | 5 Nov | 0.5 h | E1-1 |
 | E1-3 | Chart selection by age/height (adult = over 12 y or over 150 cm). Otherwise return "no chart for this patient yet" | M | 6 Nov | 1 h | E1-1 |
-| E1-4 | Pure `score(observations, chart) -> {tews, colour, points[], cited_ids[]}` | M | 6 Nov | 1.5 h | E1-1 |
+| E1-4 ✅ | Pure `score(observations, chart) -> {tews, colour, points[], cited_ids[]}` | M | 6 Nov | 1.5 h | E1-1 |
 | E1-5 | Plausibility limits in YAML (provisional, labelled; e.g. HR 20–250, Temp 30–43) | M | 6 Nov | 0.5 h | – |
 | E1-6 | Trigger rule (code): colour rise, current ORANGE/RED sign, or nurse-reported worsening → proposal. Otherwise log only. Never downgrade | M | 6 Nov | 1 h | E1-4 |
-| E1-7 | Tests: the 11 fixtures from PDF §11 (B, B2, M1→M2, Y, O, R, T, P-014, C) | M | 6 Nov | 1 h | E1-4 |
-| E1-8 | Tests: band-edge grid generated from a **second, independent transcription** of the table | M | 6 Nov | 1 h | E1-4 |
+| E1-7 ✅ | Tests: the 11 fixtures from PDF §11 (B, B2, M1→M2, Y, O, R, T, P-014, C) | M | 6 Nov | 1 h | E1-4 |
+| E1-8 ✅ | Tests: band-edge grid generated from a **second, independent transcription** of the table | M | 6 Nov | 1 h | E1-4 |
 
 **Acceptance:** `pytest tests/rules` passes; all fixture scores match the manual; there is no LLM anywhere in scoring.
 
@@ -61,7 +78,7 @@ Status keys: `[ ]` to do · `[~]` in progress · `[x]` done · `[!]` blocked
 | E2-2 | Two networks: `fhir_ro` (WSO2 + nginx) and `fhir_rw` (nginx + HAPI + afya-mcp). Publish **only** UI on `127.0.0.1:3000` | B | 6 Nov | 1 h | E2-1 |
 | E2-3 | nginx gateway, **GET only**: raw-URI match; 403 on `;` `..` `%2e` `%2f` `$`; clear method-override headers | B | 9 Nov | 1 h | E2-2 |
 | E2-4 | WSO2 config: `FHIR_SERVER_DISABLE_AUTHORIZATION=True` inside the private network, FHIRPath response trimming | B | 9 Nov | 1 h | E2-2 |
-| E2-5 | Host Ollama: `qwen3:8b` + `qwen3:4b-instruct`, bound to the Docker bridge (not 0.0.0.0); `OLLAMA_BASE_URL`. Optional `--profile ollama` CPU container | M | 6 Nov | 0.5 h | – |
+| E2-5 | Host Ollama: `qwen3:8b` + `qwen3:4b-instruct`, bound to the Docker bridge (not 0.0.0.0); `OLLAMA_BASE_URL`. Optional `--profile ollama` CPU container | B | 6 Nov | 0.5 h | – |
 | E2-6 | Seed job: 20 synthetic patients loaded into HAPI | B | 8 Nov | 1 h | E5-1 |
 | E2-7 | Clean-machine test: fresh clone, then `docker compose up`, then a working demo | B | 14 Nov | 1 h | all |
 
@@ -73,10 +90,10 @@ Status keys: `[ ]` to do · `[~]` in progress · `[x]` done · `[!]` blocked
 
 | ID | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|
-| E3-1 | `db-init` runs Appendix A DDL as `afya_owner`: schemas `afya` and `lg`, tables, CHECKs, grants | M | 9 Nov | 1.5 h | E2-1 |
-| E3-2 | Roles: `afya_app` LOGIN, NOSUPERUSER, not a member of owner, no CREATE. Owner and superuser passwords only in db-init | M | 9 Nov | 0.5 h | E3-1 |
-| E3-3 | Audit triggers that block UPDATE, DELETE and TRUNCATE. `actor` is an FK to users (incl. `agent`, `system`); `auth = demo_switcher` | M | 9 Nov | 0.5 h | E3-1 |
-| E3-4 | `PostgresSaver.setup()` as owner in the `lg` schema; app gets SELECT, INSERT, UPDATE and DELETE on `lg` | M | 9 Nov | 0.5 h | E3-1 |
+| E3-1 | `db-init` runs Appendix A DDL as `afya_owner`: schemas `afya` and `lg`, tables, CHECKs, grants (DDL already in `db/schema.sql`; B runs and verifies it) | B | 9 Nov | 1.5 h | E2-1 |
+| E3-2 | Roles: `afya_app` LOGIN, NOSUPERUSER, not a member of owner, no CREATE. Owner and superuser passwords only in db-init | B | 9 Nov | 0.5 h | E3-1 |
+| E3-3 | Audit triggers that block UPDATE, DELETE and TRUNCATE. `actor` is an FK to users (incl. `agent`, `system`); `auth = demo_switcher` | B | 9 Nov | 0.5 h | E3-1 |
+| E3-4 | `PostgresSaver.setup()` as owner in the `lg` schema; app gets SELECT, INSERT, UPDATE and DELETE on `lg` | B | 9 Nov | 0.5 h | E3-1 |
 | E3-5 | Repository functions: approve (role check → 403, then single-use UPDATE → 409), claim (not expired, latest reading, proposal approved), mark done, startup sweep | M | 11 Nov | 2 h | E3-1 |
 | E3-6 | Dedup: `UNIQUE(visit_id, trigger, evidence_hash)`; hash = sorted obs IDs + sign codes + rules version; `INSERT … ON CONFLICT DO NOTHING` | M | 12 Nov | 1 h | E3-1 |
 
@@ -105,7 +122,7 @@ Status keys: `[ ]` to do · `[~]` in progress · `[x]` done · `[!]` blocked
 
 | ID | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|
-| E5-1 | Write 20 synthetic patients (8 positive, 12 hard negatives; PDF §11 mix) with invented multilingual complaints. Split: 6 tuning, 14 held out | M | 7–8 Nov | 3 h | E1-7 |
+| E5-1 | Write 20 synthetic patients (8 positive, 12 hard negatives; PDF §11 mix) with invented multilingual complaints. Split: 6 tuning, 14 held out (B writes, M reviews the labels) | B | 7–8 Nov | 3 h | E1-7 |
 | E5-2 | Event-run graph, one thread per vitals event (`visit:obs_id`): validate → record → score → deteriorate → map_signs → trigger → investigate → proposal + `interrupt()` → executor | M | 10 Nov | 3 h | E4-* |
 | E5-3 | **map_signs** (Call A): JSON schema, enum codes, current/other, quote ≤15 words; code checks literal quote, status and allow-list; drops logged | M | 10 Nov | 2 h | E1-2 |
 | E5-4 | **investigate** (Call B): at most 4 read-only tool calls (WSO2 search/read + 3 afya reads), then `submit_decision`. ToolNode built from the **same** filtered list. Only sign codes, never quotes. FHIR trimmed to code/value/time/id | M | 11 Nov | 3 h | E5-2 |
@@ -125,8 +142,9 @@ Status keys: `[ ]` to do · `[~]` in progress · `[x]` done · `[!]` blocked
 
 | ID | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|
-| E6-1 | Endpoints: `/login-as`, `/me`, `/queue`, `/vitals`, `/proposals?status=pending`, `/proposals/{id}/approve`, `/proposals/{id}/reject`, `/audit` | M | 9–11 Nov | 3 h | E0-5 |
-| E6-2 | Demo sign-in behind `DEMO_MODE=1`: signed session cookie (SameSite=Strict); user taken from the session, never the body | M | 9 Nov | 1 h | E6-1 |
+| E6-1a | Read endpoints: `/login-as`, `/me`, `/queue`, `/audit` | B | 9–10 Nov | 1.5 h | E0-5 |
+| E6-1b | Write endpoints: `/vitals`, `/proposals?status=pending`, `/proposals/{id}/approve`, `/proposals/{id}/reject` | M | 10–11 Nov | 1.5 h | E0-5 |
+| E6-2 | Demo sign-in behind `DEMO_MODE=1`: signed session cookie (SameSite=Strict); user taken from the session, never the body | B | 9 Nov | 1 h | E6-1 |
 | E6-3 | Approve body carries colour, signs kept and override reason. One transaction writes decision + audit + command, then resumes the graph | M | 11 Nov | 1.5 h | E3-5 |
 | E6-4 | Startup sweep resumes approved commands that are not done | M | 12 Nov | 0.5 h | E3-5 |
 
@@ -153,12 +171,12 @@ Status keys: `[ ]` to do · `[~]` in progress · `[x]` done · `[!]` blocked
 | ID | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|
 | E8-1 | Harness `make eval`: runs groups A/B/C, writes raw JSONL to `evals/runs/`, rebuilds the tables | M | 9 Nov | 3 h | E5-2 |
-| E8-2 | Group A (fixed code, once): the 17+ cases from PDF §11 group A, incl. gateway bypasses, WSO2→HAPI blocked, forged write tool, audit immutability | M+B | 12 Nov | 3 h | E2-3, E3-* |
+| E8-2 | Group A (fixed code, once): the 17+ cases from PDF §11 group A, incl. gateway bypasses, WSO2→HAPI blocked, forged write tool, audit immutability | B | 12 Nov | 3 h | E2-3, E3-* |
 | E8-3 | Group B (model-dependent): 20 patients × 5 runs × 2 models, k/n with Wilson 95% interval; negation, Swahili, injections (complaint, FHIR note, Swahili mix) | M | 13 Nov | 2 h + run time | E5-* |
 | E8-4 | Group C: rules-only baseline on the same 20 patients (sensitivity, false alerts per visit) | M | 13 Nov | 0.5 h | E8-3 |
 | E8-5 | Metrics: outcome, 0 ungated actions, 0 diagnosis/treatment words, citation validity, sign precision/recall, tool-order constraints, disagreeing runs, tokens/latency median and p95, cost | M | 13 Nov | 1 h | E8-1 |
 | E8-6 | Write EVALS.md: template in PDF §11, one real unfixed failure with trace, hypothesis and next step; tuning vs held-out split disclosed | M | 13 Nov | 1.5 h | E8-3 |
-| E8-7 | Grep the committed logs for secrets (`sk-or-`, headers) before pushing | M | 13 Nov | 0.2 h | E8-1 |
+| E8-7 | Grep the committed logs for secrets (`sk-or-`, headers) before pushing | B | 13 Nov | 0.2 h | E8-1 |
 
 **Rule:** only report runs that actually happened. Freeze code before the final held-out run.
 
@@ -204,13 +222,13 @@ Status keys: `[ ]` to do · `[~]` in progress · `[x]` done · `[!]` blocked
 | Day | Mahdi | Brother |
 |---|---|---|
 | **5 Nov** | E0-1..4, E1-1, E1-2 | E0-5, E7-1 |
-| **6 Nov** | E1-3..8, E2-5, E9-1 | E0-6, E2-1, E2-2, E7-2 |
-| **7–8 Nov** (vaccines, light) | E9-2, E9-3, E5-1 | E7-3, E2-6 |
-| **9 Nov** | E3-1..4, E4-1..3, E6-1, E6-2, E8-1, E9-4 → **end-to-end skeleton** | E2-3, E2-4, E7-6 |
-| **10 Nov** | E4-4, E4-5, E5-2, E5-3, E5-9 | E7-4 |
+| **6 Nov** | E1-3, E1-5, E1-6, E9-1 | E0-6, E2-1, E2-2, E2-5, E7-2 |
+| **7–8 Nov** (vaccines, light) | E9-2, E9-3, review E5-1 labels | E5-1, E7-3, E2-6 |
+| **9 Nov** | E4-1..3, E8-1, E9-4 → **end-to-end skeleton** | E3-1..4, E2-3, E2-4, E6-2, E7-6 |
+| **10 Nov** | E4-4, E4-5, E5-2, E5-3, E5-9, E6-1b | E6-1a, E7-4 |
 | **11 Nov** | E3-5, E4-6, E5-4..6, E6-3 | E7-5, E7-7 |
-| **12 Nov** | E3-6, E4-7, E5-7, E5-8, E5-10, E6-4, E8-2 | E7-7, E8-2 |
-| **13 Nov** | E5-11, E8-3..7, E10-2 (code freeze before final eval run) | E10-1, E10-3 |
+| **12 Nov** | E3-6, E4-7, E5-7, E5-8, E5-10, E6-4 | E7-7, E8-2 |
+| **13 Nov** | E5-11, E8-3..6, E10-2 (code freeze before final eval run) | E8-7, E10-1, E10-3 |
 | **14 Nov** | E11-1, E11-2 | E2-7, E10-4, E10-5 |
 | **15 Nov** | Travel to Nairobi · E11-3, E11-4 | – |
 | **16 Nov** | Submit · E10-6 | – |
