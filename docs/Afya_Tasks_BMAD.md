@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 13 done · 10 drafted · 64 to do · 0 blocked · 87 stories
+**Progress:** 20 done · 4 drafted · 63 to do · 0 blocked · 87 stories
 
 ---
 
@@ -104,18 +104,18 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E2-1 | [~] | docker-compose with all services and health checks | B | Day 2 | 3 h | E0-5 |
-| E2-2 | [~] | Private networks; only the UI published on 127.0.0.1:3000 | B | Day 2 | 1 h | E2-1 |
-| E2-3 | [~] | nginx gateway, GET only | B | Day 5 | 1 h | E2-2 |
-| E2-4 | [ ] | WSO2 config and FHIRPath response trimming | B | Day 5 | 1 h | E2-2 |
+| E2-1 | [x] | docker-compose with all services and health checks | B | Day 2 | 3 h | E0-5 |
+| E2-2 | [x] | Private networks; only the UI published on 127.0.0.1:3000 | B | Day 2 | 1 h | E2-1 |
+| E2-3 | [x] | nginx gateway, GET only | B | Day 5 | 1 h | E2-2 |
+| E2-4 | [~] | WSO2 config and FHIRPath response trimming | B | Day 5 | 1 h | E2-2 |
 | E2-5 | [ ] | Host Ollama for the GPU, bound to the Docker bridge | B | Day 2 | 0.5 h | – |
 | E2-6 | [ ] | Seed job loading the 20 synthetic patients into HAPI | B | Day 4 | 1 h | E5-1 |
 | E2-7 | [ ] | Clean-machine test | B | Day 10 | 1 h | all |
 
-**E2-1** · Files: `docker-compose.yml` · Acceptance: `docker compose up --build` starts postgres → db-init → lg-init → hapi → gateway → wso2-fhir-mcp → afya-mcp → api (→ web with `--profile web`) without manual steps. · Notes: drafted by M on Day 1; `docker compose config` valid. **To verify on first run:** HAPI H2 volume path (`/app/target`), lg-init grants, `wso2-fhir-mcp` MCP path (`/mcp`).
-**E2-2** · Acceptance: networks `app`, `mcp`, `fhir_ro`, `fhir_rw` internal; only `web` published. Test: `docker compose exec wso2-fhir-mcp` cannot resolve `hapi`. · Notes: drafted.
-**E2-3** · Files: `gateway/nginx.conf` · Acceptance: GET/HEAD only; 403 for `;` `..` `%2e` `%2f` `%3b` `%5c` `$` in the path; method-override headers cleared; reference params like `subject=Patient%2F1` in the query still work. · Notes: `nginx -t` OK on Day 1. WSO2 0.11.0 uses GET for search and read (checked in its source).
-**E2-4** · Acceptance: WSO2 reaches HAPI only via `http://gateway/fhir`; `FHIR_SERVER_DISABLE_AUTHORIZATION=True` only on the private network; a FHIRPath filter returns id, code, value, unit, time.
+**E2-1** · Files: `docker-compose.yml` · Acceptance: `docker compose up --build` starts postgres → db-init → lg-init → hapi → gateway → wso2-fhir-mcp → afya-mcp → api (→ web with `--profile web`) without manual steps. · Notes: drafted by M; verified and fixed by M on the first full run (`scripts/smoke.sh`, all checks pass). Fixes: (1) `ghcr.io/wso2/fhir-mcp-server:0.11.0` is not published, pinned by digest to `:latest` (0.11.0 build); (2) HAPI's default H2 is in-memory (`jdbc:h2:mem:test_mem`), so `/app/target` was wrong: the file DB is now `/data/h2/hapi` on volume `hapidata` via `spring.datasource.url`, and a one-shot `hapi-perms` chowns the volume to uid 65532 (distroless image); (3) postgres healthcheck over TCP (`-h 127.0.0.1`) plus `pg_isready` wait in `db/init.sh`; (4) `afya_app` search_path `afya, lg`. WSO2 MCP path `/mcp` confirmed. Measured: cold start with image pulls 5 min 24 s, with images cached 12 s to all containers up, HAPI answers after about 40 s more. Images: afya-api 268 MB, afya-mcp 193 MB, wso2 fhir-mcp 198 MB, hapi 582 MB, postgres 294 MB, nginx 48 MB. `docker stats --no-stream` RAM: hapi 1.14 GiB, wso2-fhir-mcp 61 MiB, postgres 26 MiB (54 MiB under load), afya-mcp 43 MiB, api 36 MiB, gateway 2 MiB; about 1.3 GiB total.
+**E2-2** · Acceptance: networks `app`, `mcp`, `fhir_ro`, `fhir_rw` internal; only `web` published. Test: `docker compose exec wso2-fhir-mcp` cannot resolve `hapi`. · Notes: drafted by M; verified by M (smoke.sh: wso2-fhir-mcp cannot resolve `hapi`, reaches `gateway`; no host ports published without the web profile).
+**E2-3** · Files: `gateway/nginx.conf` · Acceptance: GET/HEAD only; 403 for `;` `..` `%2e` `%2f` `%3b` `%5c` `$` in the path; method-override headers cleared; reference params like `subject=Patient%2F1` in the query still work. · Notes: `nginx -t` OK on Day 1. WSO2 0.11.0 uses GET for search and read (checked in its source). Verified by M on the live stack (smoke.sh): GET 200; POST/PUT/DELETE/PATCH 403; `;` `..` `%2e` `$` 403; `subject=Patient%2F1` query 200.
+**E2-4** · Acceptance: WSO2 reaches HAPI only via `http://gateway/fhir`; `FHIR_SERVER_DISABLE_AUTHORIZATION=True` only on the private network; a FHIRPath filter returns id, code, value, unit, time. · Notes: M verified the first half (WSO2 reaches HAPI only via the gateway, MCP answers at `/mcp`, authorization disabled on the private network); FHIRPath trimming not checked yet.
 **E2-5** · Acceptance: `ollama pull qwen3:8b qwen3:4b-instruct qwen3:30b-a3b`; `OLLAMA_HOST=172.17.0.1:11434` (Docker bridge, not 0.0.0.0); API reaches it via `host.docker.internal`. Record tokens/s here.
 **E2-6** · Files: `seed/` · Acceptance: idempotent; loads the 20 patients and their visits into HAPI and `afya.visits`.
 **E2-7** · Acceptance: fresh clone on another machine or user → README steps only → full P-014 demo works. Time it and note it here.
@@ -126,17 +126,17 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E3-1 | [~] | db-init runs the schema as `afya_owner` | B | Day 5 | 1.5 h | E2-1 |
-| E3-2 | [~] | Roles: `afya_app` least privilege | B | Day 5 | 0.5 h | E3-1 |
-| E3-3 | [~] | Audit log append-only (grants + triggers) | B | Day 5 | 0.5 h | E3-1 |
-| E3-4 | [~] | LangGraph checkpoints in schema `lg` | B | Day 5 | 0.5 h | E3-1 |
+| E3-1 | [x] | db-init runs the schema as `afya_owner` | B | Day 5 | 1.5 h | E2-1 |
+| E3-2 | [x] | Roles: `afya_app` least privilege | B | Day 5 | 0.5 h | E3-1 |
+| E3-3 | [x] | Audit log append-only (grants + triggers) | B | Day 5 | 0.5 h | E3-1 |
+| E3-4 | [x] | LangGraph checkpoints in schema `lg` | B | Day 5 | 0.5 h | E3-1 |
 | E3-5 | [ ] | Approve, claim, mark-done, startup-sweep queries | M | Day 7 | 2 h | E3-1 |
 | E3-6 | [ ] | Dedup key and insert | M | Day 8 | 1 h | E3-1 |
 
-**E3-1** · Files: `db/init.sh`, `db/schema.sql` · Acceptance: runs on every start without errors (idempotent). · Notes: DDL written Day 1; B runs and verifies it.
-**E3-2** · Acceptance: `afya_app` is LOGIN, NOSUPERUSER, not a member of `afya_owner`, has no CREATE; owner and superuser passwords exist only in `db-init`.
-**E3-3** · Acceptance: as `afya_app`, UPDATE, DELETE and TRUNCATE on `afya.audit_log` all fail; INSERT works (identity column needs no sequence grant: confirm). Wording: "append-only for the application role".
-**E3-4** · Files: `api/afya_api/lg_setup.py` · Acceptance: `lg-init` creates the checkpoint tables as owner; `afya_app` can read/write them but not alter them.
+**E3-1** · Files: `db/init.sh`, `db/schema.sql` · Acceptance: runs on every start without errors (idempotent). · Notes: DDL written Day 1; verified by M on the first full run (db-init ran clean on a fresh volume and again on restart; idempotent).
+**E3-2** · Acceptance: `afya_app` is LOGIN, NOSUPERUSER, not a member of `afya_owner`, has no CREATE; owner and superuser passwords exist only in `db-init`. · Notes: verified by M (no CREATE, not a member of owner; search_path `afya, lg` added in `db/init.sh`).
+**E3-3** · Acceptance: as `afya_app`, UPDATE, DELETE and TRUNCATE on `afya.audit_log` all fail; INSERT works (identity column needs no sequence grant: confirm). Wording: "append-only for the application role". · Notes: verified by M in `scripts/smoke.sh`: INSERT works (no sequence grant needed), UPDATE/DELETE/TRUNCATE all fail.
+**E3-4** · Files: `api/afya_api/lg_setup.py` · Acceptance: `lg-init` creates the checkpoint tables as owner; `afya_app` can read/write them but not alter them. · Notes: verified by M: `PostgresSaver.setup()` worked as is (no autocommit change needed); `afya_app` can insert/delete, ALTER fails.
 **E3-5** · Acceptance: approve = role check (403) then `UPDATE … WHERE status='pending'` (0 rows → 409) + audit + command in **one transaction**; claim = not claimed, not expired, still the latest reading, proposal approved; resume = claimed, not done, attempts < 5; startup sweep resumes approved-not-done. SQL in architecture Appendix A.
 **E3-6** · Acceptance: `UNIQUE(visit_id, trigger, evidence_hash)`; hash = sorted obs IDs + sign codes + rules version (never the model's quote text); `INSERT … ON CONFLICT DO NOTHING RETURNING`.
 

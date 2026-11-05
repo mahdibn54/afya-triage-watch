@@ -3,6 +3,8 @@
 # Runs as the superuser. Owner and superuser passwords exist only in this container.
 set -eu
 
+until pg_isready -q; do sleep 1; done
+
 echo "db-init: roles"
 psql -v ON_ERROR_STOP=1 \
      -v owner_pw="$AFYA_OWNER_PASSWORD" \
@@ -13,6 +15,7 @@ SELECT 'CREATE ROLE afya_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT
 WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'afya_app') \gexec
 ALTER ROLE afya_owner PASSWORD :'owner_pw';
 ALTER ROLE afya_app   PASSWORD :'app_pw';
+ALTER ROLE afya_app IN DATABASE afya SET search_path = afya, lg;
 GRANT CONNECT, CREATE ON DATABASE afya TO afya_owner;
 GRANT CONNECT ON DATABASE afya TO afya_app;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;

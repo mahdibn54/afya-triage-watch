@@ -19,7 +19,7 @@ services:
       - pgdata:/var/lib/postgresql/data
     networks: [app]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d afya"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d afya"]
       interval: 5s
       timeout: 3s
       retries: 30
@@ -56,12 +56,29 @@ services:
 
   # ---------- FHIR ----------
   # HAPI FHIR with its built-in H2 database. Never published; only nginx and afya-mcp reach it.
+  # One-shot: the HAPI image is distroless and runs as uid 65532, a fresh named volume is root-owned.
+  hapi-perms:
+    image: postgres:16-alpine   # already pulled for postgres; only needs chown
+    user: "0"
+    entrypoint: ["chown", "-R", "65532:65532", "/data"]
+    volumes:
+      - hapidata:/data
+    network_mode: none
+    restart: "no"
+
   hapi:
     image: hapiproject/hapi:v8.4.0-2
+    depends_on:
+      hapi-perms: { condition: service_completed_successfully }
     environment:
       hapi.fhir.fhir_version: R4
+      # The image default is an in-memory H2 (jdbc:h2:mem:test_mem). Use a file DB on the volume.
+      spring.datasource.url: jdbc:h2:file:/data/h2/hapi;DB_CLOSE_ON_EXIT=FALSE;AUTO_RECONNECT=TRUE
+      spring.datasource.username: sa
+      spring.datasource.password: ""
+      spring.datasource.driverClassName: org.h2.Driver
     volumes:
-      - hapidata:/app/target   # H2 file database survives restarts (verify path on first run)
+      - hapidata:/data   # H2 file database survives restarts
     networks: [fhir_rw]
 
   # Read-only gateway in front of HAPI for the borrowed WSO2 server: GET only.
@@ -78,7 +95,7 @@ services:
 
   # Borrowed MCP server (Apache-2.0). Reaches HAPI only through the gateway.
   wso2-fhir-mcp:
-    image: ghcr.io/wso2/fhir-mcp-server:0.11.0
+    image: ghcr.io/wso2/fhir-mcp-server@sha256:52443bfe53dda032ceab5232163570976887d00bce2c635c3875c29d988ff2c1   # digest of :latest (0.11.0 build); the 0.11.0 tag is not published on ghcr
     depends_on:
       gateway: { condition: service_healthy }
     environment:
