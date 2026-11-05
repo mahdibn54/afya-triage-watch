@@ -129,6 +129,37 @@ async def main():
 sys.exit(0 if asyncio.run(main()) else 1)
 PY
 
+check "api imports afya_mcp.workflow (shared SQL module)" dc exec -T api python -c "import afya_mcp.workflow, afya_mcp.db"
+check "record_vitals via /act/mcp sets visits.latest_obs_id" mcpx <<'PY'
+import asyncio, json, os, sys, uuid, httpx, psycopg
+from datetime import date, timedelta
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+
+H = {"Content-Type": "application/fhir+json"}
+F = "http://hapi:8080/fhir"
+def post(res):
+    r = httpx.post(f"{F}/{res['resourceType']}", json=res, headers=H, timeout=30); r.raise_for_status(); return r.json()["id"]
+
+pid = post({"resourceType": "Patient", "birthDate": (date.today() - timedelta(days=365 * 40)).isoformat(), "gender": "other"})
+eid = post({"resourceType": "Encounter", "status": "in-progress", "class": {"code": "EMER"}, "subject": {"reference": f"Patient/{pid}"}})
+values = {"resp_rate": 16, "heart_rate": 80, "systolic_bp": 120, "temperature": 37.0, "mobility": "walking",
+          "consciousness": "alert", "trauma": "no"}
+
+async def main():
+    async with streamablehttp_client("http://127.0.0.1:9000/act/mcp/") as (r, w, _):
+        async with ClientSession(r, w) as s:
+            await s.initialize()
+            res = await s.call_tool("record_vitals", {"patient_id": pid, "visit_id": eid, "values": values,
+                                                      "idempotency_key": "smoke-" + uuid.uuid4().hex})
+            return json.loads(res.content[0].text)["observation_id"].split("/")[1]
+
+oid = asyncio.run(main())
+with psycopg.connect(os.environ["DATABASE_URL"]) as c:
+    row = c.execute("select latest_obs_id, patient_id from visits where id = %s", (eid,)).fetchone()
+sys.exit(0 if row == (oid, pid) else 1)
+PY
+
 echo "== host exposure"
 PUB=$(docker ps --filter "label=com.docker.compose.project=afya" --format '{{.Names}} {{.Ports}}' | grep -E '0\.0\.0\.0|\[::\]|127\.0\.0\.1' || true)
 if [ -z "$PUB" ]; then ok "no service publishes a host port (web profile off)"; else bad "published ports: $PUB"; fi

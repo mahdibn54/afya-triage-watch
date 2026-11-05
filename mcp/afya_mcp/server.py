@@ -20,6 +20,7 @@ from starlette.responses import PlainTextResponse
 from starlette.routing import Mount, Route
 
 from . import rules, services
+from .db import PgVisitStore
 from .fhir import HttpFhir
 
 
@@ -49,6 +50,11 @@ async def _run(fn: Any, *args: Any) -> Any:
 @lru_cache(maxsize=1)
 def _fhir() -> HttpFhir:
     return HttpFhir(os.environ.get("FHIR_BASE_URL", "http://hapi:8080/fhir"))
+
+
+@lru_cache(maxsize=1)
+def _store() -> PgVisitStore | None:
+    return PgVisitStore() if os.environ.get("DATABASE_URL") else None
 
 
 @lru_cache(maxsize=1)
@@ -92,7 +98,7 @@ async def record_vitals(patient_id: str, visit_id: str, values: dict, idempotenc
     """Save a nurse's entry as one FHIR Observation (conditional create on the idempotency key).
     Unknown inputs or values are rejected ("invalid"); impossible values are not saved ("remeasure")."""
     return await _run(services.record_vitals, _fhir(), _plausibility(), _registry(), patient_id, visit_id, values,
-                      idempotency_key)
+                      idempotency_key, None, _store())
 
 
 @act.tool()

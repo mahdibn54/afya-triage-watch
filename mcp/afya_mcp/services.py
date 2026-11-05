@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Any
 
 from . import rules
+from .db import VisitStore
 from .fhir import (
     COMPONENTS,
     PANEL_CODE,
@@ -29,11 +30,13 @@ USABLE_STATUSES = ("final", "amended", "corrected")
 
 def record_vitals(fhir: Fhir, plausibility: dict[str, Any], registry: list[dict[str, Any]], patient_id: str,
                   visit_id: str, values: dict[str, Any], idempotency_key: str,
-                  when: datetime | None = None) -> dict[str, Any]:
+                  when: datetime | None = None, store: VisitStore | None = None) -> dict[str, Any]:
     """E4-2. Validation and plausibility first: anything wrong or impossible means nothing is saved.
 
     Conditional create on the request identifier, so a retried call returns the same Observation.
-    (Updating afya.visits.latest_obs_id happens in the Postgres layer, E3/E4-2 part 2.)
+    After the FHIR write, the visit row and latest_obs_id are upserted in Postgres (`store`, one transaction). The
+    latest reading is read back from FHIR, so a retry of an older entry never moves latest_obs_id backwards. If the
+    database write fails the error propagates; the nurse's retry converges (same Observation, same upsert).
     """
     problems = _invalid_entry(values, registry, idempotency_key)
     if problems:
@@ -47,6 +50,10 @@ def record_vitals(fhir: Fhir, plausibility: dict[str, Any], registry: list[dict[
         return {"status": "invalid", "saved": False, "problems": ["visit does not belong to this patient"]}
     obs = vitals_observation(pid, vid, values, idempotency_key, when)
     created = fhir.conditional_create(obs, f"{REQ_SYSTEM}|{idempotency_key}")
+    if store is not None:
+        newest = fhir.search("Observation", {"encounter": f"Encounter/{vid}", "code": f"http://loinc.org|{PANEL_CODE}",
+                                             "status": ",".join(USABLE_STATUSES), "_sort": "-date", "_count": "1"})
+        store.record_reading(vid, pid, newest[0]["id"] if newest else created["id"])
     return {"status": "saved", "saved": True, "observation_id": f"Observation/{created['id']}"}
 
 

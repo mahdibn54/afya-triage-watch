@@ -45,7 +45,7 @@ services:
 
   # One-shot: LangGraph checkpoint tables (schema lg), created by the owner role.
   lg-init:
-    build: ./api
+    build: { context: ., dockerfile: api/Dockerfile }   # repo root: the api also installs mcp/ (afya_mcp.workflow)
     depends_on:
       db-init: { condition: service_completed_successfully }
     environment:
@@ -120,7 +120,7 @@ services:
     networks: [fhir_rw, mcp, app]
 
   api:
-    build: ./api
+    build: { context: ., dockerfile: api/Dockerfile }   # repo root: the api also installs mcp/ (afya_mcp.workflow)
     depends_on:
       lg-init: { condition: service_completed_successfully }
       afya-mcp: { condition: service_started }
