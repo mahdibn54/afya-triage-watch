@@ -1,0 +1,73 @@
+# SATS adult chart, transcribed by the Afya authors from the EMSSA SATS Training Manual (2012),
+# "Adult SATS Chart" and the adult TEWS table. Numbers and colours only; no manual text is copied.
+# Source: https://emssa.org.za/sats  — see NOTICE.md. Not covered by the repository's MIT licence.
+chart_id: sats_adult_2012
+applies_to: "age over 12 years or height over 150 cm"
+min_age_years_exclusive: 12
+min_height_cm_exclusive: 150
+
+# TEWS total -> colour and time-to-be-seen target (minutes). Highest matching row wins.
+colours:
+  - { min_tews: 7, colour: RED,    target_minutes: 0 }
+  - { min_tews: 5, colour: ORANGE, target_minutes: 10 }
+  - { min_tews: 3, colour: YELLOW, target_minutes: 60 }
+  - { min_tews: 0, colour: GREEN,  target_minutes: 240 }
+
+# Numeric inputs: bands are checked in order; the first band whose bound matches gives the points.
+# "lt" = strictly below, "le" = at or below, no bound = everything else.
+numeric:
+  resp_rate:   # breaths/min
+    loinc: "9279-1"
+    unit: "/min"
+    bands: [ { lt: 9, points: 2 }, { lt: 15, points: 0 }, { lt: 21, points: 1 }, { lt: 30, points: 2 }, { points: 3 } ]
+  heart_rate:  # beats/min
+    loinc: "8867-4"
+    unit: "/min"
+    bands: [ { lt: 41, points: 2 }, { lt: 51, points: 1 }, { lt: 101, points: 0 }, { lt: 111, points: 1 }, { lt: 130, points: 2 }, { points: 3 } ]
+  systolic_bp: # mmHg
+    loinc: "8480-6"
+    unit: "mm[Hg]"
+    bands: [ { lt: 71, points: 3 }, { lt: 81, points: 2 }, { lt: 101, points: 1 }, { lt: 200, points: 0 }, { points: 2 } ]
+  temperature: # degrees Celsius
+    loinc: "8310-5"
+    unit: "Cel"
+    bands: [ { lt: 35, points: 2 }, { le: 38.4, points: 0 }, { points: 2 } ]
+
+# Categorical inputs (custom codes). "implies_sign" adds a SATS warning sign on top of the points.
+categorical:
+  mobility:
+    code: "afya:mobility"
+    values: { walking: 0, with_help: 1, stretcher: 2 }
+  consciousness:
+    code: "afya:avpu"
+    values: { alert: 0, confused: 1, voice: 1, pain: 2, unresponsive: 3 }
+    implies_sign: { confused: LOC_REDUCED_CONFUSED }
+  trauma:
+    code: "afya:trauma"
+    values: { "no": 0, "yes": 1 }
+
+# Not part of the TEWS sum. SpO2 is checked when resp_rate scores 1 or more.
+not_scored:
+  spo2: { loinc: "59408-5", unit: "%" }
+
+# Warning signs the model may map from a complaint (adult chart). Glosses are our own wording.
+signs:
+  AIRWAY_OBSTRUCTED:        { colour: RED,    gloss: "airway blocked or not breathing" }
+  SEIZURE_CURRENT:          { colour: RED,    gloss: "fitting right now" }
+  SOB_ACUTE:                { colour: ORANGE, gloss: "sudden shortness of breath" }
+  LOC_REDUCED_CONFUSED:     { colour: ORANGE, gloss: "less awake than normal or confused" }
+  COUGHING_BLOOD:           { colour: ORANGE, gloss: "coughing up blood" }
+  CHEST_PAIN:               { colour: ORANGE, gloss: "chest pain" }
+  HAEMORRHAGE_UNCONTROLLED: { colour: ORANGE, gloss: "bleeding that does not stop" }
+  SEIZURE_POSTICTAL:        { colour: ORANGE, gloss: "just had a fit" }
+  FOCAL_NEURO_ACUTE:        { colour: ORANGE, gloss: "sudden weakness or numbness on one side, face drooping" }
+  AGGRESSION:               { colour: ORANGE, gloss: "aggressive or violent behaviour" }
+  POISONING_OVERDOSE:       { colour: ORANGE, gloss: "swallowed poison or too much medicine" }
+  VOMITING_FRESH_BLOOD:     { colour: ORANGE, gloss: "vomiting fresh blood" }
+  PREGNANCY_ABDO_PAIN:      { colour: ORANGE, gloss: "pregnant with belly pain" }
+  SEVERE_PAIN:              { colour: ORANGE, gloss: "severe pain" }
+  HAEMORRHAGE_CONTROLLED:   { colour: YELLOW, gloss: "bleeding that has been stopped" }
+  ABDOMINAL_PAIN:           { colour: YELLOW, gloss: "belly pain" }
+  VOMITING_PERSISTENT:      { colour: YELLOW, gloss: "keeps vomiting" }
+  PREGNANCY_PV_BLEED:       { colour: YELLOW, gloss: "pregnant with vaginal bleeding" }
+  MODERATE_PAIN:            { colour: YELLOW, gloss: "moderate pain" }

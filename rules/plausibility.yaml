@@ -1,0 +1,9 @@
+# PROVISIONAL plausibility limits: values outside are not saved or scored; the nurse is asked to re-measure.
+# Source: authors' placeholder. To be reviewed with the triage nurse interviewed (FIELD_NOTES.md).
+source: "provisional, to review with nurse (FIELD_NOTES.md)"
+limits:
+  resp_rate:   { min: 3,  max: 70 }
+  heart_rate:  { min: 20, max: 250 }
+  systolic_bp: { min: 40, max: 300 }
+  temperature: { min: 30, max: 43 }
+  spo2:        { min: 50, max: 100 }

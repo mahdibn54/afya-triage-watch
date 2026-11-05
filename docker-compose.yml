@@ -1,0 +1,156 @@
+# Afya Triage Watch — one-command stack (architecture v4.1)
+#   cp .env.example .env   # then set the passwords
+#   docker compose up --build
+# Only the nurse UI is published, on 127.0.0.1:3000. Everything else stays on private networks.
+# The LLM runs on the host (Ollama on the GPU). For a CPU-only container instead:
+#   docker compose --profile ollama up --build   (and set OLLAMA_BASE_URL=http://ollama:11434)
+
+name: afya
+
+services:
+  # ---------- data ----------
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${PG_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${PG_SUPERUSER_PASSWORD:?set PG_SUPERUSER_PASSWORD in .env}
+      POSTGRES_DB: afya
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [app]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d afya"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  # One-shot: creates roles, schemas, tables, grants and audit triggers.
+  # The only service that knows the superuser and owner passwords.
+  db-init:
+    image: postgres:16-alpine
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      PGHOST: postgres
+      PGDATABASE: afya
+      PGUSER: ${PG_SUPERUSER:-postgres}
+      PGPASSWORD: ${PG_SUPERUSER_PASSWORD}
+      AFYA_OWNER_PASSWORD: ${AFYA_OWNER_PASSWORD:?set AFYA_OWNER_PASSWORD in .env}
+      AFYA_APP_PASSWORD: ${AFYA_APP_PASSWORD:?set AFYA_APP_PASSWORD in .env}
+    volumes:
+      - ./db:/db:ro
+    entrypoint: ["sh", "/db/init.sh"]
+    networks: [app]
+    restart: "no"
+
+  # One-shot: LangGraph checkpoint tables (schema lg), created by the owner role.
+  lg-init:
+    build: ./api
+    depends_on:
+      db-init: { condition: service_completed_successfully }
+    environment:
+      OWNER_DATABASE_URL: postgresql://afya_owner:${AFYA_OWNER_PASSWORD}@postgres:5432/afya
+    command: ["python", "-m", "afya_api.lg_setup"]
+    networks: [app]
+    restart: "no"
+
+  # ---------- FHIR ----------
+  # HAPI FHIR with its built-in H2 database. Never published; only nginx and afya-mcp reach it.
+  hapi:
+    image: hapiproject/hapi:v8.4.0-2
+    environment:
+      hapi.fhir.fhir_version: R4
+    volumes:
+      - hapidata:/app/target   # H2 file database survives restarts (verify path on first run)
+    networks: [fhir_rw]
+
+  # Read-only gateway in front of HAPI for the borrowed WSO2 server: GET only.
+  gateway:
+    image: nginx:1.27-alpine
+    depends_on: [hapi]
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks: [fhir_ro, fhir_rw]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz || exit 1"]
+      interval: 5s
+      retries: 20
+
+  # Borrowed MCP server (Apache-2.0). Reaches HAPI only through the gateway.
+  wso2-fhir-mcp:
+    image: ghcr.io/wso2/fhir-mcp-server:0.11.0
+    depends_on:
+      gateway: { condition: service_healthy }
+    environment:
+      FHIR_SERVER_BASE_URL: http://gateway/fhir
+      FHIR_MCP_HOST: 0.0.0.0
+      FHIR_MCP_PORT: "8000"
+      FHIR_SERVER_DISABLE_AUTHORIZATION: "True"   # private network only; see README
+    networks: [fhir_ro, mcp]
+
+  # ---------- our code ----------
+  # Our MCP server: /read/mcp (model-facing tools) and /act/mcp (executor only).
+  afya-mcp:
+    build: ./mcp
+    depends_on:
+      db-init: { condition: service_completed_successfully }
+    environment:
+      DATABASE_URL: postgresql://afya_app:${AFYA_APP_PASSWORD}@postgres:5432/afya
+      FHIR_BASE_URL: http://hapi:8080/fhir   # internal, write-capable URL
+      RULES_DIR: /rules
+    volumes:
+      - ./rules:/rules:ro
+    networks: [fhir_rw, mcp, app]
+
+  api:
+    build: ./api
+    depends_on:
+      lg-init: { condition: service_completed_successfully }
+      afya-mcp: { condition: service_started }
+      wso2-fhir-mcp: { condition: service_started }
+    environment:
+      DATABASE_URL: postgresql://afya_app:${AFYA_APP_PASSWORD}@postgres:5432/afya
+      AFYA_MCP_READ_URL: http://afya-mcp:9000/read/mcp
+      AFYA_MCP_ACT_URL: http://afya-mcp:9000/act/mcp
+      WSO2_MCP_URL: http://wso2-fhir-mcp:8000/mcp
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      MODEL: ${MODEL:-qwen3:8b}
+      ALLOW_REMOTE_MODEL: ${ALLOW_REMOTE_MODEL:-false}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      DEMO_MODE: ${DEMO_MODE:-1}
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env}
+      WATCH_INTERVAL_SECONDS: ${WATCH_INTERVAL_SECONDS:-60}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [app, mcp, web]
+
+  # Nurse UI (Next.js production build). Built by the brother; enable once web/ has its Dockerfile.
+  web:
+    build: ./web
+    profiles: ["web"]
+    depends_on: [api]
+    environment:
+      API_INTERNAL_URL: http://api:8080
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks: [web]
+
+  # Optional CPU-only model server (slow). Default is Ollama on the host GPU.
+  ollama:
+    image: ollama/ollama:0.6.8
+    profiles: ["ollama"]
+    volumes:
+      - ollama:/root/.ollama
+    networks: [web]
+
+networks:
+  app: { internal: true }       # postgres, db-init, lg-init, afya-mcp, api
+  mcp: { internal: true }       # api <-> afya-mcp, wso2-fhir-mcp
+  fhir_ro: { internal: true }   # wso2-fhir-mcp <-> gateway  (WSO2 cannot resolve "hapi")
+  fhir_rw: { internal: true }   # gateway, afya-mcp <-> hapi
+  web: {}                       # web <-> api, plus outbound for api (host Ollama, OpenRouter)
+
+volumes:
+  pgdata:
+  hapidata:
+  ollama:

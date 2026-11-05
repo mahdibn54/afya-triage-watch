@@ -1,0 +1,30 @@
+[project]
+name = "afya-mcp"
+version = "0.1.0"
+description = "Afya Triage Watch: our MCP server (SATS scoring and gated actions)"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = [
+  "mcp>=1.9",
+  "starlette",
+  "uvicorn",
+  "pyyaml",
+  "httpx",
+  "psycopg[binary]>=3.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "mypy", "types-PyYAML"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["afya_mcp"]

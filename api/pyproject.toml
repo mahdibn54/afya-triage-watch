@@ -1,0 +1,31 @@
+[project]
+name = "afya-api"
+version = "0.1.0"
+description = "Afya Triage Watch: API and LangGraph agent"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "itsdangerous",
+  "langgraph>=0.4",
+  "langgraph-checkpoint-postgres>=2.0",
+  "langchain-mcp-adapters",
+  "langchain-ollama",
+  "psycopg[binary,pool]>=3.2",
+  "httpx",
+  "pydantic>=2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "mypy"]
+
+[tool.ruff]
+line-length = 120
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["afya_api"]
