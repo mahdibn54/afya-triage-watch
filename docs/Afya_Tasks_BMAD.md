@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 9 done · 11 drafted · 67 to do · 0 blocked · 87 stories · last updated **2026-11-05**
+**Progress:** 12 done · 11 drafted · 64 to do · 0 blocked · 87 stories · last updated **2026-11-06**
 
 ---
 
@@ -146,19 +146,19 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on 7–8 Nov because of vaccines) 
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E4-1 | [~] | Server with two mounts: `/read/mcp` and `/act/mcp` | M | 9 Nov | 1 h | – |
-| E4-2 | [ ] | `record_vitals` | M | 9 Nov | 2 h | E3-1 |
-| E4-3 | [ ] | `compute_tews` | M | 9 Nov | 1 h | E1-4 |
-| E4-4 | [ ] | `check_deterioration` | M | 10 Nov | 1.5 h | E4-3 |
+| E4-1 ✅ | [x] | Server with two mounts: `/read/mcp` and `/act/mcp` | M | 9 Nov | 1 h | – |
+| E4-2 | [~] | `record_vitals` | M | 9 Nov | 2 h | E3-1 |
+| E4-3 ✅ | [x] | `compute_tews` | M | 6 Nov | 1 h | E1-4 |
+| E4-4 ✅ | [x] | `check_deterioration` | M | 6 Nov | 1.5 h | E4-3 |
 | E4-5 | [ ] | `get_queue_state` | M | 10 Nov | 1.5 h | E3-1 |
 | E4-6 | [ ] | `raise_recheck_flag` via the executor registry | M | 11 Nov | 2.5 h | E3-5 |
 | E4-7 | [ ] | `notify_staff` | M | 12 Nov | 1 h | E3-1 |
 | E4-8 | [ ] | Audit every tool call | M | 9–12 Nov | incl. | E3-3 |
 
-**E4-1** · Files: `mcp/afya_mcp/server.py` · Acceptance: `/healthz` OK; read tools only on `/read/mcp`, act tools only on `/act/mcp`. · Notes: skeleton with stubs written 5 Nov.
-**E4-2** · Acceptance: input = LOINC-coded list + idempotency key; plausibility check first; FHIR conditional create with `identifier=urn:afya:req|<key>`; updates `visits.latest_obs_id` in the same transaction; retry returns the same IDs.
-**E4-3** · Acceptance: input = observation ID only; reads values from HAPI itself; selects the chart (E1-3); returns score, colour, chart_id and cited IDs.
-**E4-4** · Acceptance: compares with earlier scored readings; returns change, trigger type (E1-6) and cited records.
+**E4-1** · Files: `mcp/afya_mcp/server.py` · Acceptance: `/healthz` OK; read tools only on `/read/mcp`, act tools only on `/act/mcp`. · Notes: done 6 Nov; verified with Starlette TestClient (`/healthz` OK; read = compute_tews, check_deterioration, get_queue_state; act = record_vitals, raise_recheck_flag, notify_staff). **SDK pinned to `mcp<2`**: v2 renamed FastMCP to MCPServer.
+**E4-2** · Acceptance: input = LOINC-coded list + idempotency key; plausibility check first; FHIR conditional create with `identifier=urn:afya:req|<key>`; updates `visits.latest_obs_id` in the same transaction; retry returns the same IDs. · Notes: FHIR part done 6 Nov (`services.record_vitals`: plausibility first, one Observation per reading with LOINC components, conditional create on `urn:afya:req|<key>`; tests prove a retry creates nothing new and HR 400 saves nothing). **Still to do:** the `visits.latest_obs_id` update once E3 (Postgres) runs.
+**E4-3** · Acceptance: input = observation ID only; reads values from HAPI itself; selects the chart (E1-3); returns score, colour, chart_id and cited IDs. · Notes: done 6 Nov; age from `Patient.birthDate`, height from extension `urn:afya:height-cm`; a child returns `no_chart`.
+**E4-4** · Acceptance: compares with earlier scored readings; returns change, trigger type (E1-6) and cited records. · Notes: done 6 Nov; input is `visit_id`; confirmed colour read from `Encounter.priority` (system `urn:afya:sats-colour`); returns per-input point changes with the record before/after (feeds the evidence table, E7-4); FHIR errors raise `FhirUnavailable` for the agent's retry path. Code: `mcp/afya_mcp/fhir.py`, `services.py`; tests use an in-memory FHIR (`tests/fake_fhir.py`). 73 tests passing.
 **E4-5** · Acceptance: minutes waited vs SATS target per patient; overdue re-checks (site intervals from E9-4, labelled "site rule"); unread proposals with age.
 **E4-6** · Acceptance: input = command ID only; claim (E3-5) → FHIR conditional create Flag (identifier derived from the command) + Encounter priority → mark done + audit in one transaction; safe on retry or crash.
 **E4-7** · Acceptance: fixed text only (restates an existing proposal's colour and cited IDs, or "vitals due"); never changes the queue; audited.
@@ -332,8 +332,8 @@ Scope frozen 2026-11-05: only the UI that proves the rubric, in its simplest for
 | **5 Nov** | ✅ E0-1, E0-2, E1-1, E1-2, E1-4, E1-7, E1-8 · E0-3, E0-4, E0-7 | E0-5, E7-0, E7-1 |
 | **6 Nov** | ✅ E1-5, E1-6, E1-1 page refs (done 5 Nov) · E9-1 if possible | E0-6, E2-1, E2-2, E2-5, E7-2 |
 | **7–8 Nov** (vaccines, light) | E9-2, E9-3, review E5-1 labels | E5-1, E7-3, E7-4, E2-6 |
-| **9 Nov** | E4-1..3, E8-1, E9-4 → **end-to-end skeleton** | E3-1..4, E2-3, E2-4, E6-2, E7-6 |
-| **10 Nov** | E4-4, E4-5, E5-2, E5-3, E5-9, E6-1b | E6-1a, E7-7, E7-8 |
+| **9 Nov** | ✅ E4-1, E4-3, E4-4 (done 6 Nov) · E4-2 DB part, E8-1, E9-4 → **end-to-end skeleton** | E3-1..4, E2-3, E2-4, E6-2, E7-6 |
+| **10 Nov** | E4-5, E5-2, E5-3, E5-9, E6-1b | E6-1a, E7-7, E7-8 |
 | **11 Nov** | E3-5, E4-6, E5-4..6, E6-3, E6-5 | E7-5, E7-10 |
 | **12 Nov** | E3-6, E4-7, E5-7, E5-8, E5-10, E6-4, E6-6 | E7-9, E7-10, E7-11, E8-2 |
 | **13 Nov** | E5-11, E8-3..6, E10-2 (code freeze before the final eval run) | E8-7, E10-1, E10-3 · buffer |
@@ -366,6 +366,8 @@ Scope frozen 2026-11-05: only the UI that proves the rubric, in its simplest for
 | 2026-11-05 | SATS manual has no open licence: copy numbers only, attribute, ask EMSSA. |
 | 2026-11-05 | Owners rebalanced: Mahdi ≈ 52 h, brother ≈ 45 h. |
 | 2026-11-05 | UI follows the "make the agent visible" spec (`web-design.md`). |
+| 2026-11-06 | MCP Python SDK pinned to `mcp>=1.9,<2` (v2 renamed FastMCP; LangChain adapters target v1). |
+| 2026-11-06 | One reading = one FHIR Observation (vital-signs panel, LOINC components); confirmed colour on `Encounter.priority`. |
 | 2026-11-05 | Model choice decided by a 9 Nov benchmark: qwen3:8b vs qwen3:30b-a3b (both open weights, both local). |
 | 2026-11-05 | **Scope frozen:** UI trimmed to what proves the rubric, simplest form; extras parked (not deleted). Demo = 5/100 points; risk is a repo that does not run. |
 

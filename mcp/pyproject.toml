@@ -5,7 +5,7 @@ description = "Afya Triage Watch: our MCP server (SATS scoring and gated actions
 requires-python = ">=3.12"
 license = "MIT"
 dependencies = [
-  "mcp>=1.9",
+  "mcp>=1.9,<2",
   "starlette",
   "uvicorn",
   "pyyaml",
@@ -18,6 +18,7 @@ dev = ["pytest", "ruff", "mypy", "types-PyYAML"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = [".", "tests"]
 
 [tool.ruff]
 line-length = 120
@@ -28,3 +29,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["afya_mcp"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["afya_mcp", "fake_fhir"]

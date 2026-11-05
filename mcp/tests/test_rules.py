@@ -2,7 +2,13 @@
 import pytest
 
 from afya_mcp.rules import (
-    NoChartForPatient, band_points, is_colour_rise, load_chart, load_registry, score, select_chart,
+    NoChartForPatient,
+    band_points,
+    is_colour_rise,
+    load_chart,
+    load_registry,
+    score,
+    select_chart,
 )
 
 CHART = load_chart()

@@ -72,7 +72,8 @@ def colour_for(tews: int, chart: dict[str, Any]) -> str:
 
 
 def score(values: dict[str, Any], chart: dict[str, Any], cited: dict[str, str] | None = None) -> Score:
-    """values: {"resp_rate": 26, "heart_rate": 112, ..., "mobility": "walking", "consciousness": "alert", "trauma": "no"}"""
+    """values: {"resp_rate": 26, "heart_rate": 112, ..., "mobility": "walking",
+    "consciousness": "alert", "trauma": "no"}"""
     points: dict[str, int] = {}
     missing: list[str] = []
     signs: list[str] = []
