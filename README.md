@@ -49,7 +49,7 @@ easy to audit; each one has a clear path to production.
 | Sign-in | Demo users with a "sign in as…" switcher, every action logged with its user and role | Facility single sign-on (OIDC) |
 | FHIR store | HAPI FHIR on a private Docker network, reachable only through our gateway and tools | The facility's FHIR server with authentication |
 | Triage scale | SATS adult chart (patients over 12 years or over 150 cm); the chart registry is built for more | SATS child charts added as new chart files |
-| Plausibility limits | Provisional values, reviewed with a practising triage nurse | Limits agreed with the facility's clinical lead |
+| Plausibility limits | Provisional values, to be reviewed with a practising triage nurse | Limits agreed with the facility's clinical lead |
 | Data | Synthetic patients only | Real data only under the facility's governance and data-protection approvals |
 
 ## Licence
