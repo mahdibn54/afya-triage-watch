@@ -26,7 +26,7 @@ def test_model_down_still_gives_the_proposal_with_the_no_model_notice(client, as
     assert "model_unavailable" in codes and "instruction_like_text" in codes
     steps = {s["name"]: s for s in client.get(f"/runs/{r.json()['run_id']}/trace").json()}
     assert steps["map_signs"]["result_summary"] == "model unavailable (unreachable): rules only"
-    assert steps["investigate"]["result_summary"].startswith("model unavailable")
+    assert steps["investigate"]["result_summary"].startswith("skipped: model unavailable")   # S2
     # two failures in a row opened the breaker: one top-level notice for the nurses
     n = conn.execute("SELECT count(*) AS n FROM notifications WHERE kind = 'model_unavailable' "
                      "AND at > now() - interval '1 minute'").fetchone()["n"]

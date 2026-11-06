@@ -5,17 +5,22 @@ import contextlib
 
 from fastapi import FastAPI
 
-from . import routes_demo, routes_proposals, routes_read, routes_session, routes_ui, routes_vitals
+from . import routes_demo, routes_proposals, routes_read, routes_session, routes_ui, routes_vitals, steps
 from .deps import get_agent, get_gateway, get_model
 from .errors import install_error_handlers
 from .executor import sweep_on_startup
 from .watch import watch_loop
 
 
+async def resume_unfinished(agent) -> list[dict]:
+    return await agent.resume_unfinished()
+
+
 @contextlib.asynccontextmanager
 async def lifespan(_app: FastAPI):
     tasks = [
         asyncio.create_task(sweep_on_startup(get_gateway(), agent=get_agent())),   # E6-4: resume approved commands
+        asyncio.create_task(resume_unfinished(get_agent())),     # E12-1 S1: resume runs that stopped half-way
         asyncio.create_task(get_model().warm_up()),        # E5-9: warm-up call at start (never blocks startup)
         asyncio.create_task(watch_loop(get_gateway())),    # E5-7: reminders every WATCH_INTERVAL_SECONDS
     ]
@@ -35,7 +40,10 @@ install_error_handlers(app)
 
 @app.get("/healthz")
 def health() -> dict:
-    return {"status": "ok"}
+    """Liveness plus readiness of the language model (E12-1 S3): `model.ready` is true when the model may be called,
+    its breaker is closed and the last call (or the warm-up) worked. The api is up either way: without the model it
+    runs on the fixed rules. `trace_gaps`: agent_step rows that could not be written since start."""
+    return {"status": "ok", "model": get_model().status(), "trace_gaps": steps.GAPS}
 
 
 app.include_router(routes_vitals.router)       # E6-1b (M)

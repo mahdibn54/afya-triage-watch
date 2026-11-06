@@ -19,7 +19,9 @@ def test_approve_runs_the_executor_and_writes_the_flag(client, as_user, visit, f
     assert len(flags) == 1 and flags[0]["identifier"][0]["value"] == body["command_id"]
     enc = fhir.data["Encounter"][visit]
     assert {"system": "urn:afya:sats-colour", "code": "ORANGE"} in enc["priority"]["coding"]
-    assert ("raise_recheck_flag", {"command_id": body["command_id"], "actor": "nurse-a"}) in gateway.calls
+    run_id = workflow.run_id_for(visit, oid)   # S4: the run id goes with the fallback executor too
+    assert ("raise_recheck_flag", {"command_id": body["command_id"], "actor": "nurse-a", "run_id": run_id}) \
+        in gateway.calls
     cmd = conn.execute("SELECT done_at FROM commands WHERE id=%s", (body["command_id"],)).fetchone()
     assert cmd["done_at"] is not None
     error(client.post(f"/proposals/{pid}/approve", json={"colour": "ORANGE"}), 409, "conflict")

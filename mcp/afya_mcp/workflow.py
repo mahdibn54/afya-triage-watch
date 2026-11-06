@@ -87,11 +87,11 @@ def insert_proposal(conn: psycopg.Connection, visit_id: str, trigger: str, obs_i
 
 
 NOTICE_CODES = ("remeasure", "no_chart", "not_reviewed", "instruction_like_text", "vitals_due", "clinician_reminded",
-                "model_unavailable", "fhir_unavailable", "data_incomplete")
+                "model_unavailable", "fhir_unavailable", "data_incomplete", "agent_failed")
 # notifications.kind -> notice code of api.md section 6 (Q7: the database says clinician_reminder, the UI says
 # clinician_reminded)
 NOTICE_FROM_KIND = {"remeasure": "remeasure", "vitals_due": "vitals_due", "clinician_reminder": "clinician_reminded",
-                    "model_unavailable": "model_unavailable"}
+                    "model_unavailable": "model_unavailable", "agent_failed": "agent_failed"}
 
 
 def notice_from_notification(n: dict[str, Any]) -> dict[str, Any]:

@@ -48,6 +48,7 @@ class RunState(TypedDict, total=False):
     run_id: str
     visit_id: str
     obs_id: str                 # bare Observation id (as in visits.latest_obs_id and proposals.obs_id)
+    reading_at: str | None      # the reading's effectiveDateTime: tells a reused id after a FHIR reset apart (N7)
     actor: str                  # who entered the reading
     stop: str | None            # why the run ended early (None while it goes on)
     complaint: str | None
@@ -132,10 +133,36 @@ def _save_proposal(visit_id: str, trigger: str, obs_id: str, ehash: str,
                             (visit_id, trigger, ehash)).fetchone(), False
 
 
+def _open_notice(kind: str) -> bool:
+    """An unacknowledged notification of this kind exists."""
+    with db.connect() as conn:
+        return conn.execute("SELECT 1 FROM notifications WHERE kind = %s AND acknowledged_at IS NULL LIMIT 1",
+                            (kind,)).fetchone() is not None
+
+
+def _latest_threads(limit: int) -> list[str]:
+    """Run ids (= checkpoint thread ids) of visits' latest readings that have checkpoints, newest first."""
+    with db.connect() as conn:
+        rows = conn.execute(
+            "SELECT c.thread_id FROM lg.checkpoints c JOIN visits v ON c.thread_id = v.id || ':' || v.latest_obs_id "
+            "WHERE c.checkpoint_ns = '' GROUP BY c.thread_id ORDER BY max(c.checkpoint_id) DESC LIMIT %s",
+            (limit,)).fetchall()
+    return [r["thread_id"] for r in rows]
+
+
 def _command_run(command_id: str) -> dict[str, Any] | None:
     with db.connect() as conn:
         return conn.execute("SELECT c.id, p.visit_id, p.obs_id FROM commands c "
                             "JOIN proposals p ON p.id = c.proposal_id WHERE c.id = %s", (command_id,)).fetchone()
+
+
+async def reading_at(gateway: Gateway, visit_id: str, obs_id: str) -> str | None:
+    """The reading's effectiveDateTime from the visit timeline (None if it cannot be read: never stops a run)."""
+    try:
+        tl = await gateway.ui("visit_timeline", {"visit_id": visit_id})
+    except Exception:  # noqa: BLE001
+        return None
+    return next((r.get("at") for r in tl.get("readings", []) if r.get("obs_id") == f"Observation/{obs_id}"), None)
 
 
 async def notify(ctx: RunContext, kind: str, proposal_id: str | None = None) -> dict[str, Any]:
@@ -168,7 +195,7 @@ def build_graph(ctx: RunContext) -> StateGraph:
             return await stop("validate", "a newer reading exists; it has its own run", args)
         await steps.write(run, visit, "gate", "validate", args, "latest reading of the visit",
                           cited_ids=[f"Observation/{s['obs_id']}"])
-        return {"stop": None}
+        return {"stop": None, "reading_at": await reading_at(ctx.gateway, visit, s["obs_id"])}
 
     async def record(s: RunState) -> dict[str, Any]:
         complaint, worse = await asyncio.to_thread(_reading_note, s["obs_id"])
@@ -198,7 +225,14 @@ def build_graph(ctx: RunContext) -> StateGraph:
         return {"det": out}
 
     async def map_signs(s: RunState) -> dict[str, Any]:
-        out = await sg.map_signs(ctx, run, visit, s.get("complaint"), s["score"], ctx.chart(s["score"]["chart_id"]))
+        chart = ctx.chart(s["score"]["chart_id"])
+        try:
+            out = await sg.map_signs(ctx, run, visit, s.get("complaint"), s["score"], chart)
+        except Exception as e:  # noqa: BLE001 - B2: anything unexpected = model unavailable; the rules go on
+            log.warning("map_signs failed in run %s (%s): rules only", run, type(e).__name__)
+            await steps.write(run, visit, "model", "map_signs", "-", "model unavailable (invalid_response): rules only",
+                              unavailable="invalid_response", error=type(e).__name__)
+            out = sg.unavailable(s.get("complaint"), s["score"], chart, "invalid_response")
         return {"signs": out}
 
     async def trigger(s: RunState) -> dict[str, Any]:
@@ -218,17 +252,32 @@ def build_graph(ctx: RunContext) -> StateGraph:
         return {"trigger": trig, "stop": None if t.propose else "no trigger"}
 
     async def investigate(s: RunState) -> dict[str, Any]:
+        signs_model = str(s["signs"].get("model", ""))
+        if signs_model.startswith("unavailable:"):   # S2: the model did not answer map_signs: straight to rules only
+            await steps.write(run, visit, "model", "investigate", "-",
+                              f"skipped: model unavailable ({signs_model.split(':', 1)[1]}): rules only",
+                              unavailable=signs_model.split(":", 1)[1])
+            return {"decision": inv.no_decision(signs_model)}
         facts = {"visit_id": visit, "obs_id": s["obs_id"], "score": s["score"], "det": s["det"],
                  "trigger": s["trigger"], "sign_codes": s["signs"]["kept"]}
-        return {"decision": await inv.investigate(ctx, run, facts)}
+        try:
+            return {"decision": await inv.investigate(ctx, run, facts)}
+        except Exception as e:  # noqa: BLE001 - B2: the code-built proposal stands, with the "no model" notice
+            log.warning("investigate failed in run %s (%s): rules only", run, type(e).__name__)
+            await steps.write(run, visit, "model", "investigate", "-",
+                              "model unavailable (invalid_response): rules only", unavailable="invalid_response",
+                              error=type(e).__name__)
+            return {"decision": inv.no_decision("unavailable:invalid_response")}
 
     async def proposal(s: RunState) -> dict[str, Any]:
         chart, det = ctx.chart(s["score"]["chart_id"]), s["det"]
         prev_ref = det["previous"]["observation_id"] if det.get("previous") else None
         timeline = await retry(lambda: ctx.gateway.ui("visit_timeline", {"visit_id": visit}))
         by_id = {r["obs_id"]: r for r in timeline.get("readings", [])}
-        evidence = decision.evidence_rows(by_id.get(prev_ref), by_id.get(f"Observation/{s['obs_id']}"))
-        payload, sign_codes = decision.build_payload(s, chart, evidence)
+        before, after = by_id.get(prev_ref), by_id.get(f"Observation/{s['obs_id']}")
+        evidence = decision.evidence_rows(before, after)
+        readings = [r for r in (before, after) if r]
+        payload, sign_codes = decision.build_payload(s, chart, evidence, readings)
         obs_ids = [s["obs_id"], *([bare(prev_ref)] if prev_ref else [])]
         ehash = workflow.evidence_hash(obs_ids, sign_codes, chart["chart_id"])
         p, created = await asyncio.to_thread(_save_proposal, visit, s["trigger"]["kind"], s["obs_id"], ehash, payload)
@@ -240,7 +289,8 @@ def build_graph(ctx: RunContext) -> StateGraph:
         dec = s.get("decision") or {}
         rejected = dec.get("rejected_ids") or 0
         _merged, ignored = decision.merge_decision(dec, s["trigger"], s["score"], s["signs"]["kept"], chart)
-        _text, _src, replaced = decision.rationale_text(dec.get("rationale"), "")
+        _text, _src, replaced = decision.rationale_text(dec.get("rationale"), "",
+                                                        decision.facts_for(s, chart, evidence, readings))
         await steps.write(run, visit, "decision", "submit_decision",
                           f"{payload['agent_action']}: proposed {payload['to_colour']}",
                           f"proposal {'created' if created else 'already existed'} ({p['status']})"
@@ -311,11 +361,22 @@ class Agent:
 
     async def _model_down(self, reason: str) -> None:
         """E5-10: the breaker just opened (2 failures in a row): one fixed-text notice for the nurses, not tied to a
-        visit. Scoring, triggers and proposals go on with the rules only."""
+        visit. Scoring, triggers and proposals go on with the rules only. At most one such notice is open at a time:
+        while one is not acknowledged, a re-opening breaker adds nothing (B's review, item 1)."""
         try:
+            if await asyncio.to_thread(_open_notice, "model_unavailable"):
+                return
             await self.gateway.act("notify_staff", {"kind": "model_unavailable", "actor": "agent"})
         except Exception as e:  # noqa: BLE001
             log.warning("model_unavailable notice failed (%s)", type(e).__name__)
+
+    async def _run_failed(self, run_id: str, visit_id: str) -> None:
+        """S1: a run that stopped on an error tells the nurses (fixed text, tied to the visit)."""
+        try:
+            await self.gateway.act("notify_staff", {"kind": "agent_failed", "actor": "agent", "visit_id": visit_id,
+                                                    "run_id": run_id})
+        except Exception as e:  # noqa: BLE001
+            log.warning("agent_failed notice for run %s failed (%s)", run_id, type(e).__name__)
 
     def _ctx(self, run_id: str, visit_id: str) -> RunContext:
         extra = {"on_proposal": self.on_proposal} if self.on_proposal else {}
@@ -336,27 +397,74 @@ class Agent:
 
     async def run_event(self, visit_id: str, obs_id: str, actor: str = "agent") -> dict[str, Any]:
         """Run the graph for one saved reading, up to the pause. Never raises. A second start for the same reading
-        (a retried POST /vitals) is a no-op: the thread already has checkpoints."""
+        (a retried POST /vitals) is a no-op when the run finished or is paused; a run that stopped half-way (a crash,
+        an error, a restart) is RESUMED from its last checkpoint (S1). A failure is traced and the nurses get an
+        `agent_failed` notice for the visit."""
         vid, oid = bare(visit_id), bare(obs_id)
         run_id = workflow.run_id_for(vid, oid)
         if run_id in self._running:
             return {"status": "running", "run_id": run_id}
         self._running.add(run_id)
+        resumed = False
         try:
             ctx = self._ctx(run_id, vid)
             async with self.graph(ctx) as g:
-                if (await g.aget_state(self.config(run_id))).values:
-                    return {"status": "already_ran", "run_id": run_id}
-                out = await g.ainvoke({"run_id": run_id, "visit_id": vid, "obs_id": oid, "actor": actor, "stop": None},
-                                      self.config(run_id))
+                snap = await g.aget_state(self.config(run_id))
+                old_at = snap.values.get("reading_at") if snap.values else None
+                if old_at and old_at != await reading_at(self.gateway, vid, oid):
+                    # N7: same ids, different reading (the FHIR server was reset, Postgres was not): a new run
+                    await g.checkpointer.adelete_thread(run_id)   # type: ignore[union-attr]
+                    await steps.write(run_id, vid, "gate", "stale_thread", f"reading at {old_at}",
+                                      "old checkpoints of a reused record id removed; new run")
+                    snap = await g.aget_state(self.config(run_id))
+                if snap.values:
+                    if not snap.next or snap.next == ("paused",):
+                        return {"status": "already_ran", "run_id": run_id}
+                    resumed = True
+                    await steps.write(run_id, vid, "gate", "resume", f"from {snap.next[0]}",
+                                      "unfinished run resumed from its last checkpoint")
+                    out = await g.ainvoke(None, self.config(run_id))
+                else:
+                    out = await g.ainvoke({"run_id": run_id, "visit_id": vid, "obs_id": oid, "actor": actor,
+                                           "stop": None}, self.config(run_id))
             return {"status": "paused" if out.get("proposal_id") and not out.get("stop") else "ended",
-                    "run_id": run_id, **{k: out.get(k) for k in ("stop", "proposal_id", "trigger")}}
+                    "run_id": run_id, "resumed": resumed, **{k: out.get(k) for k in ("stop", "proposal_id", "trigger")}}
         except Exception as e:  # noqa: BLE001
             log.exception("run %s failed", run_id)
             await steps.write(run_id, vid, "gate", "run_failed", "-", f"run stopped: {type(e).__name__}")
+            await self._run_failed(run_id, vid)
             return {"status": "failed", "run_id": run_id, "reason": type(e).__name__}
         finally:
             self._running.discard(run_id)
+
+    async def resume_unfinished(self, limit: int = 50, attempts: int = 5, delay: float = 3.0) -> list[dict[str, Any]]:
+        """S1 startup sweep: resume every run of a visit's LATEST reading that stopped half-way (newest first, at
+        most `limit`). Paused runs wait for a nurse and finished runs are left alone. Never raises."""
+        for _ in range(attempts):
+            try:
+                threads = await asyncio.to_thread(_latest_threads, limit)
+                break
+            except Exception as e:  # noqa: BLE001
+                log.warning("unfinished-run sweep: database not ready (%s)", type(e).__name__)
+                await asyncio.sleep(delay)
+        else:
+            return []
+        out = []
+        for run_id in threads:
+            vid, oid = run_id.split(":", 1)
+            try:
+                ctx = self._ctx(run_id, vid)
+                async with self.graph(ctx) as g:
+                    snap = await g.aget_state(self.config(run_id))
+                if not snap.values or not snap.next or snap.next == ("paused",):
+                    continue
+            except Exception as e:  # noqa: BLE001
+                log.warning("unfinished-run sweep: %s not readable (%s)", run_id, type(e).__name__)
+                continue
+            out.append(await self.run_event(vid, oid))
+        if out:
+            log.info("unfinished-run sweep: %d run(s) resumed: %s", len(out), [r.get("status") for r in out])
+        return out
 
     async def resume(self, command_id: str, actor: str) -> dict[str, Any]:
         """After approval: resume the paused run with the command id, so its executor node calls raise_recheck_flag.
@@ -377,4 +485,4 @@ class Agent:
                         return out["result"]
         except Exception as e:  # noqa: BLE001
             log.warning("resume of run %s failed (%s); running the executor directly", run_id, type(e).__name__)
-        return await executor.run_command(self.gateway, command_id, actor, None)
+        return await executor.run_command(self.gateway, command_id, actor, run_id)   # S4: same actor, same run id

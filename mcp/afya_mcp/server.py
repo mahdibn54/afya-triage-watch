@@ -166,7 +166,7 @@ async def notify_staff(kind: str, actor: str, proposal_id: str | None = None, vi
     """Executor and watch loop only. Store a fixed-text reminder for the nurse UI to show; it restates an existing
     proposal's colour and cited record IDs or says vitals are due. Adds nothing clinical; never changes the queue.
     kind: 'vitals_due' (needs visit_id), 'remeasure' (needs visit_id, proposal_id optional), 'clinician_reminder'
-    (needs a pending proposal_id), 'model_unavailable' (visit_id optional).
+    (needs a pending proposal_id), 'model_unavailable' (visit_id optional), 'agent_failed' (needs visit_id).
     actor: user id from afya.users ('agent' or 'system' when automated). Output: status sent, invalid or not_sent."""
     def run() -> dict:
         with db.connect() as conn:

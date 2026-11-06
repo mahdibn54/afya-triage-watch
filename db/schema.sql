@@ -83,7 +83,8 @@ CREATE TABLE IF NOT EXISTS notifications (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   at              timestamptz NOT NULL DEFAULT now(),
   kind            text NOT NULL
-                  CHECK (kind IN ('vitals_due', 'clinician_reminder', 'model_unavailable', 'remeasure')),
+                  CHECK (kind IN ('vitals_due', 'clinician_reminder', 'model_unavailable', 'remeasure',
+                                  'agent_failed')),
   visit_id        text,
   proposal_id     uuid REFERENCES proposals,
   target_role     text NOT NULL CHECK (target_role IN ('nurse', 'clinician')),
@@ -139,6 +140,10 @@ CREATE INDEX IF NOT EXISTS commands_visit ON commands (visit_id);
 CREATE INDEX IF NOT EXISTS audit_visit_at ON audit_log (visit_id, at);
 CREATE INDEX IF NOT EXISTS audit_run ON audit_log (run_id);
 CREATE INDEX IF NOT EXISTS notifications_open ON notifications (at) WHERE acknowledged_at IS NULL;
+-- E12-1: agent_failed (an agent run of a reading did not finish). Re-stated for volumes created before it existed.
+ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_kind_check;
+ALTER TABLE notifications ADD CONSTRAINT notifications_kind_check
+  CHECK (kind IN ('vitals_due', 'clinician_reminder', 'model_unavailable', 'remeasure', 'agent_failed'));
 
 -- Demo users (synthetic). Real sign-in is a stated gap.
 INSERT INTO users (id, name, role) VALUES

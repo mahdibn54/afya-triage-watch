@@ -58,17 +58,32 @@ INSTRUCTION_PATTERNS = [
 _INSTRUCTION = [re.compile(p, re.IGNORECASE) for p in INSTRUCTION_PATTERNS]
 
 
+_INVISIBLE = dict.fromkeys(map(ord, "\u00ad\u180e\u200b\u200c\u200d\u200e\u200f\u202a\u202b\u202c\u202d"
+                                    "\u202e\u2060\u2061\u2062\u2063\u2064\u2066\u2067\u2068\u2069\ufeff"), None)
+
+
 def norm(text: str) -> str:
-    """NFKC, case-folded, whitespace runs collapsed: the form in which a quote must appear in the complaint."""
-    return " ".join(unicodedata.normalize("NFKC", text).casefold().split())
+    """NFKC, zero-width and bidi controls removed, case-folded, whitespace runs collapsed: the form in which a quote
+    must appear in the complaint, and the form in which instruction-like text is looked for (N2: full-width or
+    zero-width tricks do not hide it)."""
+    return " ".join(unicodedata.normalize("NFKC", text).translate(_INVISIBLE).casefold().split())
 
 
 def instruction_spans(complaint: str) -> list[tuple[int, int]]:
-    """Character spans of instruction-like text in the complaint (offsets in the complaint as stored)."""
+    """Character spans of instruction-like text, as offsets in norm(complaint)."""
+    text = norm(complaint)
     spans = []
     for rx in _INSTRUCTION:
-        spans += [(m.start(), m.end()) for m in rx.finditer(complaint)]
+        spans += [(m.start(), m.end()) for m in rx.finditer(text)]
     return sorted(spans)
+
+
+def _occurrences(where: str, q: str) -> list[tuple[int, int]]:
+    out, i = [], where.find(q)
+    while i >= 0:
+        out.append((i, i + len(q)))
+        i = where.find(q, i + 1)
+    return out
 
 
 def quote_span(complaint: str, quote: str) -> tuple[int, int] | None:
@@ -137,10 +152,11 @@ def check_signs(raw: dict[str, Any], complaint: str, chart: dict[str, Any]
         if q not in where:
             drops.append({"code": code, "reason": "quote_not_in_complaint"})
             continue
-        span = quote_span(complaint, quote)
-        if span and any(a < span[1] and span[0] < b for a, b in blocked):
+        # N2: checked in the normalised text, on every place the quote occurs (no exact span needed)
+        if any(a < e and s < b for s, e in _occurrences(where, q) for a, b in blocked):
             drops.append({"code": code, "reason": "instruction_like"})
             continue
+        span = quote_span(complaint, quote)
         if status == "current" and code in kept:
             drops.append({"code": code, "reason": "duplicate"})
             continue
@@ -166,6 +182,13 @@ def _sum(calls: list[Call], attr: str) -> int | float | None:
     return sum(vals) if vals else None
 
 
+def unavailable(complaint: str | None, score: dict[str, Any], chart: dict[str, Any], reason: str) -> dict[str, Any]:
+    """map_signs' result when the model could not be used: only the reading's own signs count."""
+    notices = [{"code": "instruction_like_text"}] if complaint and instruction_spans(complaint) else []
+    return {"verdict": None, "kept": [], "rows": reading_sign_rows(score, chart), "notices": notices,
+            "model": f"unavailable:{reason}"}
+
+
 async def map_signs(ctx: Any, run_id: str, visit_id: str, complaint: str | None, score: dict[str, Any],
                     chart: dict[str, Any]) -> dict[str, Any]:
     """Returns {verdict, kept (current codes that count), rows (card), notices, model}. Never raises: with the model
@@ -181,17 +204,25 @@ async def map_signs(ctx: Any, run_id: str, visit_id: str, complaint: str | None,
                 {"role": "user", "content": "<complaint>" + text.replace("<", "(").replace(">", ")") + "</complaint>"}]
     model = ctx.model
     args = f"complaint, {len(text)} characters"
+    reason = None
     try:
         raw, calls = await model.call_json(messages, "map_signs", schema(chart), parse, deadline=ctx.deadline,
                                            seed=getattr(ctx, "seed", None))
     except ModelUnavailable as e:
-        calls = getattr(e, "calls", [])
-        await write_step(run_id, visit_id, "model", "map_signs", args, f"model unavailable ({e.reason}): rules only",
+        calls, reason = getattr(e, "calls", []), e.reason
+    except Exception:  # noqa: BLE001 - B2: anything else from the model path also means "model unavailable"
+        calls, reason = [], "invalid_response"
+    if reason is None:
+        try:
+            sign_rows, kept, drops = check_signs(raw, text, chart)
+        except Exception:  # noqa: BLE001 - an answer that passed parse() but breaks the checks: not used
+            reason = "invalid_response"
+    if reason is not None:
+        await write_step(run_id, visit_id, "model", "map_signs", args, f"model unavailable ({reason}): rules only",
                          latency_ms=_sum(calls, "latency_ms"), tokens_in=_sum(calls, "tokens_in"),
                          tokens_out=_sum(calls, "tokens_out"), cost_usd=_sum(calls, "cost_usd"),
-                         model=await model.describe(getattr(ctx, "seed", None)), unavailable=e.reason)
-        return {"verdict": None, "kept": [], "rows": rows, "notices": notices, "model": f"unavailable:{e.reason}"}
-    sign_rows, kept, drops = check_signs(raw, text, chart)
+                         model=await model.describe(getattr(ctx, "seed", None)), unavailable=reason)
+        return {"verdict": None, "kept": [], "rows": rows, "notices": notices, "model": f"unavailable:{reason}"}
     others = [r["code"] for r in sign_rows if r["status"] == "other"]
     verdict = "found" if kept else ("unsure" if raw["verdict"] == "unsure" else "none")
     summary = f"{len(kept)} current sign(s), {len(others)} other mention(s)" + (f", {len(drops)} dropped"

@@ -162,6 +162,7 @@ def client(gateway, agent, monkeypatch):
         return []
     monkeypatch.setattr("afya_api.main.sweep_on_startup", no_sweep, raising=False)
     monkeypatch.setattr("afya_api.main.watch_loop", no_sweep, raising=False)   # watch passes are tested directly
+    monkeypatch.setattr("afya_api.main.resume_unfinished", no_sweep, raising=False)   # tested directly
     monkeypatch.setattr("afya_api.main.get_model", lambda: Model(OllamaBackend(ModelSettings()), enabled=False))
     app.dependency_overrides[deps.get_gateway] = lambda: gateway
     app.dependency_overrides[deps.get_agent] = lambda: agent

@@ -5,7 +5,7 @@ import pytest
 from fake_model import decision
 from support import vitals
 
-from afya_api.decision import rationale_text
+from afya_api.decision import rationale_facts, rationale_text
 
 CODE = "Code sentence. Please take a second look."
 
@@ -22,7 +22,11 @@ def test_denylisted_rationale_is_replaced_by_code(text):
 
 def test_clean_rationale_is_shown():
     text = "Heart rate 105 to 112 (Observation/1057) and temperature 37.2 to 38.6 raised the score from 3 to 6."
-    assert rationale_text(text, CODE) == (text, "model", None)
+    facts = rationale_facts({"tews": 3}, {"tews": 6}, [{"before": {"obs_id": "Observation/1057", "value": 105},
+                                                        "after": {"value": 112}}, {"before": {"value": 37.2},
+                                                                                   "after": {"value": 38.6}}])
+    assert rationale_text(text, CODE, facts) == (text, "model", None)
+    assert rationale_text(text, CODE)[2] == "record id not in this run's evidence"   # no facts: nothing is allowed
 
 
 def test_empty_or_too_long_rationale_falls_back():

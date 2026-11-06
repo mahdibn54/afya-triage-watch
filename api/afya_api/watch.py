@@ -63,10 +63,14 @@ async def watch_once(gateway: Gateway, site: dict[str, Any] | None = None) -> di
         due = (p.get("recheck") or {}).get("due_at")
         if not (p.get("recheck") or {}).get("overdue") or not due:
             continue
-        if await asyncio.to_thread(_sent_since, "vitals_due", "visit_id", p["visit_id"], due):
+        try:   # N5: one failing item never stops the pass
+            if await asyncio.to_thread(_sent_since, "vitals_due", "visit_id", p["visit_id"], due):
+                continue
+            out = await gateway.act("notify_staff", {"kind": "vitals_due", "visit_id": p["visit_id"],
+                                                     "actor": "agent", "run_id": run_id})
+        except Exception as e:  # noqa: BLE001
+            log.warning("watch: vitals_due for visit %s failed (%s)", p.get("visit_id"), type(e).__name__)
             continue
-        out = await gateway.act("notify_staff", {"kind": "vitals_due", "visit_id": p["visit_id"], "actor": "agent",
-                                                 "run_id": run_id})
         if out.get("status") == "sent":
             sent["vitals_due"].append(p["visit_id"])
     limits = site.get("clinician_reminder_after_minutes", {})
@@ -77,8 +81,12 @@ async def watch_once(gateway: Gateway, site: dict[str, Any] | None = None) -> di
         # one reminder at creation (RED/ORANGE) plus one from the watch loop once the limit has passed
         if counts.get(pr["proposal_id"], 0) >= 2:
             continue
-        out = await gateway.act("notify_staff", {"kind": "clinician_reminder", "proposal_id": pr["proposal_id"],
-                                                 "actor": "agent", "run_id": run_id})
+        try:
+            out = await gateway.act("notify_staff", {"kind": "clinician_reminder", "proposal_id": pr["proposal_id"],
+                                                     "actor": "agent", "run_id": run_id})
+        except Exception as e:  # noqa: BLE001
+            log.warning("watch: reminder for proposal %s failed (%s)", pr["proposal_id"], type(e).__name__)
+            continue
         if out.get("status") == "sent":
             sent["clinician_reminder"].append(pr["proposal_id"])
     if sent["vitals_due"] or sent["clinician_reminder"]:

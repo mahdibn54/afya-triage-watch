@@ -39,6 +39,11 @@ MAX_COUNT = 5
 PANEL = "85353-1"
 LOINC_ALLOW = {"9279-1": "resp_rate", "8867-4": "heart_rate", "8480-6": "systolic_bp", "8310-5": "temperature",
                "59408-5": "spo2"}
+# N1 / security audit: the unit given to the model is a UCUM CODE from this allow-list per LOINC code, never the
+# FHIR `unit` display text (free text anyone with FHIR write access could fill).
+UCUM = "http://unitsofmeasure.org"
+UNIT_ALLOW = {"9279-1": {"/min"}, "8867-4": {"/min"}, "8480-6": {"mm[Hg]"}, "8310-5": {"Cel", "[degF]"},
+              "59408-5": {"%"}}
 ACTIONS = ("propose", "propose_and_remeasure", "request_missing_value")
 ID = re.compile(r"^(Observation|Encounter)/[A-Za-z0-9.-]{1,64}$")
 NAME = re.compile(r"^[A-Za-z0-9_.-]{1,40}$")
@@ -99,8 +104,10 @@ def trim_observation(r: dict[str, Any]) -> dict[str, Any] | None:
         code = next((c["code"] for c in comp.get("code", {}).get("coding", [])
                      if c.get("system") == "http://loinc.org" and c.get("code") in LOINC_ALLOW), None)
         q = comp.get("valueQuantity")
-        if code and isinstance(q, dict) and isinstance(q.get("value"), (int, float)):
-            values.append({"code": code, "value": q["value"], "unit": q.get("code") or q.get("unit")})
+        if code and isinstance(q, dict) and isinstance(q.get("value"), (int, float)) \
+                and not isinstance(q.get("value"), bool):
+            unit = q.get("code") if q.get("system") in (UCUM, None) and q.get("code") in UNIT_ALLOW[code] else None
+            values.append({"code": code, "value": q["value"], "unit": unit})
     return {"id": f"Observation/{r.get('id')}", "time": r.get("effectiveDateTime"), "values": values}
 
 
@@ -329,6 +336,11 @@ async def investigate(ctx: Any, run_id: str, facts: dict[str, Any]) -> dict[str,
                                    {"recursion_limit": RECURSION_LIMIT})
     except GraphRecursionError:
         final = {"messages": start, "stop": "recursion_limit"}
+    except Exception as e:  # noqa: BLE001 - B2: a tool or the loop broke: the code-built proposal stands
+        await write_step(run_id, visit_id, "model", "investigate", "-",
+                         "model unavailable (invalid_response): rules only", unavailable="invalid_response",
+                         error=type(e).__name__)
+        final = {"messages": start, "stop": "unavailable:invalid_response"}
     dec = _decision(final["messages"])
     base = {"seen_ids": sorted(seen), "extra_triggers": [], "missing_input": None, "rationale": None,
             "cited_ids": [], "rejected_ids": 0}
@@ -342,6 +354,12 @@ async def investigate(ctx: Any, run_id: str, facts: dict[str, Any]) -> dict[str,
             "rejected_ids": len(cited) - len(ok), "model": "ok"}
 
 
+def no_decision(model: str) -> dict[str, Any]:
+    """investigate's result when it did not run or broke: the code-built proposal stands unchanged."""
+    return {"seen_ids": [], "extra_triggers": [], "missing_input": None, "rationale": None, "cited_ids": [],
+            "rejected_ids": 0, "action": "propose", "model": model}
+
+
 def _decision(messages: list[AnyMessage]) -> DecisionArgs | None:
     """The last submit_decision call that the ToolNode accepted (its arguments passed the schema)."""
     ok_ids = {m.tool_call_id for m in messages if isinstance(m, ToolMessage) and m.name == "submit_decision"
@@ -350,5 +368,8 @@ def _decision(messages: list[AnyMessage]) -> DecisionArgs | None:
         if isinstance(m, AIMessage):
             for c in reversed(m.tool_calls):
                 if c["name"] == "submit_decision" and c["id"] in ok_ids:
-                    return DecisionArgs(**c["args"])
+                    try:
+                        return DecisionArgs(**c["args"])
+                    except (TypeError, ValueError):
+                        return None
     return None

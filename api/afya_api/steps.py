@@ -20,6 +20,7 @@ log = logging.getLogger("afya_api.steps")
 
 STEP_KINDS = ("tool", "model", "decision", "gate")
 MAX_SUMMARY = 160
+GAPS = 0   # agent_step rows that could not be written since start (N6)
 
 
 def _short(s: str) -> str:
@@ -37,13 +38,20 @@ async def write(run_id: str, visit_id: str | None, step_kind: str, name: str, ar
                 result_summary: str = "-", *, server: str | None = None, latency_ms: float | None = None,
                 tokens_in: int | None = None, tokens_out: int | None = None, cost_usd: float | None = None,
                 cited_ids: list[str] | None = None, **extra: Any) -> None:
-    """Write one agent_step row. A failure to audit is logged loudly but never stops the run: the proposal (the
+    """Write one agent_step row. A failure to audit is retried once, then logged loudly and counted (N6: the count
+    is in /healthz as `trace_gaps`, so a gap in a trace is visible), but never stops the run: the proposal (the
     safety-relevant output) must still be created, and it has its own audit trail in the proposals table."""
     assert step_kind in STEP_KINDS, step_kind
     payload = {"step_kind": step_kind, "server": server, "name": name, "args_summary": _short(args_summary),
                "result_summary": _short(result_summary), "latency_ms": latency_ms, "tokens_in": tokens_in,
                "tokens_out": tokens_out, "cost_usd": cost_usd, "cited_ids": list(cited_ids or []), **extra}
-    try:
-        await asyncio.to_thread(_write, run_id, visit_id, payload)
-    except Exception:  # noqa: BLE001
-        log.exception("agent_step %s of run %s not audited", name, run_id)
+    global GAPS
+    for attempt in range(2):
+        try:
+            await asyncio.to_thread(_write, run_id, visit_id, payload)
+            return
+        except Exception:  # noqa: BLE001
+            if attempt == 0:
+                await asyncio.sleep(0.2)
+    GAPS += 1
+    log.error("agent_step %s of run %s not audited (trace gap %d)", name, run_id, GAPS)

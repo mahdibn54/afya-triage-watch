@@ -631,7 +631,7 @@ EXECUTORS: dict[str, Callable[..., dict[str, Any]]] = {"recheck_flag": write_rec
 
 # kind -> who reads it. Texts are fixed templates below: they restate IDs, colours and times, never advice.
 NOTIFY_ROLES = {"vitals_due": "nurse", "remeasure": "nurse", "clinician_reminder": "clinician",
-                "model_unavailable": "nurse"}
+                "model_unavailable": "nurse", "agent_failed": "nurse"}
 
 
 def notify_staff(conn: psycopg.Connection, kind: str, proposal_id: str | None = None,
@@ -642,6 +642,7 @@ def notify_staff(conn: psycopg.Connection, kind: str, proposal_id: str | None = 
     remeasure (visit_id, optional proposal_id): staff asked to re-measure.
     clinician_reminder (proposal_id, must be pending): restates the proposal's colour and cited readings.
     model_unavailable (optional visit_id): the language model is down; rule-based scoring continues.
+    agent_failed (visit_id): the agent's check of a new reading did not finish (E12-1); look at the patient.
     """
     if kind not in NOTIFY_ROLES:
         return {"status": "invalid", "reason": f"kind must be one of {sorted(NOTIFY_ROLES)}"}
@@ -666,7 +667,7 @@ def notify_staff(conn: psycopg.Connection, kind: str, proposal_id: str | None = 
         if vid and vid != proposal["visit_id"]:
             return {"status": "invalid", "reason": "proposal belongs to another visit"}
         vid = proposal["visit_id"]
-    if kind in ("vitals_due", "remeasure") and vid is None:
+    if kind in ("vitals_due", "remeasure", "agent_failed") and vid is None:
         return {"status": "invalid", "reason": f"{kind} needs a visit_id"}
     if kind == "clinician_reminder":
         if proposal is None:
@@ -696,6 +697,9 @@ def _notification_text(kind: str, vid: str | None, proposal: dict[str, Any] | No
         return f"Please re-measure the vital signs for visit {vid}.{about}"
     if kind == "clinician_reminder":
         return f"Reminder: a proposal for visit {vid} is waiting for review.{about}"
+    if kind == "agent_failed":
+        return (f"The automatic check of a new reading for visit {vid} did not finish. Please look at this patient's "
+                "latest vitals yourself; the check is retried when the service restarts.")
     where = f" Visit {vid}." if vid else ""
     return ("Language model unavailable: readings are still scored by the fixed rules and colour rises still "
             f"become proposals.{where}")
