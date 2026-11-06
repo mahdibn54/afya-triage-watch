@@ -93,7 +93,7 @@ export function AgentTrace({ runId, live = true }: { runId: string; live?: boole
                     .join(" · ")}
                 </span>
               </div>
-              <p className="mt-1.5 pl-[34px] text-sm">
+              <p className="mt-1.5 pl-[34px] text-sm [overflow-wrap:anywhere]">
                 <span className="text-muted-foreground">{s.args_summary}</span>
                 <span className="mx-1.5 text-muted-foreground">→</span>
                 <span className="font-medium">{s.result_summary}</span>

@@ -30,7 +30,7 @@ export function VisitPanel({
     <Sheet open={!!visitId} onOpenChange={(o) => !o && onClose()}>
       <SheetContent
         side="right"
-        className="w-full gap-0 overflow-y-auto bg-background p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-[820px]"
+        className="w-full gap-0 overflow-hidden bg-background p-0 [&>[data-slot=sheet-close]]:z-20 data-[side=right]:w-full data-[side=right]:sm:max-w-[820px]"
       >
         {visitId && <VisitBody me={me} visitId={visitId} onRecord={onRecord} />}
       </SheetContent>
@@ -74,7 +74,7 @@ function VisitBody({ me, visitId, onRecord }: { me: Me; visitId: string; onRecor
   const visitNotices = p.notices.filter((n) => n.code !== "not_reviewed");
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex h-full flex-col overflow-x-hidden overflow-y-auto">
       <header className="sticky top-0 z-10 border-b bg-background/90 px-5 py-4 pr-14 backdrop-blur-md sm:px-7">
         <div className="flex flex-wrap items-center gap-3">
           <SheetTitle className="font-mono text-2xl font-semibold tracking-tight">{p.patient_label}</SheetTitle>
