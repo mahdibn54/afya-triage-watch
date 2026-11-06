@@ -163,6 +163,37 @@ with psycopg.connect(os.environ["DATABASE_URL"]) as c:
 sys.exit(0 if row == (oid, pid) and audited == 1 else 1)
 PY
 
+check "get_queue_state via /read/mcp lists a seeded visit with minutes waited vs SATS target" mcpx <<'PY'
+import asyncio, json, sys, httpx
+from datetime import date, datetime, timedelta, timezone
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+
+H = {"Content-Type": "application/fhir+json"}
+F = "http://hapi:8080/fhir"
+def post(res):
+    r = httpx.post(f"{F}/{res['resourceType']}", json=res, headers=H, timeout=30); r.raise_for_status(); return r.json()["id"]
+
+pid = post({"resourceType": "Patient", "birthDate": (date.today() - timedelta(days=365 * 40)).isoformat(), "gender": "other"})
+start = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
+eid = post({"resourceType": "Encounter", "status": "arrived", "class": {"code": "EMER"}, "subject": {"reference": f"Patient/{pid}"},
+            "period": {"start": start}, "priority": {"coding": [{"system": "urn:afya:sats-colour", "code": "ORANGE"}]}})
+
+async def main():
+    async with streamablehttp_client("http://127.0.0.1:9000/read/mcp/") as (r, w, _):
+        async with ClientSession(r, w) as s:
+            await s.initialize()
+            res = await s.call_tool("get_queue_state", {})
+            return json.loads(res.content[0].text)
+
+q = asyncio.run(main())
+mine = [p for p in q["patients"] if p["visit_id"] == eid]
+ok = (len(mine) == 1 and mine[0]["target_minutes"] == 10 and mine[0]["minutes_waited"] >= 29
+      and mine[0]["over_target"] and mine[0]["recheck"]["overdue"] and isinstance(q["proposals"], list))
+print(mine)
+sys.exit(0 if ok else 1)
+PY
+
 echo "== host exposure"
 PUB=$(docker ps --filter "label=com.docker.compose.project=afya" --format '{{.Names}} {{.Ports}}' | grep -E '0\.0\.0\.0|\[::\]|127\.0\.0\.1' || true)
 if [ -z "$PUB" ]; then ok "no service publishes a host port (web profile off)"; else bad "published ports: $PUB"; fi

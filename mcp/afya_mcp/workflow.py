@@ -60,6 +60,14 @@ def insert_proposal(conn: psycopg.Connection, visit_id: str, trigger: str, obs_i
         (visit_id, trigger, ehash, obs_id, Jsonb(payload))).fetchone()
 
 
+def open_proposals(conn: psycopg.Connection) -> list[dict[str, Any]]:
+    """Proposals nobody has decided yet (pending) and superseded ones nobody has reviewed, oldest first.
+    Only IDs, codes and times: the payload's colour, never its text."""
+    return conn.execute(
+        "SELECT id, visit_id, trigger, obs_id, status, payload->>'to_colour' AS to_colour, created_at FROM proposals "
+        "WHERE status = 'pending' OR (status = 'superseded' AND NOT reviewed) ORDER BY created_at").fetchall()
+
+
 def supersede_pending(conn: psycopg.Connection, visit_id: str, latest_obs_id: str) -> int:
     """Newer vitals: pending proposals about an older reading become superseded, reviewed stays false."""
     return conn.execute(

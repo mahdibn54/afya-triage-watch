@@ -4,7 +4,7 @@ Two mounts on one port (9000):
   /read/mcp  model-facing, read-only tools (compute_tews, check_deterioration, get_queue_state)
   /act/mcp   executor-only tools (record_vitals, raise_recheck_flag, notify_staff);
              the model's client never connects here.
-Every call is audited (audit.py, E4-8). Still stubs: get_queue_state (E4-5), raise_recheck_flag (E4-6), notify_staff (E4-7).
+Every call is audited (audit.py, E4-8). Still stubs: raise_recheck_flag (E4-6), notify_staff (E4-7).
 """
 from __future__ import annotations
 
@@ -78,6 +78,11 @@ def _plausibility() -> dict:
     return rules.load_plausibility()
 
 
+@lru_cache(maxsize=1)
+def _site() -> dict:
+    return rules.load_site()
+
+
 @read.tool()
 async def compute_tews(observation_id: str, run_id: str | None = None) -> dict:
     """Score one stored vital-signs reading with the SATS chart that fits the patient (fixed code, not you).
@@ -103,9 +108,16 @@ async def check_deterioration(visit_id: str, run_id: str | None = None) -> dict:
 
 
 @read.tool()
-def get_queue_state() -> dict:
-    """Minutes waited against SATS targets, overdue re-checks and unread urgent proposals."""
-    raise NotImplementedError("E4-5")
+async def get_queue_state(run_id: str | None = None) -> dict:
+    """Read-only overview of the waiting room, computed by code. No input needed.
+    Output: patients (oldest arrival first), each with visit_id, the colour a nurse confirmed, minutes_waited since
+    arrival, the SATS target_minutes for that colour and over_target_minutes; last_reading (record ID and time);
+    recheck: when the next reading is due by the site re-check interval (a site rule, not SATS) and whether it is
+    overdue; pending_proposals. Then proposals: every proposal not yet decided (status "pending") or superseded but
+    not reviewed, with its age in minutes and reminder_due. This tool changes nothing.
+    run_id is filled in by the agent wrapper for the audit log; leave it out."""
+    return await _audited("get_queue_state", audit.READ, {},
+                          lambda: services.get_queue_state(_fhir(), _registry(), _site(), _store()), run_id=run_id)
 
 
 @act.tool()

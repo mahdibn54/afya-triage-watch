@@ -130,6 +130,22 @@ def load_plausibility(rules_dir: Path = RULES_DIR) -> dict[str, Any]:
         return yaml.safe_load(f)
 
 
+def load_site(rules_dir: Path = RULES_DIR) -> dict[str, Any]:
+    """Site rules (re-check intervals, reminder delays): not SATS, labelled with their source."""
+    with open(rules_dir / "site.yaml", encoding="utf-8") as f:
+        site = yaml.safe_load(f)
+    for key in ("recheck_minutes", "clinician_reminder_after_minutes"):
+        unknown = set(site.get(key, {})) - set(COLOUR_RANK)
+        if unknown:
+            raise ValueError(f"site.yaml {key}: unknown colours {sorted(unknown)}")
+    return site
+
+
+def target_minutes(chart: dict[str, Any], colour: str) -> int | None:
+    """SATS time-to-be-seen target for a colour, from the chart (not from site rules)."""
+    return next((row["target_minutes"] for row in chart["colours"] if row["colour"] == colour), None)
+
+
 def check_plausible(values: dict[str, Any], plausibility: dict[str, Any]) -> list[Implausible]:
     """Return every value outside its limits. Empty list = plausible. Missing values are not checked here.
 

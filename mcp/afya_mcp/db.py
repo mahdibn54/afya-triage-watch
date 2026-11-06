@@ -16,7 +16,7 @@ from typing import Protocol
 import psycopg
 from psycopg.rows import dict_row
 
-from .workflow import supersede_pending
+from .workflow import open_proposals, supersede_pending
 
 
 def connect(url: str | None = None) -> psycopg.Connection:
@@ -28,6 +28,9 @@ def connect(url: str | None = None) -> psycopg.Connection:
 class VisitStore(Protocol):
     def record_reading(self, visit_id: str, patient_id: str, latest_obs_id: str) -> None:
         """Upsert the visit and set latest_obs_id; older pending proposals become superseded (same transaction)."""
+
+    def open_proposals(self) -> list[dict]:
+        """Pending proposals and superseded ones not yet reviewed (workflow.open_proposals)."""
 
 
 class PgVisitStore:
@@ -44,6 +47,10 @@ class PgVisitStore:
     def record_reading(self, visit_id: str, patient_id: str, latest_obs_id: str) -> None:
         with self.connection() as conn:
             upsert_visit(conn, visit_id, patient_id, latest_obs_id)
+
+    def open_proposals(self) -> list[dict]:
+        with self.connection() as conn:
+            return open_proposals(conn)
 
 
 def upsert_visit(conn: psycopg.Connection, visit_id: str, patient_id: str, latest_obs_id: str) -> None:

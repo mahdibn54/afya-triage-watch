@@ -1,0 +1,16 @@
+# Site rules: how often a waiting patient's vitals are re-checked, and when an unread proposal is reminded.
+# These are NOT SATS values (SATS sets time-to-be-seen targets, in the chart YAML). They belong to the site.
+source: "provisional site rule, to review with nurse"
+
+# Minutes between readings while a patient waits, by the colour a nurse last confirmed (Encounter.priority).
+# Authors' placeholders until the nurse interview (E9-4).
+recheck_minutes:
+  RED: 5
+  ORANGE: 15
+  YELLOW: 30
+  GREEN: 60
+
+# Remind the clinician on duty about a proposal still pending after this many minutes (architecture v4.1, s. 4).
+clinician_reminder_after_minutes:
+  RED: 1
+  ORANGE: 5

@@ -333,3 +333,15 @@ def test_pg_auditor_writes_one_row_and_checks_roles(conn):
     assert [(r["kind"], r["actor"], r["auth"], r["visit_id"]) for r in rows] == [
         ("record_vitals", "nurse-a", "demo_switcher", v), ("record_vitals_refused", "system", "service", v)]
     assert rows[0]["payload"]["output"] == {"status": "saved"} and "latency_ms" in rows[0]["payload"]
+
+
+# ---------- E4-5: proposals for the queue ----------
+
+def test_open_proposals_lists_pending_then_unreviewed_superseded_until_acknowledged(conn):
+    p = make_proposal(conn, colour="RED")
+    mine = lambda: [r for r in workflow.open_proposals(conn) if r["id"] == p["id"]]  # noqa: E731
+    assert [(r["status"], r["to_colour"]) for r in mine()] == [("pending", "RED")]
+    db.upsert_visit(conn, p["visit_id"], "p1", "o-newer")
+    assert [r["status"] for r in mine()] == ["superseded"]
+    assert workflow.acknowledge(conn, str(p["id"]), "nurse-a")
+    assert mine() == []

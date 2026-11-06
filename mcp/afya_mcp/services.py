@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import asdict
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from . import rules
@@ -16,6 +16,7 @@ from .fhir import (
     PANEL_CODE,
     REQ_SYSTEM,
     Fhir,
+    FhirNotFound,
     UnusableObservation,
     age_years,
     confirmed_colour,
@@ -26,6 +27,8 @@ from .fhir import (
 
 KEY_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,64}$")
 USABLE_STATUSES = ("final", "amended", "corrected")
+WAITING_STATUSES = ("arrived", "triaged", "in-progress")
+QUEUE_LIMIT = 100
 
 
 def record_vitals(fhir: Fhir, plausibility: dict[str, Any], registry: list[dict[str, Any]], patient_id: str,
@@ -163,3 +166,142 @@ def _height_cm(patient: dict[str, Any]) -> float | None:
         if ext.get("url") == "urn:afya:height-cm" and ext.get("valueDecimal") is not None:
             return float(ext["valueDecimal"])
     return None
+
+
+# ---------- E4-5: queue state ----------
+
+def get_queue_state(fhir: Fhir, registry: list[dict[str, Any]], site: dict[str, Any],
+                    store: VisitStore | None = None, now: datetime | None = None) -> dict[str, Any]:
+    """Read-only. For each waiting visit (FHIR Encounter in arrived/triaged/in-progress), oldest arrival first:
+    minutes waited since Encounter.period.start against the SATS target of the colour a nurse confirmed
+    (Encounter.priority; target from the patient's chart), and when the next reading is due by the site re-check
+    interval (site rule, not SATS). Plus the proposals nobody has decided (pending) or reviewed (superseded), with
+    their age, from Postgres. Only IDs, codes, times and numbers: no names or notes.
+    """
+    now = now or datetime.now(timezone.utc)
+    encounters = fhir.search("Encounter", {"status": ",".join(WAITING_STATUSES), "_sort": "-date",
+                                           "_count": str(QUEUE_LIMIT)})
+    proposals = _open_proposals(store, site, now)
+    pending_by_visit: dict[str, int] = {}
+    for p in proposals or []:
+        if p["status"] == "pending":
+            pending_by_visit[p["visit_id"]] = pending_by_visit.get(p["visit_id"], 0) + 1
+    charts: dict[str, dict[str, Any] | None] = {}
+    patients = [_queue_entry(fhir, registry, site, e, charts, pending_by_visit, now) for e in encounters]
+    patients.sort(key=lambda p: (p["arrived_at"] is None, p["arrived_at"] or ""))
+    return {
+        "status": "ok",
+        "as_of": now.isoformat(),
+        "site_rule_source": site.get("source"),
+        "truncated": len(encounters) >= QUEUE_LIMIT,
+        "patients": patients,
+        "proposals": proposals,
+        "notices": [] if proposals is not None else ["proposals unavailable: no database connection"],
+    }
+
+
+def _queue_entry(fhir: Fhir, registry: list[dict[str, Any]], site: dict[str, Any], enc: dict[str, Any],
+                 charts: dict[str, dict[str, Any] | None], pending_by_visit: dict[str, int],
+                 now: datetime) -> dict[str, Any]:
+    vid = enc["id"]
+    notices: list[str] = []
+    pid = None
+    try:
+        pid = ref_id(enc.get("subject", {}).get("reference", ""), "Patient")
+    except ValueError:
+        notices.append("visit has no patient reference")
+    try:
+        colour = confirmed_colour(enc)
+    except ValueError:
+        colour = None
+        notices.append("Encounter.priority holds an unknown colour")
+    arrived = _when(enc.get("period", {}).get("start"))
+    if arrived is None:
+        notices.append("arrival time unknown (Encounter.period.start)")
+    waited = _minutes(now - arrived) if arrived else None
+
+    target = None
+    if colour and pid:
+        chart = _chart_for(fhir, registry, pid, charts)
+        if chart is None:
+            notices.append("no chart for this patient yet: no SATS target")
+        else:
+            target = rules.target_minutes(chart, colour)
+    over = max(0, waited - target) if waited is not None and target is not None else None
+
+    latest = fhir.search("Observation", {"encounter": f"Encounter/{vid}", "code": f"http://loinc.org|{PANEL_CODE}",
+                                         "status": ",".join(USABLE_STATUSES), "_sort": "-date", "_count": "1"})
+    last = {"observation_id": f"Observation/{latest[0]['id']}",
+            "effective": latest[0].get("effectiveDateTime")} if latest else None
+    return {
+        "visit_id": vid,
+        "patient_id": pid,
+        "confirmed_colour": colour,
+        "arrived_at": arrived.isoformat() if arrived else None,
+        "minutes_waited": waited,
+        "target_minutes": target,
+        "over_target_minutes": over,
+        "over_target": bool(over),
+        "last_reading": last,
+        "recheck": _recheck(site, colour, arrived, _when(last["effective"]) if last else None, last is None, now),
+        "pending_proposals": pending_by_visit.get(vid, 0),
+        "notices": notices,
+    }
+
+
+def _recheck(site: dict[str, Any], colour: str | None, arrived: datetime | None, last_at: datetime | None,
+             no_reading: bool, now: datetime) -> dict[str, Any]:
+    """Next reading due = last reading (or arrival) + the site interval for the confirmed colour.
+    Without a confirmed colour only the first reading is due (on arrival); no interval is guessed."""
+    interval = site.get("recheck_minutes", {}).get(colour) if colour else None
+    if interval is not None and (last_at or arrived):
+        due = (last_at or arrived) + timedelta(minutes=interval)
+    elif no_reading and arrived:
+        due = arrived
+    else:
+        due = None
+    overdue = due is not None and now >= due
+    return {"rule": "site rule", "interval_minutes": interval, "due_at": due.isoformat() if due else None,
+            "overdue": overdue, "overdue_minutes": _minutes(now - due) if overdue else 0 if due else None}
+
+
+def _open_proposals(store: VisitStore | None, site: dict[str, Any], now: datetime) -> list[dict[str, Any]] | None:
+    if store is None:
+        return None
+    remind = site.get("clinician_reminder_after_minutes", {})
+    out = []
+    for p in store.open_proposals():
+        age = _minutes(now - p["created_at"])
+        limit = remind.get(p["to_colour"])
+        out.append({"proposal_id": str(p["id"]), "visit_id": p["visit_id"], "status": p["status"],
+                    "trigger": p["trigger"], "to_colour": p["to_colour"], "obs_id": p["obs_id"],
+                    "created_at": p["created_at"].isoformat(), "age_minutes": age,
+                    "reminder_due": p["status"] == "pending" and limit is not None and age >= limit})
+    return out
+
+
+def _chart_for(fhir: Fhir, registry: list[dict[str, Any]], pid: str,
+               cache: dict[str, dict[str, Any] | None]) -> dict[str, Any] | None:
+    if pid not in cache:
+        try:
+            patient = fhir.read("Patient", pid)
+            cache[pid] = rules.select_chart(age_years(patient), _height_cm(patient), registry)
+        except (FhirNotFound, rules.NoChartForPatient):
+            cache[pid] = None
+    return cache[pid]
+
+
+def _when(value: str | None) -> datetime | None:
+    """FHIR dateTime to an aware datetime (no zone means UTC). Unparseable means unknown, never guessed."""
+    if not value:
+        return None
+    try:
+        t = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
+
+def _minutes(delta: timedelta) -> int:
+    return int(delta.total_seconds() // 60)
+
