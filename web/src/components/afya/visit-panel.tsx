@@ -5,7 +5,7 @@ import { CheckCircle2, ChevronDown, Flag, PenLine, ScanEye, Sparkles, XCircle } 
 import type { Me, Proposal, QueuePatient } from "@/api/contract";
 import { AgentTrace, runIdFor } from "@/components/afya/agent-trace";
 import { ApprovalCard } from "@/components/afya/approval-card";
-import { TargetBar } from "@/components/afya/board";
+import { arrivedMs, minutesWaited, TargetBar } from "@/components/afya/board";
 import { ColourChip } from "@/components/afya/colour-chip";
 import { GateSteps } from "@/components/afya/gate-steps";
 import { NoticeCallout } from "@/components/afya/notice-chip";
@@ -77,7 +77,7 @@ function VisitBody({ me, visitId, onRecord }: { me: Me; visitId: string; onRecor
     <div className="flex h-full flex-col overflow-x-hidden overflow-y-auto">
       <header className="sticky top-0 z-10 border-b bg-background/90 px-5 py-4 pr-14 backdrop-blur-md sm:px-7">
         <div className="flex flex-wrap items-center gap-3">
-          <SheetTitle className="font-mono text-2xl font-semibold tracking-tight">{p.patient_label}</SheetTitle>
+          <SheetTitle className="font-mono text-2xl font-semibold tracking-tight">{p.patient_label ?? p.visit_id}</SheetTitle>
           <ColourChip colour={p.confirmed_colour} />
           {p.flags.includes("second_look") && (
             <span className="inline-flex h-7 items-center gap-1 rounded-lg border px-2 text-xs font-semibold">
@@ -95,8 +95,11 @@ function VisitBody({ me, visitId, onRecord }: { me: Me; visitId: string; onRecor
           )}
         </div>
         <SheetDescription className="tnum mt-1">
-          Arrived {clockShort(p.arrived_at)} · waited {Math.floor((now - Date.parse(p.arrived_at)) / 60000)} min · last reading{" "}
-          {p.last_reading ? `TEWS ${p.last_reading.tews} at ${clockShort(p.last_reading.effective)}` : "none yet"}
+          {arrivedMs(p) === null ? "No arrival time" : `Arrived ${clockShort(p.arrived_at)} · waited ${minutesWaited(p, now)} min`} · last
+          reading{" "}
+          {p.last_reading
+            ? `${p.last_reading.tews != null ? `TEWS ${p.last_reading.tews}` : "not scored"} at ${clockShort(p.last_reading.effective)}`
+            : "none yet"}
         </SheetDescription>
         <div className="mt-3 max-w-md">
           <TargetBar p={p} now={now} />
@@ -123,7 +126,7 @@ function VisitBody({ me, visitId, onRecord }: { me: Me; visitId: string; onRecor
         ))}
 
         {pending.map((x) => (
-          <ApprovalCard key={x.id} me={me} proposal={x} />
+          <ApprovalCard key={x.id} me={me} proposal={x} hideNotices={visitNotices.map((n) => n.code)} />
         ))}
 
         {pending.length === 0 && decided.length === 0 && (

@@ -7,41 +7,40 @@ Stack: Next.js 16 (App Router, TypeScript) · Tailwind 4 + shadcn/ui (Base UI) �
 
 ## Run
 
+The UI talks to the real API only (E7-10 removed the fake). Run it in the compose stack:
+
 ```bash
-cd web
-npm install
-npm run dev:fake        # fake API from the contract's example JSON, http://localhost:3000
-npm run build           # production build (standalone server)
+docker compose --profile web up -d --build    # UI on http://127.0.0.1:3000, the API stays on the private network
 ```
+
+`npm run build` makes the production build (standalone server); `web/Dockerfile` is what compose runs.
 
 | Env var | Where | Meaning |
 |---|---|---|
-| `API_INTERNAL_URL` | server | FastAPI base URL. `/api/*` is proxied there at request time (prefix stripped). |
-| `FAKE_API` | server | `1` serves the in-memory fake (`src/server/fake-api.ts`) instead of proxying. Until E7-10. |
-| `DEMO_MODE` | server, fake only | `0` hides the "sign in as…" switcher and demo routes in the fake. |
+| `API_INTERNAL_URL` | server | FastAPI base URL (`http://api:8080` in compose). `/api/*` is proxied there at request time, prefix stripped, cookies passed both ways. |
 
-In compose: `docker compose --profile web up --build` (UI on `127.0.0.1:3000`).
+Demo mode, the "sign in as…" switcher and the demo director come from the API (`GET /me` → `demo`), not from a UI
+variable.
 
 ## End-to-end test (E7-11)
 
 ```bash
 npx playwright install chromium          # once
-npm run test:e2e                         # starts the UI on the fake API and runs the P-014 flow
-PW_BASE_URL=http://localhost:3000 npm run test:e2e   # against a running stack instead
+npm run test:e2e                         # the P-014 flow against the running stack (PW_BASE_URL, default http://127.0.0.1:3000)
 ```
 
-`FAKE_ALL_NOTICES=1` makes the fake also show `model_unavailable` and `instruction_like_text`.
-
-## Fake JSON
-
-`npm run fixtures` copies every `<!-- example: ... -->` block of `docs/api.md` into `src/api/fixtures/`, so the
-fake always matches the contract. The fake never scores readings (scores come only from `rules.py`); it replays the
-P-014 scenario from the contract examples.
+It loads the P-014 demo scenario, so it needs `DEMO_MODE=1`. It passes with the language model on or off (the quote
+highlights are only checked when the sign mapper ran).
 
 ## API types
 
-`npm run gen:api` (with `API_URL`, default `http://localhost:8080`) regenerates `src/api/types.ts` from FastAPI's
-`/openapi.json`. Until the E6 endpoints have response models, `src/api/contract.ts` mirrors `docs/api.md` by hand.
+`src/api/types.ts` is generated from FastAPI's `/openapi.json`; `src/api/contract.ts` only gives its schemas the
+names the components use. After an API change, with the stack running:
+
+```bash
+npm run gen:api        # API_URL defaults to http://127.0.0.1:3000/api (the UI's proxy)
+npm run typecheck      # every place that has to follow the change
+```
 
 ## Rules
 

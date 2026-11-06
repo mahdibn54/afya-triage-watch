@@ -38,7 +38,7 @@ function decisionError(e: unknown): { title: string; body: string } {
   return { title: "Not sent", body: `${e instanceof Error ? e.message : "Unknown error"} Nothing was changed; you can try again.` };
 }
 
-export function ApprovalCard({ me, proposal }: { me: Me; proposal: Proposal }) {
+export function ApprovalCard({ me, proposal, hideNotices = [] }: { me: Me; proposal: Proposal; hideNotices?: string[] }) {
   const p = proposal;
   const now = useClientNow(15_000);
   const canDecide = me.role === "nurse" || me.role === "clinician";
@@ -144,9 +144,11 @@ export function ApprovalCard({ me, proposal }: { me: Me; proposal: Proposal }) {
           )}
         </div>
 
-        {p.notices.map((n, i) => (
-          <NoticeCallout key={`${n.code}-${i}`} code={n.code} />
-        ))}
+        {[...new Set(p.notices.map((n) => n.code))]
+          .filter((code) => !hideNotices.includes(code))
+          .map((code) => (
+            <NoticeCallout key={code} code={code} />
+          ))}
 
         <EvidenceTable rows={p.evidence} />
 

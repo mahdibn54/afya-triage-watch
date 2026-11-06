@@ -7,9 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "dev:fake": "node scripts/extract-fixtures.mjs && cross-env FAKE_API=1 next dev",
-    "fixtures": "node scripts/extract-fixtures.mjs",
-    "gen:api": "openapi-typescript ${API_URL:-http://localhost:8080}/openapi.json -o src/api/types.ts",
+    "gen:api": "node scripts/gen-api.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "test:e2e": "playwright test"
   },
@@ -35,7 +33,6 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.4.5",
     "openapi-typescript": "^7.13.0",

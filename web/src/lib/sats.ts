@@ -66,6 +66,7 @@ export const VALUE_LABEL: Record<string, string> = {
   no: "No",
 };
 
-export function formatValue(v: number | string): string {
-  return typeof v === "number" ? String(v) : (VALUE_LABEL[v] ?? v);
+export function formatValue(v: unknown): string {
+  if (v === null || v === undefined) return "–";
+  return typeof v === "number" ? String(v) : (VALUE_LABEL[String(v)] ?? String(v));
 }

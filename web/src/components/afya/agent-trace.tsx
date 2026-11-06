@@ -31,16 +31,18 @@ function ServerTag({ step }: { step: TraceStep }) {
         language model · {step.cost_usd ? "remote (synthetic data only)" : "local"}
       </Tag>
     );
-  if (step.kind === "decision") return <Tag className="border-foreground/20 bg-background">fixed code checks it</Tag>;
-  return <Tag className="border-ok/30 bg-ok-soft text-ok">human in the loop</Tag>;
+  // Only the pause for a nurse is the human gate; the other gate steps (validate, a stopped run) are code checks.
+  if (step.kind === "gate" && step.name === "paused_for_nurse")
+    return <Tag className="border-ok/30 bg-ok-soft text-ok">human in the loop</Tag>;
+  return <Tag className="border-foreground/20 bg-background">fixed code checks it</Tag>;
 }
 
 function Tag({ className, children }: { className?: string; children: React.ReactNode }) {
   return <span className={cn("inline-flex h-5 items-center rounded-full border px-2 text-[10.5px] font-semibold", className)}>{children}</span>;
 }
 
-function ms(v: number | null): string {
-  if (v === null) return "";
+function ms(v: number | null | undefined): string {
+  if (v === null || v === undefined) return "";
   return v >= 1000 ? `${(v / 1000).toFixed(1)} s` : `${Math.round(v)} ms`;
 }
 
@@ -89,7 +91,7 @@ export function AgentTrace({ runId, live = true }: { runId: string; live?: boole
                 <code className="font-mono text-sm font-semibold">{s.name}</code>
                 <ServerTag step={s} />
                 <span className="tnum ml-auto font-mono text-[11px] text-muted-foreground">
-                  {[ms(s.latency_ms), s.tokens_in !== null ? `${s.tokens_in} → ${s.tokens_out} tokens` : "", s.cost_usd !== null ? `$${s.cost_usd.toFixed(2)}` : "", clock(s.at)]
+                  {[ms(s.latency_ms), s.tokens_in != null ? `${s.tokens_in} → ${s.tokens_out ?? 0} tokens` : "", s.cost_usd != null ? `$${s.cost_usd.toFixed(2)}` : "", clock(s.at)]
                     .filter(Boolean)
                     .join(" · ")}
                 </span>

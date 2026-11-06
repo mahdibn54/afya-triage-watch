@@ -9,7 +9,7 @@ export function ColourChip({
   className,
   muted = false,
 }: {
-  colour: Colour | null;
+  colour: Colour | null | undefined;
   size?: "sm" | "md" | "lg";
   className?: string;
   muted?: boolean;

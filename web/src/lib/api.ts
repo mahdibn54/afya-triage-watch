@@ -34,7 +34,7 @@ export async function api<T>(path: string, init?: { method?: "GET" | "POST"; bod
   }
   if (!res.ok) {
     const e = (data as ApiErrorBody | null)?.error;
-    throw new ApiError(res.status, e?.code ?? "error", e?.message ?? `Request failed (${res.status})`, e?.problems);
+    throw new ApiError(res.status, e?.code ?? "error", e?.message ?? `Request failed (${res.status})`, e?.problems ?? undefined);
   }
   return data as T;
 }

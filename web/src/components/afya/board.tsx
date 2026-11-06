@@ -2,18 +2,31 @@
 
 import { Activity, ChevronRight, Clock3, Flag, PenLine, RefreshCw, Sparkles, WifiOff } from "lucide-react";
 
-import type { Me, Proposal, QueuePatient } from "@/api/contract";
+import type { Me, Notice, Proposal, QueuePatient } from "@/api/contract";
 import { ColourChip } from "@/components/afya/colour-chip";
 import { NoticeCallout, NoticeChip } from "@/components/afya/notice-chip";
-import { useProposals, useQueue } from "@/lib/queries";
+import { useAcknowledgeNotice, useProposals, useQueue } from "@/lib/queries";
 import { SATS } from "@/lib/sats";
 import { ago, clockShort, mmss, useClientNow, useNow } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-/** Seconds left to the SATS time-to-be-seen target (negative = over). null = no target. */
+/** Arrival time in ms, or null when the record has none (the patient then has a data_incomplete notice). */
+export function arrivedMs(p: QueuePatient): number | null {
+  const t = p.arrived_at ? Date.parse(p.arrived_at) : NaN;
+  return Number.isNaN(t) ? null : t;
+}
+
+/** Seconds left to the SATS time-to-be-seen target (negative = over). null = no target or no arrival time. */
 export function secondsLeft(p: QueuePatient, now: number): number | null {
-  if (p.target_minutes === null) return null;
-  return p.target_minutes * 60 - (now - Date.parse(p.arrived_at)) / 1000;
+  const arrived = arrivedMs(p);
+  if (p.target_minutes == null || arrived === null) return null;
+  return p.target_minutes * 60 - (now - arrived) / 1000;
+}
+
+/** Minutes waited, or null without an arrival time. */
+export function minutesWaited(p: QueuePatient, now: number): number | null {
+  const arrived = arrivedMs(p);
+  return arrived === null ? null : Math.floor((now - arrived) / 60000);
 }
 
 /** "cites 2 readings": the records behind the suggestion (at least its own reading). */
@@ -26,7 +39,7 @@ function sortByTimeLeft(ps: QueuePatient[], now: number): QueuePatient[] {
   return [...ps].sort((a, b) => {
     const la = secondsLeft(a, now);
     const lb = secondsLeft(b, now);
-    if (la === null && lb === null) return Date.parse(a.arrived_at) - Date.parse(b.arrived_at);
+    if (la === null && lb === null) return (arrivedMs(a) ?? Infinity) - (arrivedMs(b) ?? Infinity);
     if (la === null) return 1;
     if (lb === null) return -1;
     return la - lb;
@@ -53,6 +66,9 @@ export function Board({
   const patients = q.data ? sortByTimeLeft(q.data.patients, now) : [];
   const over = patients.filter((p) => (secondsLeft(p, now) ?? 1) < 0).length;
   const reviews = patients.reduce((n, p) => n + p.pending_proposals, 0);
+  // Suggestions only for patients who are in the waiting room now (a visit that left keeps its history, not a strip).
+  const waiting = new Set(patients.map((p) => p.visit_id));
+  const strips = (pending.data ?? []).filter((pr) => waiting.has(pr.visit_id));
 
   return (
     <section aria-labelledby="board-title" className="animate-rise">
@@ -74,13 +90,11 @@ export function Board({
         <Stat label="Second looks to review" value={q.data ? reviews : "–"} tone={reviews > 0 ? "agent" : undefined} />
       </dl>
 
-      {q.data?.notices.map((n, i) => (
-        <NoticeCallout key={`${n.code}-${i}`} code={n.code} className="mt-4" />
-      ))}
+      {q.data && <TopNotices notices={q.data.notices} canWrite={canWrite} />}
 
-      {pending.data && pending.data.length > 0 && (
+      {strips.length > 0 && (
         <div className="mt-5 space-y-2">
-          {pending.data.map((pr) => (
+          {strips.map((pr) => (
             <button
               key={pr.id}
               type="button"
@@ -154,6 +168,38 @@ export function Board({
   );
 }
 
+/** Notices not tied to a visit, one callout per code (the API can hold several open notices of one kind). */
+function TopNotices({ notices, canWrite }: { notices: Notice[]; canWrite: boolean }) {
+  const ack = useAcknowledgeNotice();
+  const groups = new Map<Notice["code"], Notice[]>();
+  for (const n of notices) groups.set(n.code, [...(groups.get(n.code) ?? []), n]);
+  return [...groups.entries()].map(([code, list]) => {
+    const ids = list.map((n) => n.notification_id).filter((id): id is string => !!id);
+    return (
+      <NoticeCallout
+        key={code}
+        code={code}
+        className="mt-4"
+        action={
+          canWrite && ids.length > 0 ? (
+            <button
+              type="button"
+              data-testid={`dismiss-${code}`}
+              disabled={ack.isPending}
+              onClick={() => ids.forEach((id) => ack.mutate(id))}
+              className="h-9 shrink-0 rounded-lg border bg-background px-3 text-xs font-semibold hover:bg-muted"
+            >
+              Dismiss
+            </button>
+          ) : undefined
+        }
+      >
+        {list.length > 1 && <p className="tnum mt-1 text-xs opacity-80">{list.length} notices of this kind</p>}
+      </NoticeCallout>
+    );
+  });
+}
+
 function Stat({ label, value, tone }: { label: string; value: number | string; tone?: "red" | "agent" }) {
   return (
     <div
@@ -219,7 +265,9 @@ export function TargetBar({ p, now, compact = false }: { p: QueuePatient; now: n
     return (
       <div className="text-sm text-muted-foreground">
         <span className="font-medium">No target</span>
-        <span className="block text-xs">{p.confirmed_colour ? "No chart for this patient" : "No confirmed colour yet"}</span>
+        <span className="block text-xs">
+          {!p.confirmed_colour ? "No confirmed colour yet" : arrivedMs(p) === null ? "No arrival time in the record" : "No chart for this patient"}
+        </span>
       </div>
     );
   }
@@ -265,19 +313,39 @@ export function TargetBar({ p, now, compact = false }: { p: QueuePatient; now: n
   );
 }
 
+/** Seconds until the site re-check is due (negative = overdue), or null when no due time is known. */
+function dueIn(p: QueuePatient, now: number): number | null {
+  const t = p.recheck?.due_at ? Date.parse(p.recheck.due_at) : NaN;
+  return Number.isNaN(t) ? null : (t - now) / 1000;
+}
+
 function Recheck({ p, now }: { p: QueuePatient; now: number }) {
-  if (!p.recheck) return <span className="text-sm text-muted-foreground">–</span>;
-  const dueIn = (Date.parse(p.recheck.due_at) - now) / 1000;
-  const overdue = dueIn < 0;
+  const due = dueIn(p, now);
+  if (!p.recheck || due === null) return <span className="text-sm text-muted-foreground">–</span>;
+  const dueInS = due;
+  const overdue = dueInS < 0;
   return (
     <div className="text-sm">
       <span className={cn("tnum inline-flex items-center gap-1 font-medium", overdue && "text-[color-mix(in_oklch,var(--warn),black_30%)] dark:text-warn")}>
         <Clock3 className="size-3.5" />
-        {overdue ? `Overdue ${mmss(-dueIn)}` : `In ${mmss(dueIn)}`}
+        {overdue ? `Overdue ${mmss(-dueInS)}` : `In ${mmss(dueInS)}`}
       </span>
-      <span className="block text-xs text-muted-foreground">every {p.recheck.interval_minutes} min · site rule</span>
+      <span className="block text-xs text-muted-foreground">
+        {p.recheck.interval_minutes != null ? `every ${p.recheck.interval_minutes} min · site rule` : "first reading due · site rule"}
+      </span>
     </div>
   );
+}
+
+/** "TEWS 6" or "not scored" (no chart, or the reading could not be scored). */
+function tewsText(p: QueuePatient): string {
+  return p.last_reading?.tews != null ? `TEWS ${p.last_reading.tews}` : "not scored";
+}
+
+/** ", 4 min ago" for the last reading, or "" when it has no time. */
+function readingAgo(p: QueuePatient, now: number): string {
+  const t = p.last_reading?.effective ? Date.parse(p.last_reading.effective) : NaN;
+  return Number.isNaN(t) ? "" : `, ${ago(t, now)}`;
 }
 
 function PatientRow({
@@ -322,21 +390,22 @@ function PatientRow({
           }}
           className="font-mono text-lg font-semibold tracking-tight outline-none hover:underline focus-visible:underline"
         >
-          {p.patient_label}
+          {p.patient_label ?? p.visit_id}
         </button>
         <p className="tnum text-xs text-muted-foreground">
-          Arrived {clockShort(p.arrived_at)} · waited {Math.floor((now - Date.parse(p.arrived_at)) / 60000)} min
+          {arrivedMs(p) === null ? "No arrival time" : `Arrived ${clockShort(p.arrived_at)} · waited ${minutesWaited(p, now)} min`}
         </p>
       </div>
 
       <div className="col-span-3 row-start-2 lg:col-span-1 lg:row-start-auto">
         <TargetBar p={p} now={now} />
         <p className="tnum mt-1.5 text-xs text-muted-foreground lg:hidden">
-          {p.last_reading ? `Last reading TEWS ${p.last_reading.tews}, ${ago(Date.parse(p.last_reading.effective), now)}` : "No reading yet"}
-          {p.recheck &&
-            (Date.parse(p.recheck.due_at) < now
-              ? ` · re-check overdue ${mmss((now - Date.parse(p.recheck.due_at)) / 1000)}`
-              : ` · re-check in ${mmss((Date.parse(p.recheck.due_at) - now) / 1000)}`)}
+          {p.last_reading ? `Last reading ${tewsText(p)}${readingAgo(p, now)}` : "No reading yet"}
+          {(() => {
+            const d = dueIn(p, now);
+            if (d === null) return null;
+            return d < 0 ? ` · re-check overdue ${mmss(-d)}` : ` · re-check in ${mmss(d)}`;
+          })()}
         </p>
       </div>
 
@@ -345,12 +414,20 @@ function PatientRow({
           <>
             <span className="inline-flex items-center gap-1.5 font-medium">
               <Activity className="size-3.5 text-muted-foreground" />
-              TEWS <span className="tnum">{p.last_reading.tews}</span>
-              <span aria-label={SATS[p.last_reading.colour].label} className={cn("text-xs", SATS[p.last_reading.colour].ink)}>
-                {SATS[p.last_reading.colour].shape}
-              </span>
+              {p.last_reading.tews != null ? (
+                <>
+                  TEWS <span className="tnum">{p.last_reading.tews}</span>
+                </>
+              ) : (
+                "Not scored"
+              )}
+              {p.last_reading.colour && (
+                <span aria-label={SATS[p.last_reading.colour].label} className={cn("text-xs", SATS[p.last_reading.colour].ink)}>
+                  {SATS[p.last_reading.colour].shape}
+                </span>
+              )}
             </span>
-            <span className="tnum block text-xs text-muted-foreground">{ago(Date.parse(p.last_reading.effective), now)}</span>
+            <span className="tnum block text-xs text-muted-foreground">{readingAgo(p, now).replace(/^, /, "") || "–"}</span>
           </>
         ) : (
           <span className="text-muted-foreground">No reading yet</span>

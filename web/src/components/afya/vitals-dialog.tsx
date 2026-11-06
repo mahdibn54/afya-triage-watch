@@ -115,7 +115,7 @@ function VitalsForm({ me, patient, onClose }: { me: Me; patient: QueuePatient; o
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const local: Record<string, string> = {};
-    const body: VitalsRequest = { visit_id: patient.visit_id, idempotency_key: key };
+    const body: VitalsRequest = { visit_id: patient.visit_id, idempotency_key: key, reported_worsening: form.reported_worsening };
     for (const n of NUMBERS) {
       const raw = form[n.key].trim().replace(",", ".");
       if (!raw) continue;
@@ -127,7 +127,6 @@ function VitalsForm({ me, patient, onClose }: { me: Me; patient: QueuePatient; o
     if (form.consciousness) body.consciousness = form.consciousness;
     if (form.trauma) body.trauma = form.trauma;
     if (form.complaint.trim()) body.complaint = form.complaint.trim();
-    if (form.reported_worsening) body.reported_worsening = true;
     if (complaintLen > MAX_COMPLAINT) local.complaint = `At most ${MAX_COMPLAINT} characters`;
     if (Object.keys(local).length) {
       setInvalid(local);
@@ -136,11 +135,11 @@ function VitalsForm({ me, patient, onClose }: { me: Me; patient: QueuePatient; o
     save.mutate(body, {
       onSuccess: (res) => {
         if (res.status === "remeasure") {
-          setRemeasure(res.problems);
+          setRemeasure(res.problems ?? []);
           setKey(newIdempotencyKey());
           return;
         }
-        setSaved({ observation_id: res.observation_id });
+        setSaved({ observation_id: res.observation_id ?? "" });
       },
       onError: (err) => {
         if (err instanceof ApiError && err.code === "invalid" && Array.isArray(err.problems)) {

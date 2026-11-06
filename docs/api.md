@@ -18,7 +18,7 @@ FastAPI on `api:8080`. The Next.js app calls `/api/...` and its proxy strips the
 | Errors | Always `{ "error": { "code": string, "message": string } }`. Codes: `unauthorized` 401, `forbidden` 403, `not_found` 404, `conflict` 409, `invalid` 422 (adds `problems[]`), `unavailable` 503. FastAPI's own validation errors are mapped to `invalid`. |
 | Text | Quotes, complaints and rationale are plain text. Never `dangerouslySetInnerHTML`. |
 | Offsets | `quote_span` is `{ start, end }`, half-open, counted in Unicode code points of the **original** `complaint` the card shows (not the NFKC, case-folded copy the sign check uses). The UI slices with `Array.from(complaint).slice(start, end).join("")`. |
-| Fake JSON | The example blocks below are the UI's fixtures. Copy them to `web/` while the real endpoints are not ready. |
+| Examples | The JSON blocks below are examples. The UI's types are generated from the API's `/openapi.json` (`web/src/api/types.ts`, E7-10). |
 
 ## 2. Endpoints
 

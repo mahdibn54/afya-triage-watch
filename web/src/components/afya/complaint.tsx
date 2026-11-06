@@ -12,7 +12,7 @@ export const OTHER_REASON: Record<string, string> = {
   historical: "in the past",
   hypothetical: "only a worry",
 };
-export function reasonText(r: string | null): string {
+export function reasonText(r: string | null | undefined): string {
   if (!r) return "does not count";
   return OTHER_REASON[r] ?? r.replace(/_/g, " ");
 }

@@ -51,6 +51,12 @@ export const NOTICE: Record<NoticeCode, { title: string; body: string; tone: "in
     body: "The waiting room can't be loaded from the records right now. Keep triaging by hand; the board refreshes when the connection is back.",
     tone: "warn",
   },
+  agent_failed: {
+    short: "Check not finished",
+    title: "The watch agent could not finish a check",
+    body: "A reading was saved, but the agent's run for it stopped before the end. Look at this patient yourself; the run is picked up again when the service restarts.",
+    tone: "warn",
+  },
   data_incomplete: {
     short: "Data missing",
     title: "Some visit data is missing",

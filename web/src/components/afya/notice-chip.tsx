@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, BellRing, DatabaseZap, FileQuestion, Info, MessageSquareWarning, PencilRuler, Ruler, Sparkles, WifiOff } from "lucide-react";
+import { AlertTriangle, BellRing, CircleAlert, DatabaseZap, FileQuestion, Info, MessageSquareWarning, PencilRuler, Ruler, Sparkles, WifiOff } from "lucide-react";
 
 import type { Notice, NoticeCode } from "@/api/contract";
 import { noticeText } from "@/lib/notices";
@@ -16,6 +16,7 @@ const ICON: Record<NoticeCode, React.ComponentType<{ className?: string }>> = {
   model_unavailable: WifiOff,
   fhir_unavailable: DatabaseZap,
   data_incomplete: FileQuestion,
+  agent_failed: CircleAlert,
 };
 
 export const TONE = {

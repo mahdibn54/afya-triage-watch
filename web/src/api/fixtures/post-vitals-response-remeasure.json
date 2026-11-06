@@ -1,4 +1,0 @@
-{
-  "status": "remeasure",
-  "problems": [{ "name": "heart_rate", "value": 400, "min": 20, "max": 250 }]
-}
