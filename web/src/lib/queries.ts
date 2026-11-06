@@ -62,8 +62,8 @@ export function useLoginAs() {
   return useMutation({
     mutationFn: (user_id: string) => api<User>("/login-as", { method: "POST", body: { user_id } }),
     onSuccess: async () => {
-      qc.removeQueries({ predicate: (q) => q.queryKey[0] !== "demo-users" });
-      await qc.invalidateQueries({ queryKey: keys.me });
+      // Everything a user sees depends on who they are: reset (and refetch) all but the user list.
+      await qc.resetQueries({ predicate: (q) => q.queryKey[0] !== "demo-users" });
     },
   });
 }
