@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 45 done · 5 drafted · 35 to do · 2 blocked · 87 stories
+**Progress:** 45 done · 6 drafted · 34 to do · 2 blocked · 87 stories
 
 ---
 
@@ -175,7 +175,7 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 | E5-1 | [ ] | 20 synthetic patients (B writes, M reviews labels) | B | Day 3–4 | 3 h | E1-7 |
 | E5-2 | [x] | Event-run graph, one thread per vitals event | M | Day 6 | 3 h | E4-* |
 | E5-3 | [x] | `map_signs` (model call A) | M | Day 6 | 2 h | E1-2 |
-| E5-4 | [ ] | `investigate` (model call B, read-only loop) | M | Day 7 | 3 h | E5-2 |
+| E5-4 | [~] | `investigate` (model call B, read-only loop) | M | Day 7 | 3 h | E5-2 |
 | E5-5 | [ ] | Urgency rule: the model can only add | M | Day 7 | 0.5 h | E5-4 |
 | E5-6 | [ ] | Rationale filter | M | Day 7 | 1 h | E5-4 |
 | E5-7 | [ ] | Watch loop and immediate RED/ORANGE notifications | M | Day 8 | 2 h | E4-7 |
