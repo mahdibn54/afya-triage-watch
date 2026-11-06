@@ -1,0 +1,9 @@
+[
+  { "gate": "proposed", "at": "2026-11-06T08:50:41+00:00", "by": "agent", "refused": [] },
+  { "gate": "paused", "at": "2026-11-06T08:50:42+00:00", "by": null, "refused": [] },
+  { "gate": "confirmed", "at": "2026-11-06T08:53:05+00:00", "by": "nurse-a",
+    "refused": [{ "by": "mgr-k", "role": "manager", "at": "2026-11-06T08:52:30+00:00" }] },
+  { "gate": "claimed", "at": "2026-11-06T08:53:05+00:00", "by": "nurse-a", "refused": [] },
+  { "gate": "written", "at": "2026-11-06T08:53:06+00:00", "by": "nurse-a", "refused": [] },
+  { "gate": "audited", "at": "2026-11-06T08:53:06+00:00", "by": "nurse-a", "refused": [] }
+]

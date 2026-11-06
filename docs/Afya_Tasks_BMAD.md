@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 27 done · 3 drafted · 57 to do · 0 blocked · 87 stories
+**Progress:** 28 done · 3 drafted · 56 to do · 0 blocked · 87 stories
 
 ---
 
@@ -223,7 +223,7 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E7-0 | [ ] | App setup: Next.js + Tailwind + shadcn/ui + TanStack Query + generated API types + Dockerfile + `/api` proxy | B | Day 1 | 1.5 h | – |
+| E7-0 | [x] | App setup: Next.js + Tailwind + shadcn/ui + TanStack Query + generated API types + Dockerfile + `/api` proxy | B | Day 1 | 1.5 h | – |
 | E7-1 | [ ] | **W1** Waiting-room board with time-to-target bars | B | Day 1–2 | 3 h | E0-5 |
 | E7-2 | [ ] | Vitals entry form | B | Day 2 | 2 h | E0-5 |
 | E7-3 | [ ] | Approval card + **W3** complaint with highlighted quotes | B | Day 3 | 3.5 h | E0-5 |
@@ -236,7 +236,7 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 | E7-10 | [ ] | Wire everything to the real API, remove fake JSON | B | Day 7–8 | 2 h | E6-1a, E6-1b |
 | E7-11 | [ ] | Playwright end-to-end test of the P-014 flow | B | Day 8 | 1.5 h | E7-10 |
 
-**E7-0** · Files: `web/` · Acceptance: `npx create-next-app@latest` (TypeScript, App Router); Tailwind + shadcn/ui; TanStack Query; `openapi-typescript` generates `web/src/api/types.ts` from FastAPI's `/openapi.json`; production build on port 3000; `/api/*` proxied to `API_INTERNAL_URL`; enabled with `--profile web`.
+**E7-0** · Files: `web/` · Acceptance: `npx create-next-app@latest` (TypeScript, App Router); Tailwind + shadcn/ui; TanStack Query; `openapi-typescript` generates `web/src/api/types.ts` from FastAPI's `/openapi.json`; production build on port 3000; `/api/*` proxied to `API_INTERNAL_URL`; enabled with `--profile web`. · Notes: done. Next.js 16 + Tailwind 4 + shadcn/ui (Base UI) + TanStack Query. `/api/*` is a route handler that proxies at request time to `API_INTERNAL_URL` (verified against the FastAPI app, and 503 with the contract error body when it is down), or serves an in-memory fake when `FAKE_API=1`; fixtures are extracted from the `docs/api.md` examples (`npm run fixtures`), the fake never scores. `npm run gen:api` generates `src/api/types.ts` (only `/healthz` today; `src/api/contract.ts` mirrors the contract until E6). Standalone Dockerfile verified (`docker build`, `/api/healthz` 200). Compose passes `DEMO_MODE` and `FAKE_API` (default 0). shadcn's CLI added an unknown `cn` npm package: replaced by `clsx` + `tailwind-merge`.
 **E7-1** · Acceptance: one row per waiting patient: confirmed colour chip with label and shape (■ ▲ ● ○), time-to-target bar filling towards the SATS target with a countdown, flags, notices; sorted by time left; "last updated n s ago"; works on fake JSON first; tablet-sized touch targets.
 **E7-2** · Acceptance: coded fields (RR, HR, SBP, temperature, SpO2, mobility, consciousness, trauma) + free-text complaint; sends an idempotency key; shows the re-measure notice inline.
 **E7-3** · Acceptance: proposed vs current colour; complaint shown with matched phrases highlighted (sliced from `quote_span`, plain text only) and linked to sign chips; "other" mentions greyed with the reason; sign tickboxes; colour override + reason; approve/reject; 403/409 shown clearly.

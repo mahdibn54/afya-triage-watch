@@ -1,0 +1,60 @@
+[
+  {
+    "id": "b1f0c3a2-7d4e-4f8a-9c21-5e6a0d3b8f14",
+    "visit_id": "v014",
+    "patient_label": "P-014",
+    "trigger": "colour_rise",
+    "status": "pending",
+    "reviewed": false,
+    "created_at": "2026-11-06T08:50:41+00:00",
+    "age_minutes": 1,
+    "reminder_due": false,
+    "decided_by": null,
+    "decided_at": null,
+    "obs_id": "Observation/1057",
+    "current_colour": "YELLOW",
+    "proposed_colour": "ORANGE",
+    "tews_before": 3,
+    "tews_after": 6,
+    "reasons": ["colour rise YELLOW -> ORANGE (TEWS 6)"],
+    "evidence": [
+      {
+        "input": "resp_rate", "unit": "/min",
+        "before": { "obs_id": "Observation/1042", "value": 22, "points": 2 },
+        "after": { "obs_id": "Observation/1057", "value": 26, "points": 2 },
+        "band_changed": false
+      },
+      {
+        "input": "heart_rate", "unit": "/min",
+        "before": { "obs_id": "Observation/1042", "value": 105, "points": 1 },
+        "after": { "obs_id": "Observation/1057", "value": 112, "points": 2 },
+        "band_changed": true
+      },
+      {
+        "input": "temperature", "unit": "Cel",
+        "before": { "obs_id": "Observation/1042", "value": 37.2, "points": 0 },
+        "after": { "obs_id": "Observation/1057", "value": 38.6, "points": 2 },
+        "band_changed": true
+      }
+    ],
+    "agent_action": "propose",
+    "missing_input": null,
+    "complaint": "Short of breath since morning. My mother had chest pain last year.",
+    "signs_verdict": "found",
+    "signs": [
+      {
+        "code": "SOB_ACUTE", "gloss": "sudden shortness of breath", "colour": "ORANGE",
+        "source": "complaint", "status": "current",
+        "quote": "Short of breath", "quote_span": { "start": 0, "end": 15 }, "reason": null
+      },
+      {
+        "code": "CHEST_PAIN", "gloss": "chest pain", "colour": "ORANGE",
+        "source": "complaint", "status": "other",
+        "quote": "My mother had chest pain", "quote_span": { "start": 31, "end": 55 }, "reason": "not_current"
+      }
+    ],
+    "rationale": "Respiratory rate 22 to 26, heart rate 105 to 112 and temperature 37.2 to 38.6 moved the score from 3 to 6 (YELLOW to ORANGE). Please take a second look.",
+    "rationale_source": "model",
+    "notices": []
+  }
+]

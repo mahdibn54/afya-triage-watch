@@ -14,3 +14,6 @@ evals/runs/*.tmp
 
 # local assistant instructions (kept on disk, not published)
 CLAUDE.md
+
+# local browser verification output
+.playwright-mcp/

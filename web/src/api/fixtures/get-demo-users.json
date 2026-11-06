@@ -1,0 +1,5 @@
+[
+  { "id": "nurse-a", "name": "Nurse A.", "role": "nurse" },
+  { "id": "clin-m", "name": "Dr. M", "role": "clinician" },
+  { "id": "mgr-k", "name": "Dir. K", "role": "manager" }
+]

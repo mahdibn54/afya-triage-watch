@@ -1,0 +1,36 @@
+{
+  "visit_id": "v014",
+  "chart_id": "sats_adult_2012",
+  "readings": [
+    {
+      "obs_id": "Observation/1042",
+      "at": "2026-11-06T08:05:00+00:00",
+      "values": {
+        "resp_rate": { "value": 22, "unit": "/min", "points": 2 },
+        "heart_rate": { "value": 105, "unit": "/min", "points": 1 },
+        "systolic_bp": { "value": 120, "unit": "mm[Hg]", "points": 0 },
+        "temperature": { "value": 37.2, "unit": "Cel", "points": 0 },
+        "spo2": { "value": 97, "unit": "%", "points": null },
+        "mobility": { "value": "walking", "unit": null, "points": 0 },
+        "consciousness": { "value": "alert", "unit": null, "points": 0 },
+        "trauma": { "value": "no", "unit": null, "points": 0 }
+      },
+      "tews": 3, "colour": "YELLOW", "complete": true, "missing": [], "signs": []
+    },
+    {
+      "obs_id": "Observation/1057",
+      "at": "2026-11-06T08:50:00+00:00",
+      "values": {
+        "resp_rate": { "value": 26, "unit": "/min", "points": 2 },
+        "heart_rate": { "value": 112, "unit": "/min", "points": 2 },
+        "systolic_bp": { "value": 120, "unit": "mm[Hg]", "points": 0 },
+        "temperature": { "value": 38.6, "unit": "Cel", "points": 2 },
+        "spo2": { "value": 93, "unit": "%", "points": null },
+        "mobility": { "value": "walking", "unit": null, "points": 0 },
+        "consciousness": { "value": "alert", "unit": null, "points": 0 },
+        "trauma": { "value": "no", "unit": null, "points": 0 }
+      },
+      "tews": 6, "colour": "ORANGE", "complete": true, "missing": [], "signs": []
+    }
+  ]
+}

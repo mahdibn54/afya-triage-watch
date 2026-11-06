@@ -1,0 +1,86 @@
+{
+  "as_of": "2026-11-06T08:52:10+00:00",
+  "site_rule_source": "provisional site rule, to review with nurse",
+  "truncated": false,
+  "notices": [],
+  "patients": [
+    {
+      "visit_id": "v014",
+      "patient_id": "p014",
+      "patient_label": "P-014",
+      "confirmed_colour": "YELLOW",
+      "arrived_at": "2026-11-06T08:00:00+00:00",
+      "minutes_waited": 52,
+      "target_minutes": 60,
+      "over_target_minutes": 0,
+      "over_target": false,
+      "last_reading": {
+        "observation_id": "Observation/1057",
+        "effective": "2026-11-06T08:50:00+00:00",
+        "tews": 6,
+        "colour": "ORANGE"
+      },
+      "recheck": {
+        "rule": "site rule",
+        "interval_minutes": 30,
+        "due_at": "2026-11-06T09:20:00+00:00",
+        "overdue": false,
+        "overdue_minutes": 0
+      },
+      "pending_proposals": 1,
+      "flags": [],
+      "notices": []
+    },
+    {
+      "visit_id": "v007",
+      "patient_id": "p007",
+      "patient_label": "P-007",
+      "confirmed_colour": "ORANGE",
+      "arrived_at": "2026-11-06T08:30:00+00:00",
+      "minutes_waited": 22,
+      "target_minutes": 10,
+      "over_target_minutes": 12,
+      "over_target": true,
+      "last_reading": {
+        "observation_id": "Observation/1049",
+        "effective": "2026-11-06T08:35:00+00:00",
+        "tews": 5,
+        "colour": "ORANGE"
+      },
+      "recheck": {
+        "rule": "site rule",
+        "interval_minutes": 15,
+        "due_at": "2026-11-06T08:50:00+00:00",
+        "overdue": true,
+        "overdue_minutes": 2
+      },
+      "pending_proposals": 0,
+      "flags": ["second_look"],
+      "notices": [
+        { "code": "vitals_due", "notification_id": "0b6d2c1e-5f3a-4b7d-8e19-2a4c6d8f0b13", "at": "2026-11-06T08:50:30+00:00" }
+      ]
+    },
+    {
+      "visit_id": "v021",
+      "patient_id": "p021",
+      "patient_label": "P-021",
+      "confirmed_colour": "YELLOW",
+      "arrived_at": "2026-11-06T08:40:00+00:00",
+      "minutes_waited": 12,
+      "target_minutes": null,
+      "over_target_minutes": null,
+      "over_target": false,
+      "last_reading": null,
+      "recheck": {
+        "rule": "site rule",
+        "interval_minutes": 30,
+        "due_at": "2026-11-06T09:10:00+00:00",
+        "overdue": false,
+        "overdue_minutes": 0
+      },
+      "pending_proposals": 0,
+      "flags": [],
+      "notices": [{ "code": "no_chart" }]
+    }
+  ]
+}

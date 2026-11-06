@@ -1,0 +1,17 @@
+[
+  {
+    "id": 412, "at": "2026-11-06T08:53:06+00:00", "kind": "command_done", "actor": "nurse-a",
+    "auth": "demo_switcher", "visit_id": "v014", "run_id": null,
+    "payload": { "command_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7", "proposal_id": "b1f0c3a2-7d4e-4f8a-9c21-5e6a0d3b8f14", "obs_id": "Observation/1057", "colour": "ORANGE", "attempts": 1 }
+  },
+  {
+    "id": 411, "at": "2026-11-06T08:53:05+00:00", "kind": "proposal_approved", "actor": "nurse-a",
+    "auth": "demo_switcher", "visit_id": "v014", "run_id": null,
+    "payload": { "proposal_id": "b1f0c3a2-7d4e-4f8a-9c21-5e6a0d3b8f14", "command_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7", "obs_id": "Observation/1057" }
+  },
+  {
+    "id": 409, "at": "2026-11-06T08:52:30+00:00", "kind": "approve_refused", "actor": "mgr-k",
+    "auth": "demo_switcher", "visit_id": null, "run_id": null,
+    "payload": { "proposal_id": "b1f0c3a2-7d4e-4f8a-9c21-5e6a0d3b8f14", "reason": "role" }
+  }
+]
