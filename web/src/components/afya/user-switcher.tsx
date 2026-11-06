@@ -38,7 +38,7 @@ export function UserSwitcher({ me }: { me: Me }) {
   const login = useLoginAs();
   return (
     <div className="flex items-center gap-2">
-      {me.demo && <DemoBadge compact className="hidden sm:inline-flex" />}
+      {me.demo && <DemoBadge compact />}
       <DropdownMenu>
         <DropdownMenuTrigger
           data-testid="user-switcher"
