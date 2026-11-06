@@ -60,7 +60,7 @@ def test_remeasure_request_adds_a_notification(client, as_user, visit, backend, 
     assert p["agent_action"] == "propose_and_remeasure" and "agent asks for a re-measure" in p["reasons"]
     assert "remeasure" in [n["code"] for n in p["notices"]]
     n = conn.execute("SELECT kind FROM notifications WHERE proposal_id = %s", (p["id"],)).fetchall()
-    assert [r["kind"] for r in n] == ["remeasure"]
+    assert sorted(r["kind"] for r in n) == ["clinician_reminder", "remeasure"]   # ORANGE also reminds (E5-7)
 
 
 def test_missing_value_request_for_a_reading_without_temperature(client, as_user, visit, backend):

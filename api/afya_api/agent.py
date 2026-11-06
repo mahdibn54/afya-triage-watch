@@ -102,6 +102,16 @@ def _latest_obs(visit_id: str) -> str | None:
     return row["latest_obs_id"] if row else None
 
 
+def _supersede(visit_id: str, obs_id: str) -> int:
+    """E5-8: newer vitals make the pending proposals about older readings of this visit `superseded` (reviewed stays
+    false: they show as "not reviewed" until a nurse acknowledges them). Their commands can no longer be claimed.
+    record_vitals already does this in the transaction that moves latest_obs_id; the run repeats it (normally 0
+    rows) and the proposal node re-checks after its insert, so a slow run of an older reading that finishes after a
+    newer reading arrived leaves its proposal superseded, never pending."""
+    with db.connect() as conn:
+        return workflow.supersede_pending(conn, visit_id, obs_id)
+
+
 def _complaint(obs_id: str) -> str | None:
     with db.connect() as conn:
         row = conn.execute("SELECT complaint FROM readings WHERE obs_id = %s", (obs_id,)).fetchone()
@@ -158,9 +168,11 @@ def build_graph(ctx: RunContext) -> StateGraph:
 
     async def record(s: RunState) -> dict[str, Any]:
         complaint = await asyncio.to_thread(_complaint, s["obs_id"])
+        superseded = await asyncio.to_thread(_supersede, visit, s["obs_id"])
         await steps.write(run, visit, "tool", "record_vitals", f"observation_id=Observation/{s['obs_id']}",
-                          f"saved by POST /vitals ({'with' if complaint else 'no'} complaint)", server="ours",
-                          cited_ids=[f"Observation/{s['obs_id']}"])
+                          f"saved by POST /vitals ({'with' if complaint else 'no'} complaint)"
+                          + (f"; {superseded} older proposal(s) superseded" if superseded else ""), server="ours",
+                          cited_ids=[f"Observation/{s['obs_id']}"], superseded=superseded)
         return {"complaint": complaint}
 
     async def score(s: RunState) -> dict[str, Any]:
@@ -213,6 +225,10 @@ def build_graph(ctx: RunContext) -> StateGraph:
         obs_ids = [s["obs_id"], *([bare(prev_ref)] if prev_ref else [])]
         ehash = workflow.evidence_hash(obs_ids, sign_codes, chart["chart_id"])
         p, created = await asyncio.to_thread(_save_proposal, visit, s["trigger"]["kind"], s["obs_id"], ehash, payload)
+        latest = await asyncio.to_thread(_latest_obs, visit)
+        if latest and latest != s["obs_id"]:          # a newer reading arrived while this run was working
+            await asyncio.to_thread(_supersede, visit, latest)
+            p = {**p, "status": "superseded"}
         pid = str(p["id"])
         dec = s.get("decision") or {}
         rejected = dec.get("rejected_ids") or 0
