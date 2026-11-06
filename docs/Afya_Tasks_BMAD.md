@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 47 done · 5 drafted · 33 to do · 2 blocked · 87 stories
+**Progress:** 47 done · 6 drafted · 32 to do · 2 blocked · 87 stories
 
 ---
 
@@ -177,7 +177,7 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 | E5-3 | [x] | `map_signs` (model call A) | M | Day 6 | 2 h | E1-2 |
 | E5-4 | [x] | `investigate` (model call B, read-only loop) | M | Day 7 | 3 h | E5-2 |
 | E5-5 | [x] | Urgency rule: the model can only add | M | Day 7 | 0.5 h | E5-4 |
-| E5-6 | [ ] | Rationale filter | M | Day 7 | 1 h | E5-4 |
+| E5-6 | [~] | Rationale filter | M | Day 7 | 1 h | E5-4 |
 | E5-7 | [ ] | Watch loop and immediate RED/ORANGE notifications | M | Day 8 | 2 h | E4-7 |
 | E5-8 | [ ] | Supersession and "not reviewed" | M | Day 8 | 1 h | E5-2 |
 | E5-9 | [!] | Model settings and limits | M | Day 6 | 1 h | E2-5 |
