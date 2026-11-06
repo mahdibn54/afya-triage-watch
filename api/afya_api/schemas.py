@@ -35,6 +35,7 @@ class VitalsIn(BaseModel):
     consciousness: Literal["alert", "confused", "voice", "pain", "unresponsive"] | None = None
     trauma: Literal["yes", "no"] | None = None
     complaint: str | None = Field(default=None, max_length=500)
+    reported_worsening: bool = False   # the patient or the nurse reports the patient is worse (trigger nurse_reported)
 
 
 class Problem(BaseModel):

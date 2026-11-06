@@ -61,6 +61,10 @@ CREATE TABLE IF NOT EXISTS readings (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS readings_visit ON readings (visit_id);
+-- Patient-reported change (Deterioration Watch): the nurse ticks "patient or nurse reports worse" with the reading.
+-- A coded yes/no, not free text. The row then exists even without a complaint.
+ALTER TABLE readings ADD COLUMN IF NOT EXISTS reported_worsening boolean NOT NULL DEFAULT false;
+ALTER TABLE readings ALTER COLUMN complaint DROP NOT NULL;
 
 CREATE TABLE IF NOT EXISTS audit_log (
   id       bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

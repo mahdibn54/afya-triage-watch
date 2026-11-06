@@ -30,8 +30,10 @@ class VisitStore(Protocol):
                        patient_label: str | None = None) -> None:
         """Upsert the visit and set latest_obs_id; older pending proposals become superseded (same transaction)."""
 
-    def save_complaint(self, visit_id: str, obs_id: str, complaint: str) -> None:
-        """Store the complaint of one reading (Postgres only, once: a retry keeps the first text)."""
+    def save_complaint(self, visit_id: str, obs_id: str, complaint: str | None,
+                       reported_worsening: bool = False) -> None:
+        """Store the complaint and the reported-worsening tick of one reading (Postgres only, once: a retry keeps
+        the first row)."""
 
     def open_proposals(self) -> list[dict]:
         """Pending proposals and superseded ones not yet reviewed (workflow.open_proposals)."""
@@ -56,10 +58,12 @@ class PgVisitStore:
         with self.connection() as conn:
             upsert_visit(conn, visit_id, patient_id, latest_obs_id, patient_label)
 
-    def save_complaint(self, visit_id: str, obs_id: str, complaint: str) -> None:
+    def save_complaint(self, visit_id: str, obs_id: str, complaint: str | None,
+                       reported_worsening: bool = False) -> None:
         with self.connection() as conn:
-            conn.execute("INSERT INTO readings (obs_id, visit_id, complaint) VALUES (%s, %s, %s) "
-                         "ON CONFLICT (obs_id) DO NOTHING", (obs_id, visit_id, complaint))
+            conn.execute("INSERT INTO readings (obs_id, visit_id, complaint, reported_worsening) "
+                         "VALUES (%s, %s, %s, %s) ON CONFLICT (obs_id) DO NOTHING",
+                         (obs_id, visit_id, complaint, reported_worsening))
 
     def open_proposals(self) -> list[dict]:
         with self.connection() as conn:

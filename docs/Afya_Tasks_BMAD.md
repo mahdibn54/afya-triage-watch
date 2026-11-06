@@ -383,6 +383,7 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 | Queue waiting time from `Encounter.period.start`; re-check intervals are a site rule (`rules/site.yaml`, provisional until the nurse review). |
 | Dedup hash rules version = the scoring chart's `chart_id`; proposal payloads must carry `to_colour`. |
 | API contract Q1–Q13 accepted as proposed by B. Q6: a nurse or clinician may override the colour to any level, lower included, with a mandatory reason; the agent never downgrades. |
+| Patient-reported change (track text: "from a re-check or a patient-reported change") wired end to end: `reported_worsening` on `POST /vitals` → `record_vitals` → `afya.readings.reported_worsening` → agent `trigger` passes `nurse_reported_worsening` to `rules.evaluate_trigger` (trigger `nurse_reported`, existed in E1-6 but had no input). Coded yes/no, never free text; a reading still needs at least one value (one reading = one Observation). B, Day 8. |
 
 ## Parking lot (after Day 8, not before)
 

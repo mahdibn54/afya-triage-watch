@@ -10,6 +10,7 @@ class FakeStore:
         self.proposals: list[dict] = []
         self.notifications: list[dict] = []
         self.complaints: dict[str, tuple[str, str]] = {}
+        self.worsening: set[str] = set()
 
     def record_reading(self, visit_id: str, patient_id: str, latest_obs_id: str,
                        patient_label: str | None = None) -> None:
@@ -19,8 +20,12 @@ class FakeStore:
         self.visits[visit_id] = {"patient_id": patient_id, "latest_obs_id": latest_obs_id,
                                  "patient_label": patient_label}
 
-    def save_complaint(self, visit_id: str, obs_id: str, complaint: str) -> None:
-        self.complaints.setdefault(obs_id, (visit_id, complaint))
+    def save_complaint(self, visit_id: str, obs_id: str, complaint: str | None,
+                       reported_worsening: bool = False) -> None:
+        if complaint:
+            self.complaints.setdefault(obs_id, (visit_id, complaint))
+        if reported_worsening:
+            self.worsening.add(obs_id)
 
     def open_notifications(self) -> list[dict]:
         return list(self.notifications)

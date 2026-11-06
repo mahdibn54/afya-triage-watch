@@ -53,6 +53,19 @@ def test_retry_keeps_first_complaint():
     assert [c for _, c in store.complaints.values()] == ["first"]
 
 
+
+def test_reported_worsening_is_stored_with_the_reading_even_without_a_complaint():
+    f, store = fhir_with_visit(), FakeStore()
+    out = services.record_vitals(f, LIMITS, REG, "p1", "v1", BASE, "k1", None, store, None, True)
+    assert out["status"] == "saved"
+    assert store.worsening == {out["observation_id"].split("/")[1]} and not store.complaints
+
+
+def test_reported_worsening_must_be_true_or_false():
+    f, store = fhir_with_visit(), FakeStore()
+    out = services.record_vitals(f, LIMITS, REG, "p1", "v1", BASE, "k1", None, store, None, "yes")
+    assert out["status"] == "invalid" and f.creates == 0
+
 # ---------- Q4/Q13 payload ----------
 
 GOOD = {"to_colour": "ORANGE", "current_colour": "YELLOW", "tews_before": 3, "tews_after": 6,

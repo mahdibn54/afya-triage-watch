@@ -125,18 +125,23 @@ async def get_queue_state(run_id: str | None = None) -> dict:
 
 @act.tool()
 async def record_vitals(visit_id: str, values: dict, idempotency_key: str, actor: str, patient_id: str | None = None,
-                        run_id: str | None = None, complaint: str | None = None) -> dict:
+                        run_id: str | None = None, complaint: str | None = None,
+                        reported_worsening: bool = False) -> dict:
     """Save a nurse's entry as one FHIR Observation (conditional create on the idempotency key).
     Unknown inputs or values are rejected ("invalid"); impossible values are not saved ("remeasure").
     patient_id: optional, the visit's patient is used when it is left out.
     complaint: optional free text (at most 500 characters after NFKC normalisation), kept in Postgres only and
     never written to FHIR; the audit row records only its length.
+    reported_worsening: true when the patient (or the nurse) reports that the patient feels worse; the agent then
+    proposes a second look even if the score did not rise (trigger nurse_reported).
     actor: the user id (afya.users) of the nurse who took the reading, or 'system' for seeded data. Audited."""
     inputs = {"patient_id": patient_id, "visit_id": visit_id, "values": values, "idempotency_key": idempotency_key,
-              "complaint_chars": len(complaint) if isinstance(complaint, str) else None}
+              "complaint_chars": len(complaint) if isinstance(complaint, str) else None,
+              "reported_worsening": reported_worsening}
     return await _audited("record_vitals", audit.ACT, inputs,
                           lambda: services.record_vitals(_fhir(), _plausibility(), _registry(), patient_id, visit_id,
-                                                         values, idempotency_key, None, _store(), complaint),
+                                                         values, idempotency_key, None, _store(), complaint,
+                                                         reported_worsening),
                           actor=actor, run_id=run_id)
 
 

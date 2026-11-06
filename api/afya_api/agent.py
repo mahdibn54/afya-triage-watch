@@ -51,6 +51,7 @@ class RunState(TypedDict, total=False):
     actor: str                  # who entered the reading
     stop: str | None            # why the run ended early (None while it goes on)
     complaint: str | None
+    reported_worsening: bool    # ticked with the reading: proposal even without a score rise (trigger nurse_reported)
     score: dict[str, Any]
     det: dict[str, Any]
     signs: dict[str, Any]
@@ -112,10 +113,12 @@ def _supersede(visit_id: str, obs_id: str) -> int:
         return workflow.supersede_pending(conn, visit_id, obs_id)
 
 
-def _complaint(obs_id: str) -> str | None:
+def _reading_note(obs_id: str) -> tuple[str | None, bool]:
+    """The reading's complaint and its reported-worsening tick (Postgres only)."""
     with db.connect() as conn:
-        row = conn.execute("SELECT complaint FROM readings WHERE obs_id = %s", (obs_id,)).fetchone()
-    return row["complaint"] if row else None
+        row = conn.execute("SELECT complaint, reported_worsening FROM readings WHERE obs_id = %s",
+                           (obs_id,)).fetchone()
+    return (row["complaint"], bool(row["reported_worsening"])) if row else (None, False)
 
 
 def _save_proposal(visit_id: str, trigger: str, obs_id: str, ehash: str,
@@ -167,13 +170,14 @@ def build_graph(ctx: RunContext) -> StateGraph:
         return {"stop": None}
 
     async def record(s: RunState) -> dict[str, Any]:
-        complaint = await asyncio.to_thread(_complaint, s["obs_id"])
+        complaint, worse = await asyncio.to_thread(_reading_note, s["obs_id"])
         superseded = await asyncio.to_thread(_supersede, visit, s["obs_id"])
+        note = f"{'with' if complaint else 'no'} complaint" + (", reported worse" if worse else "")
         await steps.write(run, visit, "tool", "record_vitals", f"observation_id=Observation/{s['obs_id']}",
-                          f"saved by POST /vitals ({'with' if complaint else 'no'} complaint)"
+                          f"saved by POST /vitals ({note})"
                           + (f"; {superseded} older proposal(s) superseded" if superseded else ""), server="ours",
                           cited_ids=[f"Observation/{s['obs_id']}"], superseded=superseded)
-        return {"complaint": complaint}
+        return {"complaint": complaint, "reported_worsening": worse}
 
     async def score(s: RunState) -> dict[str, Any]:
         out = await retry(lambda: ctx.gateway.read("compute_tews", {"observation_id": f"Observation/{s['obs_id']}",
@@ -201,13 +205,15 @@ def build_graph(ctx: RunContext) -> StateGraph:
         after = rules.Score(**{k: sc[k] for k in rules.Score.__dataclass_fields__})
         prev = det.get("previous")
         t = rules.evaluate_trigger(det.get("confirmed_colour"), after, s["signs"]["kept"], chart,
+                                   nurse_reported_worsening=bool(s.get("reported_worsening")),
                                    previous_colour=prev["colour"] if prev else None)
         trig = {"kind": t.kind, "from": t.from_colour, "to": t.to_colour, "reasons": t.reasons}
         cited = [x for x in [prev and prev["observation_id"], sc["observation_id"]] if x]
         result = f"proposal: {t.kind}, {t.from_colour} to {t.to_colour}" if t.propose else f"log only: {t.reasons[0]}"
         await steps.write(run, visit, "decision", "trigger",
                           f"confirmed={det.get('confirmed_colour')}, colour={after.colour}, "
-                          f"signs={','.join(s['signs']['kept']) or 'none'}", result, cited_ids=cited)
+                          f"signs={','.join(s['signs']['kept']) or 'none'}"
+                          f"{', reported worse' if s.get('reported_worsening') else ''}", result, cited_ids=cited)
         return {"trigger": trig, "stop": None if t.propose else "no trigger"}
 
     async def investigate(s: RunState) -> dict[str, Any]:

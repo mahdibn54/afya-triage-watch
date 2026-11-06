@@ -24,7 +24,7 @@ async def post_vitals(body: VitalsIn, background: BackgroundTasks, user: User = 
     (E5-2) in the background, after this answer is sent; run_id names it."""
     values = {name: getattr(body, name) for name in INPUTS if getattr(body, name) is not None}
     args = {"visit_id": body.visit_id, "values": values, "idempotency_key": body.idempotency_key, "actor": user.id,
-            "complaint": body.complaint}
+            "complaint": body.complaint, "reported_worsening": body.reported_worsening}
     try:
         out = await gateway.act("record_vitals", args)
     except Exception as e:

@@ -197,7 +197,11 @@ confirmed colour. `flags` currently holds `second_look` (an active second-look F
 
 ### POST /vitals
 Request: the inputs of section 3 (flat), plus `visit_id`, `idempotency_key` (1 to 64 characters: letters, digits and
-`. _ : -`) and an optional free-text `complaint` (at most 500 characters, architecture Appendix B). The API finds the
+`. _ : -`), an optional free-text `complaint` (at most 500 characters, architecture Appendix B) and an optional
+`reported_worsening` (boolean, default `false`): the patient or the nurse reports that the patient is worse
+(Deterioration Watch, "patient-reported change"). It is stored with the reading in `afya.readings` (Postgres, never
+FHIR) and makes the agent propose a second look at least at the confirmed colour even when the score did not rise
+(trigger `nurse_reported`, `rules.evaluate_trigger`). The reading still needs at least one value. The API finds the
 patient from the visit.
 Responses: `200 saved`, `200 remeasure` (an impossible value: nothing is saved or scored, the UI shows the
 re-measure notice), `422 invalid` (unknown input, bad value, no value). A retry with the same key returns the same

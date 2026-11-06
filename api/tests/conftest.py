@@ -61,7 +61,8 @@ class InProcessGateway:
             inputs = {k: args.get(k) for k in ("visit_id", "values", "idempotency_key")}
             fn = lambda: services.record_vitals(  # noqa: E731
                 self.fhir, LIMITS, REG, args.get("patient_id"), args["visit_id"], args["values"],
-                args["idempotency_key"], None, db.PgVisitStore(), args.get("complaint"))
+                args["idempotency_key"], None, db.PgVisitStore(), args.get("complaint"),
+                bool(args.get("reported_worsening")))
         elif tool == "raise_recheck_flag":
             inputs = {"command_id": args["command_id"]}
 

@@ -66,6 +66,18 @@ def test_no_trigger_is_logged_only(client, as_user, visit, conn):
     assert trig["result_summary"].startswith("log only: no colour change")
 
 
+
+def test_reported_worsening_without_a_score_rise_is_a_proposal(client, as_user, visit, conn):
+    """Deterioration Watch: a patient-reported change is flagged for a second look at the same colour."""
+    r = vitals(client, visit, reported_worsening=True, **STABLE_YELLOW)
+    assert r.status_code == 200 and r.json()["status"] == "saved"
+    [p] = proposals_of(conn, visit)
+    assert p["status"] == "pending" and p["trigger"] == "nurse_reported"
+    assert (p["payload"]["current_colour"], p["payload"]["to_colour"]) == ("YELLOW", "YELLOW")
+    steps = client.get(f"/runs/{r.json()['run_id']}/trace").json()
+    assert "reported worse" in next(s for s in steps if s["name"] == "record_vitals")["result_summary"]
+    assert next(s for s in steps if s["name"] == "trigger")["result_summary"].startswith("proposal: nurse_reported")
+
 def test_first_reading_without_a_confirmed_colour_is_a_baseline(client, as_user, fhir, conn):
     vid = f"v-{uuid.uuid4().hex[:10]}"
     fhir.put({"resourceType": "Encounter", "id": vid, "status": "in-progress", "subject": {"reference": "Patient/p1"}})

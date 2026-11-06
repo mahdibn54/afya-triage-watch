@@ -46,7 +46,7 @@ QUEUE_LIMIT = 100
 def record_vitals(fhir: Fhir, plausibility: dict[str, Any], registry: list[dict[str, Any]], patient_id: str | None,
                   visit_id: str, values: dict[str, Any], idempotency_key: str,
                   when: datetime | None = None, store: VisitStore | None = None,
-                  complaint: str | None = None) -> dict[str, Any]:
+                  complaint: str | None = None, reported_worsening: bool = False) -> dict[str, Any]:
     """E4-2. Validation and plausibility first: anything wrong or impossible means nothing is saved.
 
     Conditional create on the request identifier, so a retried call returns the same Observation.
@@ -59,6 +59,8 @@ def record_vitals(fhir: Fhir, plausibility: dict[str, Any], registry: list[dict[
     problems = _invalid_entry(values, registry, idempotency_key)
     clean_complaint, complaint_problem = _clean_complaint(complaint)
     problems += complaint_problem
+    if not isinstance(reported_worsening, bool):
+        problems.append("reported_worsening: not true or false")
     if problems:
         return {"status": "invalid", "saved": False, "problems": problems}
     implausible = rules.check_plausible(values, plausibility)
@@ -76,8 +78,9 @@ def record_vitals(fhir: Fhir, plausibility: dict[str, Any], registry: list[dict[
         newest = fhir.search("Observation", {"encounter": f"Encounter/{vid}", "code": f"http://loinc.org|{PANEL_CODE}",
                                              "status": ",".join(USABLE_STATUSES), "_sort": "-date", "_count": "1"})
         store.record_reading(vid, pid, newest[0]["id"] if newest else created["id"], _patient_label(fhir, pid))
-        if clean_complaint:   # api.md Q1: Postgres only, never FHIR; a retry keeps the first text
-            store.save_complaint(vid, created["id"], clean_complaint)
+        # api.md Q1: Postgres only, never FHIR; a retry keeps the first row
+        if clean_complaint or reported_worsening:
+            store.save_complaint(vid, created["id"], clean_complaint, reported_worsening)
     return {"status": "saved", "saved": True, "observation_id": f"Observation/{created['id']}"}
 
 
