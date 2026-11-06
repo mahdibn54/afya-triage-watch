@@ -2,7 +2,8 @@
 
 Twenty invented patients for the existing eval harness and the later E2-6 seed job. No real patient records or
 identifiers were used. Labels are author-written expectations, not observed model results or clinical validation.
-**Mahdi's label review is pending**; E5-1 stays `[~]` in the sole backlog until that review and the normal PR gates.
+**Mahdi's label review is pending**; E5-1 stays `[~]` in the sole backlog until that review. The verified
+implementation follows the team's existing direct-push-to-main workflow, as clarified by Dheker.
 
 ## Coverage and fixed split
 
