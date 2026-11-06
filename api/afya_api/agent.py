@@ -202,11 +202,15 @@ def build_graph(ctx: RunContext) -> StateGraph:
         ehash = workflow.evidence_hash(obs_ids, sign_codes, chart["chart_id"])
         p, created = await asyncio.to_thread(_save_proposal, visit, s["trigger"]["kind"], s["obs_id"], ehash, payload)
         pid = str(p["id"])
+        dec = s.get("decision") or {}
+        rejected = dec.get("rejected_ids") or 0
         await steps.write(run, visit, "decision", "submit_decision",
                           f"{payload['agent_action']}: proposed {payload['to_colour']}",
-                          f"proposal {'created' if created else 'already existed'} ({p['status']})",
-                          cited_ids=payload["cited_obs_ids"], proposal_id=pid,
-                          rationale_source=payload["rationale_source"])
+                          f"proposal {'created' if created else 'already existed'} ({p['status']})"
+                          + (f"; {rejected} cited id(s) rejected (no tool returned them)" if rejected else ""),
+                          cited_ids=list(dict.fromkeys([*payload["cited_obs_ids"], *dec.get("cited_ids", [])])),
+                          proposal_id=pid, rationale_source=payload["rationale_source"],
+                          model_decision=dec.get("model"), rejected_cited_ids=rejected)
         if p["status"] != "pending":
             return {"proposal_id": pid, "stop": f"proposal is {p['status']}"}
         await steps.write(run, visit, "gate", "paused_for_nurse", "waiting for a nurse or clinician",
