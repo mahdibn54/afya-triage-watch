@@ -13,7 +13,9 @@ export type NoticeCode =
   | "instruction_like_text"
   | "vitals_due"
   | "clinician_reminded"
-  | "model_unavailable";
+  | "model_unavailable"
+  | "fhir_unavailable"
+  | "data_incomplete";
 
 export interface Notice {
   code: NoticeCode;
@@ -122,7 +124,7 @@ export interface Sign {
 export interface Proposal {
   id: string;
   visit_id: string;
-  patient_label: string;
+  patient_label: string | null;
   trigger: string;
   status: "pending" | "approved" | "rejected" | "superseded";
   reviewed: boolean;
@@ -135,16 +137,16 @@ export interface Proposal {
   current_colour: Colour | null;
   proposed_colour: Colour;
   tews_before: number | null;
-  tews_after: number;
+  tews_after: number | null;
   reasons: string[];
   evidence: EvidenceRow[];
-  agent_action: "propose" | "propose_and_remeasure" | "request_missing_value";
+  agent_action: "propose" | "propose_and_remeasure" | "request_missing_value" | null;
   missing_input: VitalInput | null;
   complaint: string | null;
   signs_verdict: "found" | "none" | "unsure" | null;
   signs: Sign[];
   rationale: string | null;
-  rationale_source: "model" | "code";
+  rationale_source: "model" | "code" | null;
   notices: Notice[];
   /** Not in docs/api.md: the run that made this proposal. The fake derives it from obs_id (Q8). */
   run_id?: string;
@@ -221,5 +223,5 @@ export interface Gate {
   gate: GateName;
   at: string | null;
   by: string | null;
-  refused: { by: string; role: Role; at: string }[];
+  refused: { by: string; role: Role | null; at: string }[];
 }

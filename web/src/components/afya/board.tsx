@@ -87,7 +87,7 @@ export function Board({
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block font-semibold text-agent-foreground">
-                  Second look suggested for <span className="font-mono">{pr.patient_label}</span>
+                  Second look suggested for <span className="font-mono">{pr.patient_label ?? pr.visit_id}</span>
                 </span>
                 <span className="block text-sm text-agent-foreground/80">
                   {pr.reasons[0] && pr.reasons[0].charAt(0).toUpperCase() + pr.reasons[0].slice(1).replace("->", "→")} · cites {new Set(pr.evidence.flatMap((e) => [e.before.obs_id, e.after.obs_id])).size || 1} readings

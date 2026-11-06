@@ -1,9 +1,9 @@
 "use client";
 
-import { AlertTriangle, BellRing, Info, MessageSquareWarning, PencilRuler, Ruler, Sparkles, WifiOff } from "lucide-react";
+import { AlertTriangle, BellRing, DatabaseZap, FileQuestion, Info, MessageSquareWarning, PencilRuler, Ruler, Sparkles, WifiOff } from "lucide-react";
 
 import type { Notice, NoticeCode } from "@/api/contract";
-import { NOTICE } from "@/lib/notices";
+import { noticeText } from "@/lib/notices";
 import { cn } from "@/lib/utils";
 
 const ICON: Record<NoticeCode, React.ComponentType<{ className?: string }>> = {
@@ -14,6 +14,8 @@ const ICON: Record<NoticeCode, React.ComponentType<{ className?: string }>> = {
   vitals_due: AlertTriangle,
   clinician_reminded: BellRing,
   model_unavailable: WifiOff,
+  fhir_unavailable: DatabaseZap,
+  data_incomplete: FileQuestion,
 };
 
 export const TONE = {
@@ -24,7 +26,7 @@ export const TONE = {
 } as const;
 
 export function NoticeChip({ notice, className }: { notice: Notice; className?: string }) {
-  const n = NOTICE[notice.code];
+  const n = noticeText(notice.code);
   const Icon = ICON[notice.code] ?? Info;
   return (
     <span
@@ -48,7 +50,7 @@ export function NoticeCallout({
   action?: React.ReactNode;
   children?: React.ReactNode;
 }) {
-  const n = NOTICE[code];
+  const n = noticeText(code);
   const Icon = ICON[code] ?? Info;
   return (
     <div role="status" className={cn("flex items-start gap-3 rounded-xl border p-3 text-sm", TONE[n.tone], className)}>

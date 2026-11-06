@@ -72,6 +72,7 @@ const EMPTY: Form = {
 };
 
 const MAX_COMPLAINT = 500;
+export const DEMO_LABEL = "P-014";
 
 export function VitalsDialog({ me, patient, onClose }: { me: Me; patient: QueuePatient | null; onClose: () => void }) {
   return (
@@ -140,7 +141,12 @@ function VitalsForm({ me, patient, onClose }: { me: Me; patient: QueuePatient; o
       onError: (err) => {
         if (err instanceof ApiError && err.code === "invalid" && Array.isArray(err.problems)) {
           const map: Record<string, string> = {};
-          for (const p of err.problems as { name: string; message: string }[]) map[p.name] = p.message;
+          // The real API names the input in `field` (api/afya_api/errors.py); older fixtures used `name`.
+          for (const p of err.problems as { field?: string; name?: string; message: string }[]) {
+            const k = p.field ?? p.name;
+            if (k) map[k] = p.message;
+          }
+          if (Object.keys(map).length === 0) map._form = err.message;
           setInvalid(map);
           setKey(newIdempotencyKey());
         }
@@ -190,7 +196,7 @@ function VitalsForm({ me, patient, onClose }: { me: Me; patient: QueuePatient; o
         <DialogDescription className="mt-1">
           Leave a field empty if you did not measure it: missing values are reported, never guessed.
         </DialogDescription>
-        {me.demo && patient.visit_id === "v014" && (
+        {me.demo && patient.patient_label === DEMO_LABEL && (
           <button
             type="button"
             data-testid="fill-scenario"
@@ -296,7 +302,7 @@ function VitalsForm({ me, patient, onClose }: { me: Me; patient: QueuePatient; o
         )}
         {Object.keys(invalid).length > 0 && (
           <p role="alert" className="text-sm text-destructive">
-            Check the highlighted values.
+            {invalid._form ?? "Check the highlighted values."}
           </p>
         )}
       </div>

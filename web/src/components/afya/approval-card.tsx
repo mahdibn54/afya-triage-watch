@@ -23,7 +23,7 @@ const TRIGGER: Record<string, string> = {
   nurse_reported: "Nurse-reported worsening",
 };
 
-const ACTION: Record<Proposal["agent_action"], string> = {
+const ACTION: Record<NonNullable<Proposal["agent_action"]>, string> = {
   propose: "Asks for a second look",
   propose_and_remeasure: "Asks for a second look and a re-measure",
   request_missing_value: "Asks for a missing value",
@@ -64,7 +64,7 @@ export function ApprovalCard({ me, proposal }: { me: Me; proposal: Proposal }) {
       { colour, signs_kept: [...kept], override_reason: overriding ? overrideReason.trim() : null },
       {
         onSuccess: () =>
-          toast.success(`Confirmed ${SATS[colour].label} ${SATS[colour].shape} for ${p.patient_label}`, {
+          toast.success(`Confirmed ${SATS[colour].label} ${SATS[colour].shape} for ${p.patient_label ?? p.visit_id}`, {
             description: "The flag and colour are being written to the record.",
           }),
         onError: (e) => toast.error(decisionError(e).title, { description: decisionError(e).body, duration: 8000 }),
@@ -73,7 +73,7 @@ export function ApprovalCard({ me, proposal }: { me: Me; proposal: Proposal }) {
   }
   function onReject() {
     reject.mutate(rejectReason.trim(), {
-      onSuccess: () => toast(`Suggestion for ${p.patient_label} rejected`, { description: "Logged with your reason. The colour stays as it was." }),
+      onSuccess: () => toast(`Suggestion for ${p.patient_label ?? p.visit_id} rejected`, { description: "Logged with your reason. The colour stays as it was." }),
       onError: (e) => toast.error(decisionError(e).title, { description: decisionError(e).body, duration: 8000 }),
     });
   }
@@ -114,7 +114,7 @@ export function ApprovalCard({ me, proposal }: { me: Me; proposal: Proposal }) {
             <p className="tnum text-3xl font-semibold">
               <span className="text-muted-foreground">{p.tews_before ?? "–"}</span>
               <span className="mx-1.5 text-xl text-muted-foreground">→</span>
-              {p.tews_after}
+              {p.tews_after ?? "–"}
             </p>
           </div>
         </div>
@@ -137,8 +137,7 @@ export function ApprovalCard({ me, proposal }: { me: Me; proposal: Proposal }) {
                 {p.rationale_source === "model"
                   ? "Agent's note · passed the wording check (no condition, cause or treatment words)"
                   : "Written by fixed code from the cited readings"}
-                {" · "}
-                {ACTION[p.agent_action]}
+                {p.agent_action && ` · ${ACTION[p.agent_action]}`}
                 {p.missing_input && `: ${INPUT_LABEL[p.missing_input] ?? p.missing_input}`}
               </p>
             </div>
@@ -283,6 +282,7 @@ export function ApprovalCard({ me, proposal }: { me: Me; proposal: Proposal }) {
               <textarea
                 data-testid="override-reason"
                 rows={2}
+                maxLength={300}
                 value={overrideReason}
                 onChange={(e) => setOverrideReason(e.target.value)}
                 className="mt-1.5 block w-full rounded-xl border bg-background px-3 py-2 text-base outline-none focus:ring-3 focus:ring-ring/30"
@@ -306,6 +306,7 @@ export function ApprovalCard({ me, proposal }: { me: Me; proposal: Proposal }) {
                   data-testid="reject-reason"
                   autoFocus
                   rows={2}
+                  maxLength={300}
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
                   placeholder="e.g. Re-measured at the desk; the readings were a cuff error."

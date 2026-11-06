@@ -54,6 +54,7 @@ export function AgentTrace({ runId, live = true }: { runId: string; live?: boole
   if (q.isError) return <p className="text-sm text-muted-foreground">The trace is not available right now.</p>;
 
   const steps = q.data;
+  if (steps.length === 0) return <p className="text-sm text-muted-foreground">No agent run for this reading yet.</p>;
   // The contract has no run status: a run counts as working while its last step is recent and not the final gate.
   const last = steps[steps.length - 1];
   const working = !!last && last.kind !== "gate" && now - Date.parse(last.at) < 15_000;

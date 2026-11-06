@@ -20,6 +20,14 @@ const KIND: Record<string, { text: string; tone?: "ok" | "bad" | "agent" }> = {
   reject_refused: { text: "Reject refused", tone: "bad" },
   command_done: { text: "Flag and colour written to the record", tone: "ok" },
   notification_acknowledged: { text: "Dismissed a notice" },
+  agent_step: { text: "Agent step", tone: "agent" },
+  record_vitals: { text: "Tool: record vitals" },
+  compute_tews: { text: "Tool: compute the score", tone: "agent" },
+  check_deterioration: { text: "Tool: compare readings", tone: "agent" },
+  get_queue_state: { text: "Tool: read the waiting room", tone: "agent" },
+  raise_recheck_flag: { text: "Tool: raise the second-look flag", tone: "ok" },
+  notify_staff: { text: "Tool: remind staff", tone: "agent" },
+  seed_demo_visit: { text: "Demo: scenario loaded" },
 };
 
 function describe(r: AuditRow): string {
@@ -29,7 +37,9 @@ function describe(r: AuditRow): string {
   if (typeof p.colour === "string") bits.push(String(p.colour));
   if (typeof p.to_colour === "string") bits.push(`to ${p.to_colour}`);
   if (p.reason === "role") bits.push("not a nurse or clinician");
-  if (p.reason === "not_pending") bits.push("no longer pending");
+  if (p.reason === "not_pending" || p.reason === "not pending") bits.push("no longer pending");
+  if (p.reason === "invalid") bits.push("the request was not valid");
+  if (typeof p.name === "string" && r.kind === "agent_step") bits.push(String(p.name));
   if (p.override === true) bits.push("colour overridden with a reason");
   return bits.length ? `${k} · ${bits.join(" · ")}` : k;
 }

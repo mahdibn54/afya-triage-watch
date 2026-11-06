@@ -45,4 +45,28 @@ export const NOTICE: Record<NoticeCode, { title: string; body: string; tone: "in
     body: "Scores, colours and second-look suggestions keep working from the fixed SATS rules. Complaint phrases are not matched until it is back.",
     tone: "info",
   },
+  fhir_unavailable: {
+    short: "Records offline",
+    title: "The patient record server can't be reached",
+    body: "The waiting room can't be loaded from the records right now. Keep triaging by hand; the board refreshes when the connection is back.",
+    tone: "warn",
+  },
+  data_incomplete: {
+    short: "Data missing",
+    title: "Some visit data is missing",
+    body: "A visit lacks data the board needs (patient, colour or arrival time), so it may not be shown correctly. Check it in the record.",
+    tone: "muted",
+  },
 };
+
+/** Wording for a code; an unknown code (a newer API) gets a neutral notice instead of breaking the page. */
+export function noticeText(code: string): (typeof NOTICE)[NoticeCode] {
+  return (
+    NOTICE[code as NoticeCode] ?? {
+      short: "Notice",
+      title: "Notice",
+      body: `The server sent a notice this screen does not know yet (${code}).`,
+      tone: "muted",
+    }
+  );
+}

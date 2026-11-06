@@ -68,7 +68,7 @@ export function GateSteps({ proposalId, outcome }: { proposalId: string; outcome
                   className="mt-1 flex items-center gap-1.5 rounded-lg bg-destructive/8 px-2 py-1 text-xs text-destructive"
                 >
                   <X className="size-3.5 shrink-0" strokeWidth={3} />
-                  Refused: {name(r.by)} ({ROLE_WORD[r.role] ?? r.role}) tried to confirm
+                  Refused: {name(r.by)} {r.role && `(${ROLE_WORD[r.role] ?? r.role})`} tried to confirm
                   <time className="tnum ml-auto font-mono" dateTime={r.at}>
                     {clock(r.at)}
                   </time>

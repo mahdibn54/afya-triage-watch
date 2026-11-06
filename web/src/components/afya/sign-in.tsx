@@ -28,7 +28,7 @@ export function SignIn() {
     <main className="paper-grain relative flex min-h-dvh flex-1 flex-col">
       <header className="flex items-center justify-between px-6 py-5 sm:px-10">
         <Wordmark />
-        <DemoBadge />
+        {!notDemo && <DemoBadge />}
       </header>
 
       <div className="mx-auto grid w-full max-w-6xl flex-1 items-center gap-12 px-6 pb-16 sm:px-10 lg:grid-cols-[1.1fr_1fr]">
@@ -69,7 +69,7 @@ export function SignIn() {
             <h2 id="signin-title" className="text-lg font-semibold">
               Sign in as…
             </h2>
-            <DemoBadge compact />
+            {!notDemo && <DemoBadge compact />}
           </div>
           <p className="mt-1 text-sm text-muted-foreground">Pick a person to try the demo. No password in demo mode.</p>
 
@@ -138,7 +138,7 @@ export function SignIn() {
 
           <p className="mt-6 flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
             <ShieldCheck className="mt-0.5 size-4 shrink-0" />
-            Research prototype on synthetic data. Not clinically validated; not assessed or cleared as a medical device.
+            Research prototype on synthetic data. Decision support for trained triage staff: it proposes, a nurse confirms.
           </p>
         </section>
       </div>

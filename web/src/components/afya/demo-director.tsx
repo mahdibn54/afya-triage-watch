@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import type { Me } from "@/api/contract";
 import { ApiError } from "@/lib/api";
+import { DEMO_LABEL } from "@/components/afya/vitals-dialog";
 import { useDemo, useQueue } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +17,7 @@ export function DemoDirector({ me, onOpen }: { me: Me; onOpen: (visitId: string 
   const [open, setOpen] = useState(true);
   if (!me.demo) return null;
 
-  const hasP014 = queue.data?.patients.some((p) => p.visit_id === "v014");
+  const p014 = queue.data?.patients.find((p) => p.patient_label === DEMO_LABEL);
   const busy = load.isPending || next.isPending;
 
   return (
@@ -62,11 +63,11 @@ export function DemoDirector({ me, onOpen }: { me: Me; onOpen: (visitId: string 
           <button
             type="button"
             data-testid="demo-next"
-            disabled={busy || !hasP014}
+            disabled={busy || !p014}
             onClick={() =>
               next.mutate(undefined, {
                 onSuccess: () => {
-                  onOpen("v014");
+                  onOpen(p014?.visit_id ?? null);
                   toast("New reading for P-014", { description: "Watch the agent re-score it, step by step." });
                 },
                 onError: (e) =>
