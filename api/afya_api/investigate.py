@@ -29,6 +29,7 @@ from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
+from .fhir_projection import LOINC_ALLOW, PANEL, UCUM, UNIT_ALLOW
 from .model import ModelUnavailable
 from .steps import write as write_step
 
@@ -36,14 +37,8 @@ MAX_CALLS = 4               # read-only tool calls per run
 MAX_TURNS = MAX_CALLS + 1   # model turns: one per tool round, plus the final submit_decision
 RECURSION_LIMIT = 12
 MAX_COUNT = 5
-PANEL = "85353-1"
-LOINC_ALLOW = {"9279-1": "resp_rate", "8867-4": "heart_rate", "8480-6": "systolic_bp", "8310-5": "temperature",
-               "59408-5": "spo2"}
 # N1 / security audit: the unit given to the model is a UCUM CODE from this allow-list per LOINC code, never the
 # FHIR `unit` display text (free text anyone with FHIR write access could fill).
-UCUM = "http://unitsofmeasure.org"
-UNIT_ALLOW = {"9279-1": {"/min"}, "8867-4": {"/min"}, "8480-6": {"mm[Hg]"}, "8310-5": {"Cel", "[degF]"},
-              "59408-5": {"%"}}
 ACTIONS = ("propose", "propose_and_remeasure", "request_missing_value")
 ID = re.compile(r"^(Observation|Encounter)/[A-Za-z0-9.-]{1,64}$")
 NAME = re.compile(r"^[A-Za-z0-9_.-]{1,40}$")
@@ -157,7 +152,9 @@ def read_only_tools(ctx: Any, run_id: str, visit_id: str, obs_id: str, seen: set
             await write_step(run_id, visit_id, "tool", "search", f"type=Observation, encounter=Encounter/{visit_id}",
                              f"error: {type(e).__name__}", server="borrowed")
             return json.dumps({"error": "search failed"})
-        rows = [x for x in (trim_observation(e.get("resource", {})) for e in bundle.get("entry", [])) if x]
+        resources = [e.get("resource", {}) for e in bundle.get("entry", [])]
+        rows = [x for x in (trim_observation(r) for r in resources
+                           if (r.get("encounter") or {}).get("reference") == f"Encounter/{visit_id}") if x]
         await write_step(run_id, visit_id, "tool", "search", f"type=Observation, encounter=Encounter/{visit_id}",
                          f"{len(rows)} readings", server="borrowed", cited_ids=[r["id"] for r in rows])
         return done({"readings": rows})

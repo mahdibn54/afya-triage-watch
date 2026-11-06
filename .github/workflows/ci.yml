@@ -24,6 +24,8 @@ jobs:
         run: cd mcp && pytest -q
       - name: pytest (evals, including the E5-1 dataset contract)
         run: pytest evals/tests -q
+      - name: pytest (WSO2 projection adapter)
+        run: cd api && pytest tests/test_fhir_projection.py -q
       - name: mypy (mcp, reported only until the existing errors are fixed)
         continue-on-error: true
         run: cd mcp && mypy afya_mcp
@@ -70,6 +72,12 @@ jobs:
             sleep 5
           done
           docker compose ps; exit 1
+      - name: WSO2 native projection and read-only isolation (synthetic records, no model)
+        run: |
+          export WSO2_CHECK_FIXTURE="$(docker compose exec -T afya-mcp python - seed < scripts/verify_wso2.py)"
+          docker compose exec -T -e WSO2_CHECK_FIXTURE api python - check < scripts/verify_wso2.py
+          docker compose exec -T wso2-fhir-mcp python - isolation < scripts/verify_wso2.py
+          docker compose exec -T -e WSO2_CHECK_FIXTURE afya-mcp python - finish < scripts/verify_wso2.py
       - uses: actions/setup-node@v4
         with:
           node-version: "22"

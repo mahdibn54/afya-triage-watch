@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 60 done · 9 drafted · 22 to do · 0 blocked · 91 stories
+**Progress:** 61 done · 8 drafted · 22 to do · 0 blocked · 91 stories
 
 ---
 
@@ -109,7 +109,7 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 | E2-1 | [x] | docker-compose with all services and health checks | M | Day 2 | 3 h | E0-5 |
 | E2-2 | [x] | Private networks; only the UI published on 127.0.0.1:3000 | M | Day 2 | 1 h | E2-1 |
 | E2-3 | [x] | nginx gateway, GET only | M | Day 5 | 1 h | E2-2 |
-| E2-4 | [~] | WSO2 config and FHIRPath response trimming | B | Day 5 | 1 h | E2-2 |
+| E2-4 | [x] | WSO2 config and FHIRPath response trimming | B | Day 5 | 1 h | E2-2 |
 | E2-5 | [ ] | Host Ollama for the GPU, bound to the Docker bridge | B | Day 2 | 0.5 h | – |
 | E2-6 | [ ] | Seed job loading the 20 synthetic patients into HAPI | B | Day 4 | 1 h | E5-1 |
 | E2-7 | [ ] | Clean-machine test | B | Day 10 | 1 h | all |
@@ -117,7 +117,7 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 **E2-1** · Files: `docker-compose.yml` · Acceptance: `docker compose up --build` starts postgres → db-init → lg-init → hapi → gateway → wso2-fhir-mcp → afya-mcp → api (→ web with `--profile web`) without manual steps. · Notes: drafted by M; verified and fixed by M on the first full run (`scripts/smoke.sh`, all checks pass). Fixes: (1) `ghcr.io/wso2/fhir-mcp-server:0.11.0` is not published, pinned by digest to `:latest` (0.11.0 build); (2) HAPI's default H2 is in-memory (`jdbc:h2:mem:test_mem`), so `/app/target` was wrong: the file DB is now `/data/h2/hapi` on volume `hapidata` via `spring.datasource.url`, and a one-shot `hapi-perms` chowns the volume to uid 65532 (distroless image); (3) postgres healthcheck over TCP (`-h 127.0.0.1`) plus `pg_isready` wait in `db/init.sh`; (4) `afya_app` search_path `afya, lg`. WSO2 MCP path `/mcp` confirmed. Measured: cold start with image pulls 5 min 24 s, with images cached 12 s to all containers up, HAPI answers after about 40 s more. Images: afya-api 268 MB, afya-mcp 193 MB, wso2 fhir-mcp 198 MB, hapi 582 MB, postgres 294 MB, nginx 48 MB. `docker stats --no-stream` RAM: hapi 1.14 GiB, wso2-fhir-mcp 61 MiB, postgres 26 MiB (54 MiB under load), afya-mcp 43 MiB, api 36 MiB, gateway 2 MiB; about 1.3 GiB total.
 **E2-2** · Acceptance: networks `app`, `mcp`, `fhir_ro`, `fhir_rw` internal; only `web` published. Test: `docker compose exec wso2-fhir-mcp` cannot resolve `hapi`. · Notes: drafted by M; verified by M (smoke.sh: wso2-fhir-mcp cannot resolve `hapi`, reaches `gateway`; no host ports published without the web profile).
 **E2-3** · Files: `gateway/nginx.conf` · Acceptance: GET/HEAD only; 403 for `;` `..` `%2e` `%2f` `%3b` `%5c` `$` in the path; method-override headers cleared; reference params like `subject=Patient%2F1` in the query still work. · Notes: `nginx -t` OK on Day 1. WSO2 0.11.0 uses GET for search and read (checked in its source). Verified by M on the live stack (smoke.sh): GET 200; POST/PUT/DELETE/PATCH 403; `;` `..` `%2e` `$` 403; `subject=Patient%2F1` query 200.
-**E2-4** · Acceptance: WSO2 reaches HAPI only via `http://gateway/fhir`; `FHIR_SERVER_DISABLE_AUTHORIZATION=True` only on the private network; a FHIRPath filter returns id, code, value, unit, time. · Notes: M verified the first half (WSO2 reaches HAPI only via the gateway, MCP answers at `/mcp`, authorization disabled on the private network); FHIRPath trimming not checked yet.
+**E2-4** · Acceptance: WSO2 reaches HAPI only via `http://gateway/fhir`; `FHIR_SERVER_DISABLE_AUTHORIZATION=True` only on the private network; a FHIRPath filter returns id, code, value, unit, time. · Notes: completed by B. The pinned WSO2 image (installed 0.11.0) supports per-call `response_filter_fhirpaths`, not a global filter environment variable. `api/afya_api/fhir_projection.py` defines a projection of panel/id/time, per-LOINC numeric values and UCUM codes; the encounter reference is retained only for the internal visit check. `McpGateway.wso2` enforces it for Observation search/read (including the eval gateway), overriding any caller-supplied filter. The adapter handles dotted projection keys, flattened search entries, omitted empty entries and the pinned server's decimal-as-string serialization; missing/ambiguous quantities are not paired by index, invalid projections fail closed without unfiltered retries. Existing final model-side sanitization remains: only id/time and code/value/unit reach the model. Notes, narrative, identifiers, display/unit text, extensions and unrelated components are excluded. Verified against an isolated real WSO2/nginx/HAPI/Postgres stack with synthetic noisy records: native search/read projection, exact quantities and units, actual investigate wrappers, foreign-visit refusal, empty search, write-tool refusal, WSO2 unable to resolve HAPI, configured gateway-only URL, private demo auth setting, and nginx 403 for POST/PUT/PATCH/DELETE. Verification visits finished afterwards. Full API suite against isolated Postgres: **182 passed, no skips**; eval suite **50 passed**; ruff clean and new adapter mypy clean. CI now runs the 13 projection unit checks and `scripts/verify_wso2.py` against the real stack. Details and repeat commands: `docs/wso2-filter.md`. Auth/network policy, scores, confirmation gates and E5-1 labels are unchanged.
 **E2-5** · Acceptance: `ollama pull qwen3:8b qwen3:4b-instruct qwen3:30b-a3b`; `OLLAMA_HOST=172.17.0.1:11434` (Docker bridge, not 0.0.0.0); API reaches it via `host.docker.internal`. Record tokens/s here.
 **E2-6** · Files: `seed/` · Acceptance: idempotent; loads the 20 patients and their visits into HAPI and `afya.visits`.
 **E2-7** · Acceptance: fresh clone on another machine or user → README steps only → full P-014 demo works. Time it and note it here.
@@ -394,6 +394,7 @@ handed to B in the run report.
 | Backlog lives only in this file; no GitHub issues. |
 | Repo public from day one; commits use mahdibenamor13@gmail.com. |
 | Gateway GET-only (WSO2 0.11.0 uses GET for search and read). |
+| **E2-4 native projection:** enforce `response_filter_fhirpaths` on each borrowed Observation search/read. Adapt the pinned server's dotted/flattened output and strict numeric strings; select quantities per LOINC to preserve associations, retain encounter only for visit ownership, and keep the final model-side sanitizer. No unfiltered fallback and no auth/network change. |
 | SATS manual has no open licence: copy numbers only, attribute, ask EMSSA. |
 | Owners rebalanced: Mahdi ≈ 52 h, brother ≈ 45 h. |
 | UI follows the "make the agent visible" spec (`web-design.md`). |

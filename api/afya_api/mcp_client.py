@@ -17,6 +17,8 @@ import anyio
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
+from .fhir_projection import FHIRPATHS, restore_response
+
 
 class ToolRefused(Exception):
     """The tool ran and refused (actor not allowed, unknown actor)."""
@@ -76,4 +78,11 @@ class McpGateway:
     async def wso2(self, tool: str, args: dict[str, Any]) -> dict[str, Any]:
         if tool not in ("search", "read"):   # the borrowed server also has create/update/delete: never called
             raise ToolRefused(f"{tool} is not a read-only tool")
-        return await self._call("wso2", tool, args)
+        if args.get("type") != "Observation":
+            raise ToolRefused("only Observation evidence is offered by the borrowed tools")
+        # Enforced by code, not an optional argument the model can remove or broaden.
+        out = await self._call("wso2", tool, {**args, "response_filter_fhirpaths": list(FHIRPATHS)})
+        try:
+            return restore_response(tool, out)
+        except (ValueError, TypeError, AttributeError) as e:
+            raise ToolFailed("invalid WSO2 projection") from e
