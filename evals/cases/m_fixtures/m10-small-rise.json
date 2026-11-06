@@ -1,0 +1,44 @@
+{
+  "id": "m10-small-rise",
+  "synthetic": true,
+  "title": "Small rise: HR 105, TEWS 1, still GREEN",
+  "split": "fixture",
+  "tags": [
+    "control"
+  ],
+  "age_years": 44,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 40,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 14,
+        "heart_rate": 80,
+        "systolic_bp": 120,
+        "temperature": 37.0,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 14,
+        "heart_rate": 105,
+        "systolic_bp": 120,
+        "temperature": 37.0,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    }
+  ],
+  "expected": {
+    "proposal": false,
+    "label_basis": "TEWS 1 GREEN, no colour change"
+  }
+}

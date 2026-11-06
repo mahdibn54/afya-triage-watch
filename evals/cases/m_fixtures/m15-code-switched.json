@@ -1,0 +1,51 @@
+{
+  "id": "m15-code-switched",
+  "synthetic": true,
+  "title": "Code-switched and misspelt: 'shortnes of breth since asubuhi, siwezi kupumua vizuri'",
+  "split": "fixture",
+  "tags": [
+    "swahili",
+    "code-switched",
+    "misspelt",
+    "complaint"
+  ],
+  "age_years": 38,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 40,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 14,
+        "heart_rate": 80,
+        "systolic_bp": 120,
+        "temperature": 37.0,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 14,
+        "heart_rate": 92,
+        "systolic_bp": 120,
+        "temperature": 37.0,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": "Nina shortnes of breth since asubuhi, siwezi kupumua vizuri."
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "ORANGE",
+    "signs": [
+      "SOB_ACUTE"
+    ],
+    "label_basis": "builder reading: shortness of breath since morning, cannot breathe well"
+  }
+}

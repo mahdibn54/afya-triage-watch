@@ -1,0 +1,46 @@
+{
+  "id": "m12-yellow-to-orange",
+  "synthetic": true,
+  "title": "YELLOW to ORANGE by score alone (with help, RR 30, HR 115)",
+  "split": "fixture",
+  "tags": [
+    "control",
+    "score"
+  ],
+  "age_years": 62,
+  "confirmed_colour": "YELLOW",
+  "arrived_minutes_ago": 40,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 22,
+        "heart_rate": 80,
+        "systolic_bp": 120,
+        "temperature": 37.0,
+        "spo2": 98,
+        "mobility": "with_help",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 30,
+        "heart_rate": 115,
+        "systolic_bp": 120,
+        "temperature": 37.0,
+        "spo2": 98,
+        "mobility": "with_help",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "ORANGE",
+    "label_basis": "TEWS 6 ORANGE from the scorer"
+  }
+}

@@ -1,0 +1,11 @@
+line-length = 120
+
+[lint]
+select = ["E", "F", "I"]
+
+[lint.per-file-ignores]
+"tests/*" = ["E501"]
+
+[lint.isort]
+known-first-party = ["evals"]
+known-third-party = ["afya_api", "afya_mcp"]

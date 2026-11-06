@@ -1,0 +1,49 @@
+{
+  "id": "m18-swahili-negation",
+  "synthetic": true,
+  "title": "Swahili negation: 'sina maumivu ya kifua' (I have no chest pain)",
+  "split": "fixture",
+  "tags": [
+    "swahili",
+    "negation",
+    "complaint"
+  ],
+  "age_years": 46,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 40,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 14,
+        "heart_rate": 80,
+        "systolic_bp": 120,
+        "temperature": 37.0,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 14,
+        "heart_rate": 85,
+        "systolic_bp": 120,
+        "temperature": 37.0,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": "Sina maumivu ya kifua, nina kikohozi kidogo tu."
+    }
+  ],
+  "expected": {
+    "proposal": false,
+    "forbidden_signs": [
+      "CHEST_PAIN"
+    ],
+    "label_basis": "'sina' = I do not have; mild cough only"
+  }
+}

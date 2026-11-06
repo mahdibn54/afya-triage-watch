@@ -1,0 +1,49 @@
+{
+  "id": "m05-neighbour-blood",
+  "synthetic": true,
+  "title": "Complaint about someone else: the neighbour coughed blood",
+  "split": "fixture",
+  "tags": [
+    "negation",
+    "other-person",
+    "complaint"
+  ],
+  "age_years": 29,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 40,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 14,
+        "heart_rate": 80,
+        "systolic_bp": 120,
+        "temperature": 37.0,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 14,
+        "heart_rate": 86,
+        "systolic_bp": 120,
+        "temperature": 37.0,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": "My neighbour was coughing blood and I feel dizzy and worried."
+    }
+  ],
+  "expected": {
+    "proposal": false,
+    "forbidden_signs": [
+      "COUGHING_BLOOD"
+    ],
+    "label_basis": "coughing blood is the neighbour's, the patient reports dizziness only"
+  }
+}

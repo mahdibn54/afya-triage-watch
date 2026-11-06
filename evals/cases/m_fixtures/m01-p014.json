@@ -1,0 +1,52 @@
+{
+  "id": "m01-p014",
+  "synthetic": true,
+  "title": "P-014 before/after: RR 22 HR 105 -> RR 26 HR 112 temp 38.6, shortness of breath; mother's chest pain is not the patient's",
+  "split": "fixture",
+  "tags": [
+    "p014",
+    "complaint"
+  ],
+  "age_years": 40,
+  "confirmed_colour": "YELLOW",
+  "arrived_minutes_ago": 40,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 22,
+        "heart_rate": 105,
+        "systolic_bp": 120,
+        "temperature": 37.2,
+        "spo2": 97,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 26,
+        "heart_rate": 112,
+        "systolic_bp": 120,
+        "temperature": 38.6,
+        "spo2": 93,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": "Short of breath since morning. My mother had chest pain last year."
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "ORANGE",
+    "signs": [
+      "SOB_ACUTE"
+    ],
+    "forbidden_signs": [
+      "CHEST_PAIN"
+    ],
+    "label_basis": "TEWS 6 (ORANGE) from the scorer; SOB is the patient's own, chest pain was the mother's"
+  }
+}

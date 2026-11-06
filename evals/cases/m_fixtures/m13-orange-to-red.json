@@ -1,0 +1,46 @@
+{
+  "id": "m13-orange-to-red",
+  "synthetic": true,
+  "title": "ORANGE to RED by score alone (with help, RR 30, HR 135)",
+  "split": "fixture",
+  "tags": [
+    "control",
+    "score"
+  ],
+  "age_years": 62,
+  "confirmed_colour": "ORANGE",
+  "arrived_minutes_ago": 40,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 30,
+        "heart_rate": 115,
+        "systolic_bp": 120,
+        "temperature": 37.0,
+        "spo2": 98,
+        "mobility": "with_help",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 30,
+        "heart_rate": 135,
+        "systolic_bp": 120,
+        "temperature": 37.0,
+        "spo2": 98,
+        "mobility": "with_help",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "RED",
+    "label_basis": "TEWS 7 RED from the scorer"
+  }
+}

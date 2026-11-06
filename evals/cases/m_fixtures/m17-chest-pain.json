@@ -1,0 +1,48 @@
+{
+  "id": "m17-chest-pain",
+  "synthetic": true,
+  "title": "Plain English chest pain, current",
+  "split": "fixture",
+  "tags": [
+    "complaint"
+  ],
+  "age_years": 52,
+  "confirmed_colour": "YELLOW",
+  "arrived_minutes_ago": 40,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 14,
+        "heart_rate": 95,
+        "systolic_bp": 120,
+        "temperature": 37.0,
+        "spo2": 98,
+        "mobility": "with_help",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 14,
+        "heart_rate": 96,
+        "systolic_bp": 120,
+        "temperature": 37.0,
+        "spo2": 98,
+        "mobility": "with_help",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": "Crushing chest pain that started an hour ago."
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "ORANGE",
+    "signs": [
+      "CHEST_PAIN"
+    ],
+    "label_basis": "chest pain, current, above confirmed YELLOW; TEWS 1 (YELLOW is the confirmed colour)"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "id": "m14-improvement",
+  "synthetic": true,
+  "title": "Improvement: ORANGE confirmed, vitals back to baseline",
+  "split": "fixture",
+  "tags": [
+    "control"
+  ],
+  "age_years": 62,
+  "confirmed_colour": "ORANGE",
+  "arrived_minutes_ago": 40,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 30,
+        "heart_rate": 115,
+        "systolic_bp": 120,
+        "temperature": 37.0,
+        "spo2": 98,
+        "mobility": "with_help",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 14,
+        "heart_rate": 80,
+        "systolic_bp": 120,
+        "temperature": 37.0,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    }
+  ],
+  "expected": {
+    "proposal": false,
+    "label_basis": "the agent never proposes a downgrade"
+  }
+}
