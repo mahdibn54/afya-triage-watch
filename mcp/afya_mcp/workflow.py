@@ -20,6 +20,7 @@ import psycopg
 from psycopg.types.json import Jsonb
 
 MAX_ATTEMPTS = 5
+COLOURS = ("RED", "ORANGE", "YELLOW", "GREEN")
 COMMAND_TTL = timedelta(hours=1)
 APPROVER_ROLES = ("nurse", "clinician")
 
@@ -44,7 +45,8 @@ def evidence_hash(obs_ids: Iterable[str], sign_codes: Iterable[str], rules_versi
     """sha256 over the sorted observation IDs, sorted sign codes and the rules version.
 
     Never include the model's quote text: a retry of the same run must hash the same. The inputs are code-validated
-    IDs and allow-listed codes only. `rules_version` identifies the chart used (for example its chart_id).
+    IDs and allow-listed codes only. `rules_version` is the chart_id of the chart that scored the reading
+    (for example "sats_adult_2012"): a chart change is a new chart_id, so no separate version field is needed.
     """
     body = {"obs": sorted(set(obs_ids)), "signs": sorted(set(sign_codes)), "rules": rules_version}
     return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
@@ -52,12 +54,25 @@ def evidence_hash(obs_ids: Iterable[str], sign_codes: Iterable[str], rules_versi
 
 def insert_proposal(conn: psycopg.Connection, visit_id: str, trigger: str, obs_id: str, ehash: str,
                     payload: dict[str, Any]) -> dict[str, Any] | None:
-    """payload must carry "to_colour" (RED/ORANGE/YELLOW/GREEN); approval copies it to the command.
-    Returns the new proposal, or None when the same (visit, trigger, evidence) already exists (a retry)."""
+    """payload must carry "to_colour" (RED/ORANGE/YELLOW/GREEN); approval copies it to the command. Optional
+    "cited_obs_ids": the readings the card cites (the executor lists them on the Flag). Anything else is refused
+    with ValueError before the INSERT. Returns the new proposal, or None when the same (visit, trigger, evidence)
+    already exists (a retry)."""
+    _check_payload(payload)
     return conn.execute(
         "INSERT INTO proposals (visit_id, trigger, evidence_hash, obs_id, payload) VALUES (%s, %s, %s, %s, %s) "
         "ON CONFLICT (visit_id, trigger, evidence_hash) DO NOTHING RETURNING *",
         (visit_id, trigger, ehash, obs_id, Jsonb(payload))).fetchone()
+
+
+def _check_payload(payload: Any) -> None:
+    if not isinstance(payload, dict):
+        raise ValueError("proposal payload must be an object")
+    if payload.get("to_colour") not in COLOURS:
+        raise ValueError(f"proposal payload['to_colour'] must be one of {COLOURS}, got {payload.get('to_colour')!r}")
+    cited = payload.get("cited_obs_ids", [])
+    if not isinstance(cited, list) or not all(isinstance(o, str) and o for o in cited):
+        raise ValueError("proposal payload['cited_obs_ids'] must be a list of Observation ids")
 
 
 def open_proposals(conn: psycopg.Connection) -> list[dict[str, Any]]:

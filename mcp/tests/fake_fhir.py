@@ -32,6 +32,10 @@ class FakeFhir:
         out = list(self.data.get(rtype, {}).values())
         if "encounter" in params:
             out = [r for r in out if r.get("encounter", {}).get("reference") == params["encounter"]]
+        if "identifier" in params:
+            system, value = params["identifier"].split("|", 1)
+            out = [r for r in out if any(i.get("system") == system and i.get("value") == value
+                                         for i in r.get("identifier", []))]
         if "status" in params:
             out = [r for r in out if r.get("status") in params["status"].split(",")]
         if params.get("_sort") == "-date":

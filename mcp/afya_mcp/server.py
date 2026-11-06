@@ -4,7 +4,7 @@ Two mounts on one port (9000):
   /read/mcp  model-facing, read-only tools (compute_tews, check_deterioration, get_queue_state)
   /act/mcp   executor-only tools (record_vitals, raise_recheck_flag, notify_staff);
              the model's client never connects here.
-Every call is audited (audit.py, E4-8). Still stubs: raise_recheck_flag (E4-6), notify_staff (E4-7).
+Every call is audited (audit.py, E4-8). Still a stub: notify_staff (E4-7).
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from starlette.applications import Starlette
 from starlette.responses import PlainTextResponse
 from starlette.routing import Mount, Route
 
-from . import audit, rules, services
+from . import audit, db, rules, services
 from .db import PgVisitStore
 from .fhir import HttpFhir
 
@@ -134,9 +134,18 @@ async def record_vitals(patient_id: str, visit_id: str, values: dict, idempotenc
 
 
 @act.tool()
-def raise_recheck_flag(command_id: str, actor: str, run_id: str | None = None) -> dict:
-    """Execute an approved command: claim it, write the Flag and confirmed priority, mark done, audit."""
-    raise NotImplementedError("E4-6")
+async def raise_recheck_flag(command_id: str, actor: str, run_id: str | None = None) -> dict:
+    """Executor only. Run a nurse-approved command (input: its command_id only): claim it (or resume it after a
+    crash), write the FHIR Flag "second look" citing the readings and set the confirmed colour on
+    Encounter.priority, then mark it done and audit, through the executor registered for commands.action_type.
+    Safe to retry: the same command always gives the same Flag.
+    actor: the user id who approved the proposal, or 'agent'/'system' for the startup sweep and retries.
+    Output status: done, already_done, refused (with reason), in_progress, not_found or invalid."""
+    def run() -> dict:
+        with db.connect() as conn:
+            return services.raise_recheck_flag(_fhir(), conn, command_id, actor, run_id)
+    return await _audited("raise_recheck_flag", audit.ACT, {"command_id": command_id}, run, actor=actor,
+                          run_id=run_id)
 
 
 @act.tool()

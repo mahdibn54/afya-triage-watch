@@ -194,6 +194,60 @@ print(mine)
 sys.exit(0 if ok else 1)
 PY
 
+check "approve -> raise_recheck_flag via /act/mcp: one Flag in HAPI, Encounter.priority set, audit rows (retry safe)" mcpx <<'PY'
+import asyncio, json, os, sys, uuid, httpx
+from datetime import date, timedelta
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+from afya_mcp import db, workflow
+
+H = {"Content-Type": "application/fhir+json"}
+F = "http://hapi:8080/fhir"
+def post(res):
+    r = httpx.post(f"{F}/{res['resourceType']}", json=res, headers=H, timeout=30); r.raise_for_status(); return r.json()["id"]
+
+pid = post({"resourceType": "Patient", "birthDate": (date.today() - timedelta(days=365 * 40)).isoformat(), "gender": "other"})
+eid = post({"resourceType": "Encounter", "status": "in-progress", "class": {"code": "EMER"}, "subject": {"reference": f"Patient/{pid}"},
+            "priority": {"coding": [{"system": "urn:afya:sats-colour", "code": "YELLOW"}]}})
+values = {"resp_rate": 26, "heart_rate": 118, "systolic_bp": 95, "temperature": 38.6, "mobility": "walking",
+          "consciousness": "alert", "trauma": "no"}
+
+async def act(session, tool, args):
+    res = await session.call_tool(tool, args)
+    return res.isError, (json.loads(res.content[0].text) if not res.isError else res.content[0].text)
+
+async def main():
+    async with streamablehttp_client("http://127.0.0.1:9000/act/mcp/") as (r, w, _):
+        async with ClientSession(r, w) as s:
+            await s.initialize()
+            _, saved = await act(s, "record_vitals", {"patient_id": pid, "visit_id": eid, "values": values,
+                                                      "idempotency_key": "smoke-" + uuid.uuid4().hex, "actor": "nurse-a"})
+            oid = saved["observation_id"].split("/")[1]
+            with db.connect() as c:
+                p = workflow.insert_proposal(c, eid, "colour_rise", oid, workflow.evidence_hash([oid], [], "sats_adult_2012"),
+                                             {"to_colour": "ORANGE", "cited_obs_ids": [oid]})
+                cid = str(workflow.approve_proposal(c, str(p["id"]), "nurse-a")["command"]["id"])
+            refused, _ = await act(s, "raise_recheck_flag", {"command_id": cid, "actor": "mgr-k"})
+            _, first = await act(s, "raise_recheck_flag", {"command_id": cid, "actor": "nurse-a", "run_id": "smoke-run"})
+            _, again = await act(s, "raise_recheck_flag", {"command_id": cid, "actor": "nurse-a", "run_id": "smoke-run"})
+            return cid, refused, first, again
+
+cid, refused, first, again = asyncio.run(main())
+flags = httpx.get(f"{F}/Flag", params={"identifier": f"urn:afya:command|{cid}"}, timeout=30).json().get("entry", [])
+enc = httpx.get(f"{F}/Encounter/{eid}", timeout=30).json()
+colour = [c["code"] for c in enc.get("priority", {}).get("coding", []) if c.get("system") == "urn:afya:sats-colour"]
+with db.connect() as c:
+    kinds = [r["kind"] for r in c.execute("SELECT kind FROM audit_log WHERE visit_id = %s ORDER BY id", (eid,))]
+    kinds += [r["kind"] for r in c.execute("SELECT kind FROM audit_log WHERE kind = 'raise_recheck_flag_refused' "
+                                           "AND actor = 'mgr-k' AND payload->'inputs'->>'command_id' = %s", (cid,))]
+print(first, again, len(flags), colour, kinds)
+ok = (refused and first["status"] == "done" and again["status"] == "already_done" and len(flags) == 1
+      and first["flag_id"] == again["flag_id"] == f"Flag/{flags[0]['resource']['id']}" and colour == ["ORANGE"]
+      and kinds.count("command_done") == 1 and kinds.count("raise_recheck_flag") == 2
+      and {"record_vitals", "proposal_approved", "raise_recheck_flag_refused"} <= set(kinds))
+sys.exit(0 if ok else 1)
+PY
+
 echo "== host exposure"
 PUB=$(docker ps --filter "label=com.docker.compose.project=afya" --format '{{.Names}} {{.Ports}}' | grep -E '0\.0\.0\.0|\[::\]|127\.0\.0\.1' || true)
 if [ -z "$PUB" ]; then ok "no service publishes a host port (web profile off)"; else bad "published ports: $PUB"; fi

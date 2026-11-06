@@ -4,14 +4,21 @@ The MCP tools in server.py are thin wrappers around these functions.
 """
 from __future__ import annotations
 
+import contextlib
 import re
+import uuid
+from collections.abc import Callable
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from . import rules
+import psycopg
+
+from . import rules, workflow
 from .db import VisitStore
 from .fhir import (
+    AFYA,
+    COLOUR_SYSTEM,
     COMPONENTS,
     PANEL_CODE,
     REQ_SYSTEM,
@@ -305,3 +312,132 @@ def _when(value: str | None) -> datetime | None:
 def _minutes(delta: timedelta) -> int:
     return int(delta.total_seconds() // 60)
 
+
+# ---------- E4-6: executor registry and raise_recheck_flag ----------
+
+COMMAND_SYSTEM = "urn:afya:command"
+EVIDENCE_URL = "urn:afya:evidence"
+FHIR_ID = re.compile(r"^[A-Za-z0-9.-]{1,64}$")
+
+
+def raise_recheck_flag(fhir: Fhir, conn: psycopg.Connection, command_id: str, actor: str,
+                       run_id: str | None = None) -> dict[str, Any]:
+    """E4-6. Execute a nurse-approved command (input: its ID only). Order of writes (architecture s. 9): the intent is
+    already committed in Postgres (approve) -> claim, or resume a claimed command after a crash -> idempotent FHIR
+    writes through the executor registered for commands.action_type -> mark done + audit (one transaction).
+
+    Safe on retry: the Flag is a conditional create on urn:afya:command|<command_id> and the priority is an absolute
+    set, so a retry after a failure between the FHIR write and mark_done converges to the same Flag. A session
+    advisory lock on the command keeps two executors from running it at the same time (released on disconnect).
+    The actor must be the user who approved the proposal, or 'agent'/'system' (startup sweep, retries).
+    """
+    try:
+        cid = str(uuid.UUID(str(command_id)))
+    except ValueError:
+        return {"status": "invalid", "command_id": command_id, "reason": "command_id is not a UUID"}
+    if not conn.execute("SELECT pg_try_advisory_lock(hashtextextended(%s, 0)) AS ok", (cid,)).fetchone()["ok"]:
+        return {"status": "in_progress", "command_id": cid, "reason": "another executor is running this command"}
+    try:
+        return _execute(fhir, conn, cid, actor, run_id)
+    finally:
+        with contextlib.suppress(psycopg.Error):   # a broken connection releases the lock when it closes
+            conn.execute("SELECT pg_advisory_unlock(hashtextextended(%s, 0))", (cid,))
+
+
+def _execute(fhir: Fhir, conn: psycopg.Connection, cid: str, actor: str, run_id: str | None) -> dict[str, Any]:
+    row = conn.execute("SELECT c.*, p.decided_by, p.payload FROM commands c JOIN proposals p ON p.id = c.proposal_id "
+                       "WHERE c.id = %s", (cid,)).fetchone()
+    if row is None:
+        return {"status": "not_found", "command_id": cid}
+    base = {"command_id": cid, "visit_id": row["visit_id"], "action_type": row["action_type"]}
+    if actor != row["decided_by"]:
+        role = conn.execute("SELECT role FROM users WHERE id = %s", (actor,)).fetchone()
+        if role is None or role["role"] not in ("agent", "system"):
+            return {**base, "status": "refused", "reason": "actor is not the user who approved this command"}
+    executor = EXECUTORS.get(row["action_type"])
+    if executor is None:
+        return {**base, "status": "refused", "reason": f"no executor for action_type {row['action_type']!r}"}
+    if row["done_at"] is not None:
+        return {**base, "status": "already_done", **executor(fhir, row, lookup_only=True)}
+    command = workflow.claim_command(conn, cid) or workflow.resume_command(conn, cid)
+    if command is None:
+        return {**base, "status": "refused", "reason": _why_not_claimable(conn, cid)}
+    written = executor(fhir, {**command, "payload": row["payload"]})
+    if workflow.mark_done(conn, cid, actor, run_id) is None:
+        return {**base, "status": "already_done", **written}
+    return {**base, "status": "done", "attempts": command["attempts"], **written}
+
+
+def _why_not_claimable(conn: psycopg.Connection, cid: str) -> str:
+    r = conn.execute(
+        "SELECT c.claimed_at IS NOT NULL AS claimed, c.expires_at <= now() AS expired, c.attempts, p.status, "
+        "v.latest_obs_id IS DISTINCT FROM c.obs_id AS stale FROM commands c JOIN proposals p ON p.id = c.proposal_id "
+        "JOIN visits v ON v.id = c.visit_id WHERE c.id = %s", (cid,)).fetchone()
+    if r["status"] != "approved":
+        return f"proposal is {r['status']}"
+    if r["claimed"]:
+        return f"stopped after {r['attempts']} attempts" if r["attempts"] >= workflow.MAX_ATTEMPTS else "not resumable"
+    if r["expired"]:
+        return "approval expired: the proposal must be confirmed again"
+    if r["stale"]:
+        return "newer vitals arrived after the approval: the new reading gets its own proposal"
+    return "not claimable"
+
+
+def write_recheck_flag(fhir: Fhir, command: dict[str, Any], lookup_only: bool = False) -> dict[str, Any]:
+    """Executor for action_type 'recheck_flag': FHIR Flag "second look" citing the readings, and the confirmed
+    colour on Encounter.priority. Both writes are idempotent. lookup_only: find the Flag of a done command."""
+    cid = str(command["id"])
+    if lookup_only:
+        found = fhir.search("Flag", {"identifier": f"{COMMAND_SYSTEM}|{cid}", "_count": "1"})
+        return {"flag_id": f"Flag/{found[0]['id']}" if found else None, "colour": command["colour"]}
+    vid = ref_id(command["visit_id"], "Encounter")
+    encounter = fhir.read("Encounter", vid)
+    pid = ref_id(encounter["subject"]["reference"], "Patient")
+    evidence = _evidence_ids(command)
+    flag = {
+        "resourceType": "Flag",
+        "identifier": [{"system": COMMAND_SYSTEM, "value": cid}],
+        "status": "active",
+        "category": [{"coding": [{"system": "http://terminology.hl7.org/CodeSystem/flag-category",
+                                  "code": "clinical"}]}],
+        "code": {"coding": [{"system": AFYA, "code": "second-look", "display": "Second look requested"}]},
+        "subject": {"reference": f"Patient/{pid}"},
+        "encounter": {"reference": f"Encounter/{vid}"},
+        "period": {"start": command["claimed_at"].isoformat()},
+        "extension": [{"url": EVIDENCE_URL, "valueReference": {"reference": f"Observation/{o}"}} for o in evidence]
+                     + [{"url": COLOUR_SYSTEM, "valueCode": command["colour"]}],
+    }
+    created = fhir.conditional_create(flag, f"{COMMAND_SYSTEM}|{cid}")
+    changed = _set_priority(fhir, encounter, command["colour"])
+    return {"flag_id": f"Flag/{created['id']}", "colour": command["colour"], "priority_changed": changed,
+            "evidence": [f"Observation/{o}" for o in evidence]}
+
+
+def _evidence_ids(command: dict[str, Any]) -> list[str]:
+    """The command's reading first, then the proposal's cited readings (payload "cited_obs_ids"), IDs only."""
+    out: list[str] = []
+    for ref in [command["obs_id"], *(command.get("payload") or {}).get("cited_obs_ids", [])]:
+        oid = ref_id(str(ref), "Observation")
+        if not FHIR_ID.match(oid):
+            raise ValueError(f"not an Observation id: {ref!r}")
+        if oid not in out:
+            out.append(oid)
+    return out
+
+
+def _set_priority(fhir: Fhir, encounter: dict[str, Any], colour: str) -> bool:
+    """Absolute set of the confirmed colour (other priority codings kept). No write if it is already set."""
+    try:
+        if confirmed_colour(encounter) == colour:
+            return False
+    except ValueError:
+        pass   # an unknown colour is overwritten by the confirmed one
+    priority = encounter.get("priority") or {}
+    others = [c for c in priority.get("coding", []) if c.get("system") != COLOUR_SYSTEM]
+    encounter["priority"] = {**priority, "coding": [*others, {"system": COLOUR_SYSTEM, "code": colour}]}
+    fhir.update(encounter)
+    return True
+
+
+EXECUTORS: dict[str, Callable[..., dict[str, Any]]] = {"recheck_flag": write_recheck_flag}
