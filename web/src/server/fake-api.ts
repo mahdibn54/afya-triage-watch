@@ -245,6 +245,21 @@ function p014Run(startedAt: number): RunState {
   return { run_id: runId, visit_id: "v014", started_at: startedAt, steps, proposal: null };
 }
 
+/** The run that followed P-014's first reading: scored, no earlier reading, so no trigger (baseline only). */
+function p014BaselineRun(readingAt: number): RunState {
+  const at = (sec: number) => iso(readingAt + sec * 1000);
+  return {
+    run_id: "v014:1042",
+    visit_id: "v014",
+    started_at: readingAt,
+    proposal: null,
+    steps: [
+      { step: 1, at: at(1), kind: "tool", server: "ours", name: "compute_tews", args_summary: "observation_id=Observation/1042", result_summary: "scored: TEWS 3, YELLOW", latency_ms: 35.1, tokens_in: null, tokens_out: null, cost_usd: null, cited_ids: ["Observation/1042"] },
+      { step: 2, at: at(2), kind: "tool", server: "ours", name: "check_deterioration", args_summary: "visit_id=v014", result_summary: "no earlier reading: baseline only, no trigger", latency_ms: 48.7, tokens_in: null, tokens_out: null, cost_usd: null, cited_ids: ["Observation/1042"] },
+    ],
+  };
+}
+
 /** The demo morning: the contract fixtures, with P-014's reading already in and its proposal pending. */
 function initialState(now = Date.now(), p014Phase: "fixtures" | "first_reading" = "fixtures"): State {
   const s: State = {
@@ -264,6 +279,8 @@ function initialState(now = Date.now(), p014Phase: "fixtures" | "first_reading" 
     ...extraVisits(now),
   ];
   for (const v of visits) s.visits.set(v.visit_id, v);
+  const base = p014BaselineRun(Date.parse(s.visits.get("v014")!.readings[0].at));
+  s.runs.set(base.run_id, base);
 
   // Earlier audit history from the fixtures that is not about P-014's proposal.
   if (p014Phase === "fixtures") {

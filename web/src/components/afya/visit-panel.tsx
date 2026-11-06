@@ -1,15 +1,16 @@
 "use client";
 
-import { CheckCircle2, Flag, PenLine, Sparkles, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, Flag, PenLine, ScanEye, Sparkles, XCircle } from "lucide-react";
 
 import type { Me, Proposal, QueuePatient } from "@/api/contract";
+import { AgentTrace, runIdFor } from "@/components/afya/agent-trace";
 import { ApprovalCard } from "@/components/afya/approval-card";
 import { TargetBar } from "@/components/afya/board";
 import { ColourChip } from "@/components/afya/colour-chip";
 import { GateSteps } from "@/components/afya/gate-steps";
 import { NoticeCallout } from "@/components/afya/notice-chip";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
-import { useAcknowledgeNotice, useAcknowledgeProposal, useProposals, useQueue, useUserName } from "@/lib/queries";
+import { useAcknowledgeNotice, useAcknowledgeProposal, useProposals, useQueue, useTimeline, useUserName } from "@/lib/queries";
 import { SATS } from "@/lib/sats";
 import { clockShort, useNow } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,7 @@ export function VisitPanel({
 function VisitBody({ me, visitId, onRecord }: { me: Me; visitId: string; onRecord: (p: QueuePatient) => void }) {
   const queue = useQueue();
   const all = useProposals("all");
+  const timeline = useTimeline(visitId);
   const now = useNow(1000);
   const name = useUserName();
   const ackProposal = useAcknowledgeProposal();
@@ -60,6 +62,13 @@ function VisitBody({ me, visitId, onRecord }: { me: Me; visitId: string; onRecor
       </div>
     );
   }
+
+  // Runs: the one that followed the latest reading first, then any older run that made a proposal.
+  const readings = timeline.data?.readings ?? [];
+  const latestRun = readings.length ? runIdFor(visitId, readings[readings.length - 1].obs_id) : null;
+  const olderRuns = [
+    ...new Set([...readings.map((r) => runIdFor(visitId, r.obs_id)).reverse(), ...proposals.map((x) => runIdFor(visitId, x.obs_id))]),
+  ].filter((r) => r !== latestRun);
 
   const visitNotices = p.notices.filter((n) => n.code !== "not_reviewed" && n.code !== "clinician_reminded");
 
@@ -129,6 +138,31 @@ function VisitBody({ me, visitId, onRecord }: { me: Me; visitId: string; onRecor
         {decided.map((x) => (
           <DecidedCard key={x.id} proposal={x} by={name(x.decided_by)} />
         ))}
+
+        <section aria-labelledby="trace-title" className="rounded-2xl border bg-card/60 p-4 sm:p-5">
+          <h2 id="trace-title" className="flex items-center gap-2 font-semibold">
+            <ScanEye className="size-5 text-agent" /> What the watch agent did
+          </h2>
+          <p className="mt-0.5 mb-4 text-sm text-muted-foreground">
+            Every step of the latest run, in order: our tools, the borrowed WSO2 FHIR tools, the model and the decision.
+          </p>
+          {latestRun ? (
+            <AgentTrace key={latestRun} runId={latestRun} />
+          ) : (
+            <p className="text-sm text-muted-foreground">No reading yet, so no run.</p>
+          )}
+          {olderRuns.map((r) => (
+            <details key={r} className="group mt-3 rounded-xl border bg-background">
+              <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm font-medium">
+                <ChevronDown className="size-4 transition group-open:rotate-180" />
+                Earlier run <code className="font-mono text-xs text-muted-foreground">{r}</code>
+              </summary>
+              <div className="px-3 pb-3">
+                <AgentTrace runId={r} live={false} />
+              </div>
+            </details>
+          ))}
+        </section>
 
         {unreviewed.map((x) => (
           <NoticeCallout
