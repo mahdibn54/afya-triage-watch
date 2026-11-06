@@ -60,6 +60,20 @@ CREATE TABLE IF NOT EXISTS audit_log (
   payload  jsonb NOT NULL
 );
 
+-- Fixed-text reminders from notify_staff (E4-7) for the UI to poll. Not a clinical record; nothing here changes
+-- the queue. Staff can only mark one acknowledged (column grant below).
+CREATE TABLE IF NOT EXISTS notifications (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  at              timestamptz NOT NULL DEFAULT now(),
+  kind            text NOT NULL
+                  CHECK (kind IN ('vitals_due', 'clinician_reminder', 'model_unavailable', 'remeasure')),
+  visit_id        text,
+  proposal_id     uuid REFERENCES proposals,
+  target_role     text NOT NULL CHECK (target_role IN ('nurse', 'clinician')),
+  text            text NOT NULL,
+  acknowledged_at timestamptz
+);
+
 -- Proposals are single-use: once decided they cannot change status, and only a nurse or clinician can approve.
 -- (The reviewed flag may still go false -> true: a nurse acknowledges a superseded proposal.)
 CREATE OR REPLACE FUNCTION proposals_guard() RETURNS trigger LANGUAGE plpgsql AS
@@ -106,6 +120,7 @@ CREATE INDEX IF NOT EXISTS commands_open_claimed ON commands (claimed_at) WHERE 
 CREATE INDEX IF NOT EXISTS commands_visit ON commands (visit_id);
 CREATE INDEX IF NOT EXISTS audit_visit_at ON audit_log (visit_id, at);
 CREATE INDEX IF NOT EXISTS audit_run ON audit_log (run_id);
+CREATE INDEX IF NOT EXISTS notifications_open ON notifications (at) WHERE acknowledged_at IS NULL;
 
 -- Demo users (synthetic). Real sign-in is a stated gap.
 INSERT INTO users (id, name, role) VALUES
@@ -120,6 +135,10 @@ ON CONFLICT (id) DO NOTHING;
 GRANT USAGE ON SCHEMA afya, lg TO afya_app;
 GRANT SELECT, INSERT, UPDATE ON visits, proposals, commands TO afya_app;
 GRANT SELECT ON users TO afya_app;
+-- notifications: staff only mark one acknowledged; kind, text and targets never change after insert.
+REVOKE ALL ON notifications FROM afya_app;
+GRANT SELECT, INSERT ON notifications TO afya_app;
+GRANT UPDATE (acknowledged_at) ON notifications TO afya_app;
 -- audit_log: read everything, insert only the columns the app supplies (id and at always come from defaults).
 REVOKE ALL ON audit_log FROM afya_app;
 GRANT SELECT ON audit_log TO afya_app;

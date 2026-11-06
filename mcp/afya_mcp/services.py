@@ -441,3 +441,77 @@ def _set_priority(fhir: Fhir, encounter: dict[str, Any], colour: str) -> bool:
 
 
 EXECUTORS: dict[str, Callable[..., dict[str, Any]]] = {"recheck_flag": write_recheck_flag}
+
+
+# ---------- E4-7: notify_staff ----------
+
+# kind -> who reads it. Texts are fixed templates below: they restate IDs, colours and times, never advice.
+NOTIFY_ROLES = {"vitals_due": "nurse", "remeasure": "nurse", "clinician_reminder": "clinician",
+                "model_unavailable": "nurse"}
+
+
+def notify_staff(conn: psycopg.Connection, kind: str, proposal_id: str | None = None,
+                 visit_id: str | None = None) -> dict[str, Any]:
+    """E4-7. Store a fixed-text reminder in afya.notifications for the UI to poll. Never changes the queue.
+
+    vitals_due (visit_id): a reading is due by the site re-check interval.
+    remeasure (visit_id, optional proposal_id): staff asked to re-measure.
+    clinician_reminder (proposal_id, must be pending): restates the proposal's colour and cited readings.
+    model_unavailable (optional visit_id): the language model is down; rule-based scoring continues.
+    """
+    if kind not in NOTIFY_ROLES:
+        return {"status": "invalid", "reason": f"kind must be one of {sorted(NOTIFY_ROLES)}"}
+    vid = None
+    if visit_id:
+        try:
+            vid = ref_id(visit_id, "Encounter")
+        except ValueError:
+            vid = None
+        if vid is None or not FHIR_ID.match(vid):
+            return {"status": "invalid", "reason": "visit_id is not an Encounter id"}
+    proposal = None
+    if proposal_id:
+        try:
+            pid = str(uuid.UUID(str(proposal_id)))
+        except ValueError:
+            return {"status": "invalid", "reason": "proposal_id is not a UUID"}
+        proposal = conn.execute("SELECT id, visit_id, status, obs_id, payload FROM proposals WHERE id = %s",
+                                (pid,)).fetchone()
+        if proposal is None:
+            return {"status": "invalid", "reason": "proposal not found"}
+        if vid and vid != proposal["visit_id"]:
+            return {"status": "invalid", "reason": "proposal belongs to another visit"}
+        vid = proposal["visit_id"]
+    if kind in ("vitals_due", "remeasure") and vid is None:
+        return {"status": "invalid", "reason": f"{kind} needs a visit_id"}
+    if kind == "clinician_reminder":
+        if proposal is None:
+            return {"status": "invalid", "reason": "clinician_reminder needs a proposal_id"}
+        if proposal["status"] != "pending":
+            return {"status": "not_sent", "visit_id": vid, "reason": f"proposal is {proposal['status']}"}
+    text = _notification_text(kind, vid, proposal)
+    row = conn.execute(
+        "INSERT INTO notifications (kind, visit_id, proposal_id, target_role, text) VALUES (%s, %s, %s, %s, %s) "
+        "RETURNING id, at", (kind, vid, proposal["id"] if proposal else None, NOTIFY_ROLES[kind], text)).fetchone()
+    return {"status": "sent", "notification_id": str(row["id"]), "at": row["at"].isoformat(), "kind": kind,
+            "visit_id": vid, "proposal_id": str(proposal["id"]) if proposal else None,
+            "target_role": NOTIFY_ROLES[kind], "text": text}
+
+
+def _notification_text(kind: str, vid: str | None, proposal: dict[str, Any] | None) -> str:
+    """Fixed templates. Only IDs, the proposal's colour and its cited readings are filled in."""
+    about = ""
+    if proposal is not None:
+        payload = proposal["payload"] or {}
+        cited = ", ".join(f"Observation/{ref_id(o, 'Observation')}"
+                          for o in dict.fromkeys([proposal["obs_id"], *payload.get("cited_obs_ids", [])]))
+        about = f" Proposal {proposal['id']}: proposed colour {payload.get('to_colour')}, cited readings {cited}."
+    if kind == "vitals_due":
+        return f"Vitals due for visit {vid} (site re-check interval).{about}"
+    if kind == "remeasure":
+        return f"Please re-measure the vital signs for visit {vid}.{about}"
+    if kind == "clinician_reminder":
+        return f"Reminder: a proposal for visit {vid} is waiting for review.{about}"
+    where = f" Visit {vid}." if vid else ""
+    return ("Language model unavailable: readings are still scored by the fixed rules and colour rises still "
+            f"become proposals.{where}")

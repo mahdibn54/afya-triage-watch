@@ -248,6 +248,32 @@ ok = (refused and first["status"] == "done" and again["status"] == "already_done
 sys.exit(0 if ok else 1)
 PY
 
+check "notify_staff via /act/mcp stores a fixed-text notification and an audit row" mcpx <<'PY'
+import asyncio, json, sys, uuid
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+from afya_mcp import db
+
+visit = "smoke-" + uuid.uuid4().hex[:12]
+
+async def main():
+    async with streamablehttp_client("http://127.0.0.1:9000/act/mcp/") as (r, w, _):
+        async with ClientSession(r, w) as s:
+            await s.initialize()
+            res = await s.call_tool("notify_staff", {"kind": "vitals_due", "visit_id": visit, "actor": "agent"})
+            return json.loads(res.content[0].text)
+
+out = asyncio.run(main())
+with db.connect() as c:
+    row = c.execute("SELECT kind, target_role, text FROM notifications WHERE id = %s", (out["notification_id"],)).fetchone()
+    audited = c.execute("SELECT count(*) AS n FROM audit_log WHERE kind = 'notify_staff' AND actor = 'agent' "
+                        "AND visit_id = %s", (visit,)).fetchone()["n"]
+print(out, row, audited)
+sys.exit(0 if out["status"] == "sent" and row["kind"] == "vitals_due" and row["text"] == out["text"]
+         and audited == 1 else 1)
+PY
+check "afya_app can only acknowledge notifications (no UPDATE of text, no DELETE)" test "$(app_atc "select has_column_privilege('afya_app','afya.notifications','acknowledged_at','UPDATE'), has_column_privilege('afya_app','afya.notifications','text','UPDATE'), has_table_privilege('afya_app','afya.notifications','DELETE')")" = "t|f|f"
+
 echo "== host exposure"
 PUB=$(docker ps --filter "label=com.docker.compose.project=afya" --format '{{.Names}} {{.Ports}}' | grep -E '0\.0\.0\.0|\[::\]|127\.0\.0\.1' || true)
 if [ -z "$PUB" ]; then ok "no service publishes a host port (web profile off)"; else bad "published ports: $PUB"; fi

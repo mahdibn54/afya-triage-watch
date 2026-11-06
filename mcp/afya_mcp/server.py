@@ -4,7 +4,7 @@ Two mounts on one port (9000):
   /read/mcp  model-facing, read-only tools (compute_tews, check_deterioration, get_queue_state)
   /act/mcp   executor-only tools (record_vitals, raise_recheck_flag, notify_staff);
              the model's client never connects here.
-Every call is audited (audit.py, E4-8). Still a stub: notify_staff (E4-7).
+Every call is audited (audit.py, E4-8).
 """
 from __future__ import annotations
 
@@ -149,10 +149,18 @@ async def raise_recheck_flag(command_id: str, actor: str, run_id: str | None = N
 
 
 @act.tool()
-def notify_staff(kind: str, actor: str, proposal_id: str | None = None, visit_id: str | None = None,
-                 run_id: str | None = None) -> dict:
-    """Send a fixed-text reminder about an existing proposal or an overdue re-check. Adds nothing clinical."""
-    raise NotImplementedError("E4-7")
+async def notify_staff(kind: str, actor: str, proposal_id: str | None = None, visit_id: str | None = None,
+                       run_id: str | None = None) -> dict:
+    """Executor and watch loop only. Store a fixed-text reminder for the nurse UI to show; it restates an existing
+    proposal's colour and cited record IDs or says vitals are due. Adds nothing clinical; never changes the queue.
+    kind: 'vitals_due' (needs visit_id), 'remeasure' (needs visit_id, proposal_id optional), 'clinician_reminder'
+    (needs a pending proposal_id), 'model_unavailable' (visit_id optional).
+    actor: user id from afya.users ('agent' or 'system' when automated). Output: status sent, invalid or not_sent."""
+    def run() -> dict:
+        with db.connect() as conn:
+            return services.notify_staff(conn, kind, proposal_id, visit_id)
+    inputs = {"kind": kind, "proposal_id": proposal_id, "visit_id": visit_id}
+    return await _audited("notify_staff", audit.ACT, inputs, run, actor=actor, run_id=run_id)
 
 
 async def health(_request):

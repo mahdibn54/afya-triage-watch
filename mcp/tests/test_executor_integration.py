@@ -1,4 +1,4 @@
-"""E4-6 raise_recheck_flag against the real Postgres (as afya_app) and an in-memory FHIR.
+"""E4-6 raise_recheck_flag and E4-7 notify_staff against the real Postgres (as afya_app) and an in-memory FHIR.
 
 Same rules as test_postgres_integration.py: skipped without DATABASE_URL, fresh ids, rows are left behind.
 """
@@ -174,3 +174,63 @@ def test_insert_proposal_requires_a_valid_to_colour(conn, payload):
         workflow.insert_proposal(conn, v, "colour_rise", "o1", "h", payload)
     assert conn.execute("SELECT count(*) AS n FROM proposals WHERE visit_id = %s", (v,)).fetchone()["n"] == 0
 
+
+# ---------- E4-7 ----------
+
+def pending(conn, fhir=None, colour="ORANGE"):
+    fhir = fhir or FakeFhir()
+    v = setup_visit(conn, fhir)
+    return workflow.insert_proposal(conn, v, "colour_rise", f"o-{v}", workflow.evidence_hash([f"o-{v}"], [], "c"),
+                                    {"to_colour": colour, "cited_obs_ids": ["o-prev"]})
+
+
+def stored(conn, nid):
+    return conn.execute("SELECT * FROM notifications WHERE id = %s", (nid,)).fetchone()
+
+
+def test_clinician_reminder_restates_the_proposal_colour_and_cited_ids(conn):
+    p = pending(conn)
+    out = services.notify_staff(conn, "clinician_reminder", str(p["id"]))
+    assert out["status"] == "sent" and out["target_role"] == "clinician" and out["visit_id"] == p["visit_id"]
+    assert out["text"] == (f"Reminder: a proposal for visit {p['visit_id']} is waiting for review. Proposal {p['id']}: "
+                           f"proposed colour ORANGE, cited readings Observation/o-{p['visit_id']}, Observation/o-prev.")
+    row = stored(conn, out["notification_id"])
+    assert (row["kind"], row["proposal_id"], row["text"], row["acknowledged_at"]) == \
+        ("clinician_reminder", p["id"], out["text"], None)
+
+
+def test_vitals_due_remeasure_and_model_unavailable_use_fixed_text(conn):
+    assert services.notify_staff(conn, "vitals_due", visit_id="Encounter/v9")["text"] == \
+        "Vitals due for visit v9 (site re-check interval)."
+    assert services.notify_staff(conn, "remeasure", visit_id="v9")["text"] == \
+        "Please re-measure the vital signs for visit v9."
+    out = services.notify_staff(conn, "model_unavailable")
+    assert out["status"] == "sent" and out["visit_id"] is None and "fixed rules" in out["text"]
+
+
+@pytest.mark.parametrize("kind, proposal, visit", [
+    ("diagnose", None, "v1"), ("vitals_due", None, None), ("remeasure", None, "Patient/1"),
+    ("clinician_reminder", None, "v1"), ("clinician_reminder", "not-a-uuid", None),
+    ("clinician_reminder", str(uuid.uuid4()), None), ("vitals_due", None, "v 1; drop"),
+])
+def test_invalid_requests_store_nothing(conn, kind, proposal, visit):
+    before = conn.execute("SELECT count(*) AS n FROM notifications").fetchone()["n"]
+    assert services.notify_staff(conn, kind, proposal, visit)["status"] == "invalid"
+    assert conn.execute("SELECT count(*) AS n FROM notifications").fetchone()["n"] == before
+
+
+def test_reminder_about_a_decided_proposal_is_not_sent_and_visit_must_match(conn):
+    p = pending(conn)
+    assert services.notify_staff(conn, "remeasure", str(p["id"]), "other-visit")["status"] == "invalid"
+    workflow.approve_proposal(conn, str(p["id"]), "nurse-a")
+    assert services.notify_staff(conn, "clinician_reminder", str(p["id"]))["status"] == "not_sent"
+
+
+def test_app_role_can_only_acknowledge_a_notification(conn):
+    nid = services.notify_staff(conn, "vitals_due", visit_id="v1")["notification_id"]
+    conn.execute("UPDATE notifications SET acknowledged_at = now() WHERE id = %s", (nid,))
+    assert stored(conn, nid)["acknowledged_at"] is not None
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        conn.execute("UPDATE notifications SET text = 'x' WHERE id = %s", (nid,))
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        conn.execute("DELETE FROM notifications WHERE id = %s", (nid,))
