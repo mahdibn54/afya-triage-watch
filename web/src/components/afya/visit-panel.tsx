@@ -70,7 +70,8 @@ function VisitBody({ me, visitId, onRecord }: { me: Me; visitId: string; onRecor
     ...new Set([...readings.map((r) => runIdFor(visitId, r.obs_id)).reverse(), ...proposals.map((x) => runIdFor(visitId, x.obs_id))]),
   ].filter((r) => r !== latestRun);
 
-  const visitNotices = p.notices.filter((n) => n.code !== "not_reviewed" && n.code !== "clinician_reminded");
+  // not_reviewed is shown below with its own "mark as seen" action.
+  const visitNotices = p.notices.filter((n) => n.code !== "not_reviewed");
 
   return (
     <div className="flex min-h-full flex-col">

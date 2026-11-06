@@ -470,6 +470,8 @@ function err(status: number, code: string, message: string, problems?: unknown[]
 }
 
 const DEMO_MODE = process.env.DEMO_MODE !== "0";
+/** FAKE_ALL_NOTICES=1 shows the notices no scripted step produces (model offline, instruction-like text). */
+const ALL_NOTICES = process.env.FAKE_ALL_NOTICES === "1";
 
 export function fakeHandle(req: FakeReq): FakeRes {
   const s = state();
@@ -502,7 +504,7 @@ export function fakeHandle(req: FakeReq): FakeRes {
       as_of: iso(now),
       site_rule_source: queueFx.site_rule_source,
       truncated: false,
-      notices: process.env.FAKE_MODEL_DOWN === "1" ? [{ code: "model_unavailable", at: iso(now) }] : [],
+      notices: ALL_NOTICES ? [{ code: "model_unavailable", at: iso(now) }] : [],
       patients: [...s.visits.values()]
         .sort((x, y) => x.arrived_at - y.arrived_at)
         .map((v) => queuePatient(s, v, now)),
@@ -731,5 +733,6 @@ function gates(gs: GateState): Gate[] {
 function publicProposal(p: Proposal): Proposal {
   const { _confirmed_colour, ...rest } = p as Proposal & { _confirmed_colour?: Colour };
   void _confirmed_colour;
+  if (ALL_NOTICES && rest.status === "pending") return { ...rest, notices: [...rest.notices, { code: "instruction_like_text" }] };
   return rest;
 }

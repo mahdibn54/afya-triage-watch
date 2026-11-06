@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 35 done · 3 drafted · 49 to do · 0 blocked · 87 stories
+**Progress:** 36 done · 3 drafted · 48 to do · 0 blocked · 87 stories
 
 ---
 
@@ -231,7 +231,7 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 | E7-5 | [x] | **W5** Agent trace as a plain list | B | Day 7 | 2 h | E6-5 |
 | E7-6 | [x] | "Sign in as…" switcher with DEMO badge | B | Day 5 | 1 h | E6-2 |
 | E7-7 | [x] | **W4** Gate steps as a simple list of ticks | B | Day 6 | 1 h | E6-5 |
-| E7-8 | [ ] | Notices | B | Day 6 | 2 h | E7-1 |
+| E7-8 | [x] | Notices | B | Day 6 | 2 h | E7-1 |
 | E7-9 | [ ] | **W6** Demo scenario loader | B | Day 8 | 1 h | E6-6 |
 | E7-10 | [ ] | Wire everything to the real API, remove fake JSON | B | Day 7–8 | 2 h | E6-1a, E6-1b |
 | E7-11 | [ ] | Playwright end-to-end test of the P-014 flow | B | Day 8 | 1.5 h | E7-10 |
@@ -244,7 +244,7 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 **E7-5** · Acceptance: per run, an ordered list: tool calls tagged **ours** / **borrowed (WSO2)**, model calls with tokens and latency, the decision with cited IDs; the manager can read it; used in the demo video. · Notes: done on the fake API (`/runs/{run_id}/trace`; run id `<visit>:<bare obs id>` per Q8, one run per reading). In the visit panel: the latest run expanded and streaming (1 s polling, "the watch agent is working…" while the last step is under 15 s old and not the final gate, since the contract has no run status), earlier runs behind a disclosure. Each step: number, kind, real tool name, tag (ours · afya-mcp / borrowed · WSO2 FHIR / language model · local or remote / fixed code checks it / human in the loop), args → result, latency, tokens, cost, cited ids; totals line. The fake adds the baseline run of P-014's first reading. Also the audit viewer (top nav, everyone incl. manager): rows in plain words, filter by patient, ids only. Verified as manager: trace and audit readable, no approve button.
 **E7-6** · Acceptance: nurse / clinician / manager; visible DEMO badge; the manager sees no approve button anywhere. · Notes: first screen "Sign in as…" (cards with what each role can do) and a switcher in the top bar, both with a DEMO badge; shown only when `/demo/users` answers (DEMO_MODE=1). Switching resets every cached query. Verified in the browser on the fake API (nurse → manager). Manager check done with E7-3: no confirm, reject or vitals button anywhere (checked in the DOM), a read-only footer on the card instead.
 **E7-7** · Acceptance: a list of ticks Proposed → Paused for nurse → Confirmed by <name> → Command claimed → Written to record → Audited, each with its time; refused attempts listed with role and time. · Notes: done on the fake API (`/proposals/{id}/gates`). Shown on the pending card ("waiting" on the confirm step) and on the decided card, where the ticks arrive live (polls every second until all six are done; stops for rejected proposals, which show "not reached: rejected"). Refusals hang on the confirm step in red with name, role and time. Verified in the browser: manager refused through the API, nurse confirms in the UI → six ticks, P-014 ORANGE with its flag.
-**E7-8** · Acceptance: `remeasure`, `no_chart`, `not_reviewed`, `instruction_like_text`, `vitals_due`, `clinician_reminded`, `model_unavailable`, each with clear wording from the say/avoid table.
+**E7-8** · Acceptance: `remeasure`, `no_chart`, `not_reviewed`, `instruction_like_text`, `vitals_due`, `clinician_reminded`, `model_unavailable`, each with clear wording from the say/avoid table. · Notes: done on the fake API. Wording in `web/src/lib/notices.ts` (one short chip label, a title and one sentence each; no diagnosis or prediction words). Chips on board rows, callouts in the visit panel (dismiss for notices with a `notification_id`, "mark as seen" for `not_reviewed`), top-level notices as a banner above the board, proposal notices on the card, `remeasure` inline in the vitals form. All seven checked on screen (`FAKE_ALL_NOTICES=1` makes the fake show `model_unavailable` and `instruction_like_text`); dismiss checked through the API. Q12 (`fhir_unavailable`) still open with M.
 **E7-9** · Acceptance: only with `DEMO_MODE=1`: a button loads the P-014 scenario and another adds its next reading. For the video, set `WATCH_INTERVAL_SECONDS` and the unread-reminder time low in `.env`.
 **E7-10** · Acceptance: the full P-014 flow works by clicking only; nothing changes colour before approval.
 **E7-11** · Acceptance: Playwright script runs P-014 end to end (vitals → proposal → manager refused → nurse confirms → ORANGE with flag) and passes in CI against the compose stack.
