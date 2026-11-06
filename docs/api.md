@@ -477,6 +477,13 @@ Ordered steps of one agent run. `server` is `ours` (afya-mcp) or `borrowed` (the
 ]
 ```
 
+Where the steps come from: our tools from the `afya-mcp` audit rows that carry the run's `run_id` (kind = tool name:
+`compute_tews`, `check_deterioration`, `get_queue_state`, `record_vitals`, `raise_recheck_flag`, `notify_staff`;
+summaries are built by code from the trimmed inputs and outputs). The agent's own steps (model, decision, gate, borrowed
+`search`/`read`) must be written by E5 as `audit_log` rows of kind `agent_step` with the same `run_id` and a payload
+`{ step_kind: "tool"|"model"|"decision"|"gate", server: "borrowed"|null, name, args_summary, result_summary, latency_ms,
+tokens_in, tokens_out, cost_usd, cited_ids }` (IDs, codes and numbers only). An unknown run gives `[]`.
+
 ### GET /proposals/{id}/gates  (gate steps, W4)
 Always the six gates, in order. `at` is `null` for a gate not reached yet. Refused attempts hang on `confirmed`, with
 the role of the person who tried (a manager's refusal is the red ✕ on step 3). `written` is the time the command was

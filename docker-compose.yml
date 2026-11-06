@@ -115,6 +115,7 @@ services:
       DATABASE_URL: postgresql://afya_app:${AFYA_APP_PASSWORD}@postgres:5432/afya
       FHIR_BASE_URL: http://hapi:8080/fhir   # internal, write-capable URL
       RULES_DIR: /rules
+      DEMO_MODE: ${DEMO_MODE:-1}   # seed_demo_visit refuses unless 1
     volumes:
       - ./rules:/rules:ro
     networks: [fhir_rw, mcp, app]
@@ -129,6 +130,8 @@ services:
       DATABASE_URL: postgresql://afya_app:${AFYA_APP_PASSWORD}@postgres:5432/afya
       AFYA_MCP_READ_URL: http://afya-mcp:9000/read/mcp
       AFYA_MCP_ACT_URL: http://afya-mcp:9000/act/mcp
+      AFYA_MCP_UI_URL: http://afya-mcp:9000/ui/mcp   # read-only data for the screens (timeline, demo)
+      RULES_DIR: /rules                              # site.yaml: clinician reminder limits for /proposals
       WSO2_MCP_URL: http://wso2-fhir-mcp:8000/mcp
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       MODEL: ${MODEL:-qwen3:8b}
@@ -137,6 +140,8 @@ services:
       DEMO_MODE: ${DEMO_MODE:-1}
       SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env}
       WATCH_INTERVAL_SECONDS: ${WATCH_INTERVAL_SECONDS:-60}
+    volumes:
+      - ./rules:/rules:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks: [app, mcp, web]

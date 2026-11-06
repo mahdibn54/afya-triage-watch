@@ -5,7 +5,7 @@ import contextlib
 
 from fastapi import FastAPI
 
-from . import routes_proposals, routes_vitals
+from . import routes_proposals, routes_ui, routes_vitals
 from .deps import get_gateway
 from .errors import install_error_handlers
 from .executor import sweep_on_startup
@@ -33,3 +33,4 @@ def health() -> dict:
 
 app.include_router(routes_vitals.router)       # E6-1b (M)
 app.include_router(routes_proposals.router)    # E6-1b (M)
+app.include_router(routes_ui.router)           # E6-5 (M)
