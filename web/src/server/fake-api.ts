@@ -494,6 +494,8 @@ export function fakeHandle(req: FakeReq): FakeRes {
     return { status: 200, body: u, setUser: u.id };
   }
 
+  if (a === "demo" && !DEMO_MODE) return err(404, "not_found", "demo mode is off");
+
   const me = users.find((u) => u.id === req.userId);
   if (!me) return err(401, "unauthorized", "sign in first");
 

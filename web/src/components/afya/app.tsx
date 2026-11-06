@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import type { Me, QueuePatient } from "@/api/contract";
 import { AuditView } from "@/components/afya/audit-view";
+import { DemoDirector } from "@/components/afya/demo-director";
 import { Board } from "@/components/afya/board";
 import { Wordmark } from "@/components/afya/logo";
 import { SignIn } from "@/components/afya/sign-in";
@@ -96,10 +97,17 @@ export function Shell({ me }: { me: Me }) {
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 sm:px-6">
+      <main className={cn("mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 sm:px-6", me.demo && "pb-64")}>
         {view === "board" && <Board me={me} openVisit={openVisit} onOpen={setOpenVisit} onRecord={setRecordFor} />}
         {view === "audit" && <AuditView />}
       </main>
+      <DemoDirector
+        me={me}
+        onOpen={(v) => {
+          setView("board");
+          setOpenVisit(v);
+        }}
+      />
       <VisitPanel me={me} visitId={openVisit} onClose={() => setOpenVisit(null)} onRecord={setRecordFor} />
       <VitalsDialog me={me} patient={recordFor} onClose={() => setRecordFor(null)} />
     </div>
