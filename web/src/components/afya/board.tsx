@@ -5,7 +5,7 @@ import { Activity, ChevronRight, Clock3, Flag, PenLine, RefreshCw, Sparkles, Wif
 import type { Me, QueuePatient } from "@/api/contract";
 import { ColourChip } from "@/components/afya/colour-chip";
 import { NoticeCallout, NoticeChip } from "@/components/afya/notice-chip";
-import { useQueue } from "@/lib/queries";
+import { useProposals, useQueue } from "@/lib/queries";
 import { SATS } from "@/lib/sats";
 import { ago, clockShort, mmss, useClientNow, useNow } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -39,6 +39,7 @@ export function Board({
   openVisit: string | null;
 }) {
   const q = useQueue();
+  const pending = useProposals("pending");
   const now = useNow(1000);
   const clientNow = useClientNow(1000);
   const canWrite = me.role !== "manager";
@@ -70,6 +71,40 @@ export function Board({
       {q.data?.notices.map((n, i) => (
         <NoticeCallout key={`${n.code}-${i}`} code={n.code} className="mt-4" />
       ))}
+
+      {pending.data && pending.data.length > 0 && (
+        <div className="mt-5 space-y-2">
+          {pending.data.map((pr) => (
+            <button
+              key={pr.id}
+              type="button"
+              data-testid={`review-${pr.visit_id}`}
+              onClick={() => onOpen(pr.visit_id)}
+              className="animate-rise flex w-full flex-wrap items-center gap-3 rounded-2xl border border-agent/35 bg-agent-soft px-4 py-3 text-left transition hover:shadow-md"
+            >
+              <span className="grid size-9 place-items-center rounded-xl bg-agent text-white animate-pulse-ring">
+                <Sparkles className="size-[18px]" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold text-agent-foreground">
+                  Second look suggested for <span className="font-mono">{pr.patient_label}</span>
+                </span>
+                <span className="block text-sm text-agent-foreground/80">
+                  {pr.reasons[0] && pr.reasons[0].charAt(0).toUpperCase() + pr.reasons[0].slice(1).replace("->", "→")} · cites {new Set(pr.evidence.flatMap((e) => [e.before.obs_id, e.after.obs_id])).size || 1} readings
+                </span>
+              </span>
+              <span className="flex items-center gap-2">
+                <ColourChip colour={pr.current_colour} size="sm" muted />
+                <span className="text-muted-foreground">→</span>
+                <ColourChip colour={pr.proposed_colour} size="sm" />
+              </span>
+              <span className="inline-flex h-10 items-center gap-1 rounded-xl bg-agent px-4 text-sm font-semibold text-white">
+                {canWrite ? "Review" : "View"} <ChevronRight className="size-4" />
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="mt-6 overflow-hidden rounded-2xl border bg-card shadow-[0_1px_2px_oklch(0_0_0/0.04)]">
         <div className="hidden grid-cols-[150px_minmax(140px,1fr)_minmax(220px,1.6fr)_150px_150px_130px] gap-4 border-b bg-muted/50 px-5 py-2.5 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase lg:grid">

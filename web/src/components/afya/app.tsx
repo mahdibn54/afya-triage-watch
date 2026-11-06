@@ -9,6 +9,7 @@ import { Board } from "@/components/afya/board";
 import { Wordmark } from "@/components/afya/logo";
 import { SignIn } from "@/components/afya/sign-in";
 import { UserSwitcher } from "@/components/afya/user-switcher";
+import { VisitPanel } from "@/components/afya/visit-panel";
 import { VitalsDialog } from "@/components/afya/vitals-dialog";
 import { ApiError } from "@/lib/api";
 import { useMe } from "@/lib/queries";
@@ -98,6 +99,7 @@ export function Shell({ me }: { me: Me }) {
         {view === "board" && <Board me={me} openVisit={openVisit} onOpen={setOpenVisit} onRecord={setRecordFor} />}
         {view === "audit" && <p className="text-muted-foreground">Audit log</p>}
       </main>
+      <VisitPanel me={me} visitId={openVisit} onClose={() => setOpenVisit(null)} onRecord={setRecordFor} />
       <VitalsDialog me={me} patient={recordFor} onClose={() => setRecordFor(null)} />
     </div>
   );
