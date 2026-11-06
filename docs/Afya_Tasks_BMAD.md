@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 37 done · 4 drafted · 45 to do · 1 blocked · 87 stories
+**Progress:** 37 done · 5 drafted · 44 to do · 1 blocked · 87 stories
 
 ---
 
@@ -64,7 +64,7 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 | E0-3 | [ ] | Send the email to EMSSA (draft at the end of this file) | M | Day 1 | 0.3 h | – |
 | E0-4 | [ ] | Ask Clinton: exact submission time, format, brother listed as team member | M | Day 1 | 0.2 h | – |
 | E0-5 | [~] | Agree the API contract | M+B | Day 1 | 1 h | – |
-| E0-6 | [ ] | CI on every push | B | Day 2 | 1 h | E0-1 |
+| E0-6 | [~] | CI on every push | B | Day 2 | 1 h | E0-1 |
 | E0-7 | [ ] | Invite brother as collaborator (`dhekerbenamor@gmail.com`) | M | Day 1 | 0.1 h | E0-1 |
 
 **E0-1** · Files: `LICENSE`, `README.md`, `.gitignore`, `.env.example` · Acceptance: repo public; `.env` ignored. · Notes: done in commit `1645177`. Commits use mahdibenamor13@gmail.com.
@@ -72,7 +72,7 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 **E0-3** · Acceptance: email sent; reply (or none) recorded here. Until permission, the chart folder stays "non-commercial research only".
 **E0-4** · Acceptance: answers recorded here: deadline timestamp + timezone, required deliverables, team listing.
 **E0-5** · Files: `docs/api.md` · Acceptance: both agree; brother can build the UI against fake JSON matching it. · Notes: draft written Day 1. Rewritten by B against the code: conventions (IDs, times, error body, quote offsets), per-endpoint fields with 19 example JSON blocks (the UI's fixtures, P-014 numbers from `test_rules.py`), "backend today" status per endpoint, added `/demo/users`, `/proposals/{id}/acknowledge`, `/notifications/{id}/acknowledge`. Verified: every example recomputed with the real scorer, `evaluate_trigger`, `check_plausible` and `get_queue_state` (196 checks pass; this caught one wrong example, `no_chart` without a confirmed colour); audit payloads and gate times checked against the live Postgres through `workflow.py`; WSO2 tool names read from the live server. Also checked against `docs/architecture-v4.1.pdf` (sections 3–10, Appendix A and B): complaint limit, quote offsets on the original text, colour override (section 7), `submit_decision` actions and the sign verdict added to proposals. **Waiting for M:** open questions Q1–Q13 in `docs/api.md` section 9 (complaint storage, colour override and reject, proposal payload fields, raw values for evidence, trace tool names, FHIR-down notice).
-**E0-6** · Files: `.github/workflows/ci.yml` · Acceptance: on push and PR runs `ruff`, `mypy`, `pytest` (mcp + api) and `npm run build` (web); red CI blocks merge.
+**E0-6** · Files: `.github/workflows/ci.yml` · Acceptance: on push and PR runs `ruff`, `mypy`, `pytest` (mcp + api) and `npm run build` (web); red CI blocks merge. · Notes: `.github/workflows/ci.yml` added by B: ruff (mcp, api), pytest (mcp), web typecheck, lint, `next build`, fixtures-match-`docs/api.md` check and the Playwright P-014 test (E7-11) on the fake API. mypy runs but does not fail the build yet: 52 existing errors in `mcp/afya_mcp` (M's modules). Left: M fixes or accepts the mypy errors, then branch protection so a red CI blocks merge (repo owner setting).
 **E0-7** · Acceptance: invitation accepted. · Notes: needs GitHub's email verification (sudo mode) by Mahdi first. GitHub personal repos have no "maintainer" role: collaborator = push, merge, manage issues/labels.
 
 ---
