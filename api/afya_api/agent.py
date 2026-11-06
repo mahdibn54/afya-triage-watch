@@ -34,7 +34,7 @@ from langgraph.types import Command, interrupt
 from psycopg import AsyncConnection
 from psycopg.rows import dict_row
 
-from . import decision, executor, steps
+from . import decision, executor, steps, watch
 from . import investigate as inv
 from . import signs as sg
 from .mcp_client import Gateway, ToolRefused
@@ -281,7 +281,7 @@ class Agent:
                  on_proposal: Callable[..., Awaitable[None]] | None = None) -> None:
         self.gateway, self.model = gateway, model
         self.registry = registry if registry is not None else rules.load_registry()
-        self.on_proposal = on_proposal
+        self.on_proposal = on_proposal or watch.notify_at_creation   # E5-7: RED/ORANGE notify at creation
         self._running: set[str] = set()
 
     def _ctx(self, run_id: str, visit_id: str) -> RunContext:

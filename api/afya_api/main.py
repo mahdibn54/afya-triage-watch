@@ -9,6 +9,7 @@ from . import routes_demo, routes_proposals, routes_ui, routes_vitals
 from .deps import get_agent, get_gateway, get_model
 from .errors import install_error_handlers
 from .executor import sweep_on_startup
+from .watch import watch_loop
 
 
 @contextlib.asynccontextmanager
@@ -16,6 +17,7 @@ async def lifespan(_app: FastAPI):
     tasks = [
         asyncio.create_task(sweep_on_startup(get_gateway(), agent=get_agent())),   # E6-4: resume approved commands
         asyncio.create_task(get_model().warm_up()),        # E5-9: warm-up call at start (never blocks startup)
+        asyncio.create_task(watch_loop(get_gateway())),    # E5-7: reminders every WATCH_INTERVAL_SECONDS
     ]
     try:
         yield
