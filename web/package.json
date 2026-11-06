@@ -9,7 +9,8 @@
     "lint": "eslint",
     "gen:api": "node scripts/gen-api.mjs",
     "typecheck": "next typegen && tsc --noEmit",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:group-a": "playwright test --config playwright.group-a.config.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

@@ -1,0 +1,37 @@
+# Test-only overlay: never use with a production/data-bearing Compose project.
+services:
+  fhir-fault:
+    image: python:3.12-slim
+    command: ["python", "/checks/fault_proxy.py"]
+    volumes: ["./evals/stack:/checks:ro"]
+    networks: [fhir_rw, app]
+  afya-mcp:
+    environment:
+      FHIR_BASE_URL: http://fhir-fault:8081/fhir
+  wso2-fhir-mcp:
+    image: afya-group-a-wso2
+    build: {context: ., dockerfile: evals/stack/WSO2.Dockerfile}
+    environment:
+      GROUP_A_COMMIT: ${GROUP_A_COMMIT:-uncommitted}
+  api:
+    environment:
+      MODEL_ENABLED: "0"
+      WATCH_INTERVAL_SECONDS: "3600"
+  group-a:
+    build: {context: ., dockerfile: evals/stack/Dockerfile}
+    profiles: [checks]
+    environment:
+      GROUP_A_ISOLATED: "1"
+      GROUP_A_PROJECT: ${COMPOSE_PROJECT_NAME}
+      GROUP_A_COMMIT: ${GROUP_A_COMMIT:-uncommitted}
+      DATABASE_URL: postgresql://afya_app:${AFYA_APP_PASSWORD}@postgres:5432/afya
+      AFYA_MCP_READ_URL: http://afya-mcp:9000/read/mcp
+      AFYA_MCP_ACT_URL: http://afya-mcp:9000/act/mcp
+      AFYA_MCP_UI_URL: http://afya-mcp:9000/ui/mcp
+      WSO2_MCP_URL: http://wso2-fhir-mcp:8000/mcp
+      RULES_DIR: /rules
+    volumes:
+      - ./rules:/rules:ro
+      - ./evals/stack:/tests:ro
+      - ./.playwright-mcp/group-a:/artifacts
+    networks: [app, mcp, web, fhir_ro]

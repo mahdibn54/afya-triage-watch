@@ -8,6 +8,9 @@ The harness behind `EVALS.md`. Every number in `EVALS.md` is rebuilt from the ra
 | B | model-dependent cases, repeated | `python -m evals run`, each model N times per case |
 | C | rules-only baseline (`MODEL_ENABLED=0` path) | same cases, model switched off, once per case (deterministic) |
 
+Group A's isolated real-stack suite, fault injection, desktop/mobile browser checks and coverage matrix are in
+[`stack/README.md`](stack/README.md). It requires no live model and does not use the E5-1 held-out cases.
+
 ## Commands (repository root)
 
 ```sh
