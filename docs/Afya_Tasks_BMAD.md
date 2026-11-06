@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 41 done · 7 drafted · 38 to do · 1 blocked · 87 stories
+**Progress:** 42 done · 6 drafted · 38 to do · 1 blocked · 87 stories
 
 ---
 
@@ -208,7 +208,7 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 | E6-3 | [~] | Approve = one transaction, then resume the graph | M | Day 7 | 1.5 h | E3-5 |
 | E6-4 | [x] | Startup sweep | M | Day 8 | 0.5 h | E3-5 |
 | E6-5 | [x] | UI data endpoints: visit timeline, run trace, proposal gates | M | Day 7 | 2.5 h | E4-8 |
-| E6-6 | [~] | Demo endpoint: load the P-014 scenario (DEMO_MODE only) | M | Day 8 | 0.5 h | E5-7 |
+| E6-6 | [x] | Demo endpoint: load the P-014 scenario (DEMO_MODE only) | M | Day 8 | 0.5 h | E5-7 |
 
 **E6-1a / E6-1b** · Files: `api/afya_api/` · Acceptance: match `docs/api.md` exactly; JSON errors with clear messages.
 **E6-1b** · Notes: done (Day 8). Routers `routes_vitals.py` and `routes_proposals.py`, registered in `main.py`; pydantic models in `schemas.py` (B regenerates `web/src/api/types.ts` from `/openapi.json`); error body of api.md §1 in `errors.py`. `POST /vitals` calls afya-mcp act `record_vitals` with the signed-in user as actor (a manager is refused by the tool and audited), complaint stored in `afya.readings` (Q1), `run_id` = `<visit>:<bare obs id>` (Q8). `GET /proposals?status=` reads `workflow.list_proposals` (payload fields of Q4/Q13, `clinician_reminder` shown as `clinician_reminded`, Q7). Approve takes `colour`, `signs_kept`, `override_reason` (any level, reason mandatory when it differs, Q6); reject needs a reason. Also built because api.md lists them and nobody owns them: `POST /proposals/{id}/acknowledge` and `POST /notifications/{id}/acknowledge`. **Plug-in for B (E6-2):** `afya_api.deps.current_user` returns `deps.User`; it raises 501 until E6-2 replaces its body (see api.md §4); tests override it with `app.dependency_overrides`. The api never touches FHIR itself (HAPI stays private): it calls afya-mcp (`/act/mcp`, and the new read-only `/ui/mcp`). Tests: `api/tests` (real Postgres + fake FHIR, skipped without `DATABASE_URL`).
@@ -220,6 +220,7 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 **E6-5** · Acceptance: `GET /visits/{id}/timeline` (readings with per-input points and record IDs), `GET /runs/{run_id}/trace` (ordered steps: server ours/borrowed, tool or model, trimmed args, result summary, latency, tokens, cost), `GET /proposals/{id}/gates` (time per gate step + refused attempts); all built from `audit_log` and FHIR, no new state.
 **E6-5** · Notes: done. `routes_ui.py`. Timeline: afya-mcp's new read-only mount `/ui/mcp` (tool `visit_timeline`: FHIR readings, raw values, points per input, SpO2 `points: null`; the model never connects there, nothing is written) because the api cannot reach HAPI. Gates: from `proposals`, `commands` and `audit_log` (refusals of approve and reject hang on `confirmed` with the refuser's role; `paused` is the proposal's creation time because the pause itself is not recorded; `written` is `commands.done_at` and `audited` the `command_done` row time, equal because they share a transaction). Trace: from `audit_log` rows with the `run_id`; **E5 must write its own steps as `agent_step` rows** (payload shape in api.md §7). Compose: api now gets `AFYA_MCP_UI_URL` and the `rules/` mount (site.yaml gives `reminder_due`). Tests: `api/tests/test_evidence.py`.
 **E6-6** · Acceptance: `POST /demo/scenario` loads P-014 and `POST /demo/scenario/next` adds its next reading; both return 404 unless `DEMO_MODE=1`.
+**E6-6** · Notes: done. `routes_demo.py` (404 unless `DEMO_MODE=1`, needs a signed-in user) and `demo_scenario.py` (synthetic P-014 numbers of api.md, defined in the api; B's E5-1 patient set is untouched). The api cannot write FHIR, so seeding goes through afya-mcp: act tool `seed_demo_visit` (refuses unless afya-mcp's `DEMO_MODE=1`, now passed by compose; audited as actor `system`) creates the Patient with identifier `urn:afya:label|P-014` and a fresh waiting Encounter confirmed YELLOW, finishing the previous demo visit; readings go through `record_vitals` (actor `system`, idempotency key `demo-<visit>-<n>`); `next` finds the visit with the read-only `/ui` tool `demo_visit`. **Until E5 exists the second reading does not produce a proposal.** `scripts/smoke.sh` has the end-to-end API path (demo scenario, `/vitals` with a complaint, proposal inserted by a test helper, `/proposals`, approve, all six gates, then exactly one Flag in HAPI and Encounter.priority ORANGE) and ends with SMOKE OK. Tests: `api/tests/test_demo.py` (includes the OpenAPI response-model check).
 
 ---
 

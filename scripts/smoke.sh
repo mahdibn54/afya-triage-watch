@@ -274,6 +274,60 @@ sys.exit(0 if out["status"] == "sent" and row["kind"] == "vitals_due" and row["t
 PY
 check "afya_app can only acknowledge notifications (no UPDATE of text, no DELETE)" test "$(app_atc "select has_column_privilege('afya_app','afya.notifications','acknowledged_at','UPDATE'), has_column_privilege('afya_app','afya.notifications','text','UPDATE'), has_table_privilege('afya_app','afya.notifications','DELETE')")" = "t|f|f"
 
+echo "== api end to end (E6): demo scenario -> /vitals -> proposal (test helper) -> approve -> Flag in HAPI"
+API_OUT=$(dc exec -T api python - <<'PY' 2>/dev/null
+# In-process client of the real app against the real afya-mcp, HAPI and Postgres. current_user (E6-2, B) is replaced
+# by an override, so this runs without a session cookie.
+import sys, uuid
+from fastapi.testclient import TestClient
+from afya_mcp import db, workflow
+from afya_api import deps
+from afya_api.main import app
+
+app.dependency_overrides[deps.current_user] = lambda: deps.User(id="nurse-a", name="Nurse A.", role="nurse")
+def need(ok, what):
+    if not ok:
+        print("FAILED:", what); sys.exit(1)
+with TestClient(app) as c:
+    r = c.post("/demo/scenario", json={"name": "p014"}); need(r.status_code == 200, f"scenario {r.text}")
+    visit = r.json()["visit_id"]
+    r = c.post("/vitals", json={"visit_id": visit, "idempotency_key": "smoke-" + uuid.uuid4().hex, "resp_rate": 26,
+                                "heart_rate": 112, "systolic_bp": 120, "temperature": 38.6, "spo2": 93,
+                                "mobility": "walking", "consciousness": "alert", "trauma": "no",
+                                "complaint": "Short of breath since morning."})
+    need(r.status_code == 200 and r.json()["status"] == "saved", f"vitals {r.text}")
+    obs = r.json()["observation_id"]; oid = obs.split("/")[1]
+    need(r.json()["run_id"] == f"{visit}:{oid}", "run id")
+    tl = c.get(f"/visits/{visit}/timeline").json()
+    need([(x["tews"], x["colour"]) for x in tl["readings"]] == [(3, "YELLOW"), (6, "ORANGE")], f"timeline {tl}")
+    with db.connect() as conn:   # what the agent (E5) will do
+        p = workflow.insert_proposal(conn, visit, "colour_rise", oid, workflow.evidence_hash([oid], [], "smoke"),
+                                     {"to_colour": "ORANGE", "current_colour": "YELLOW", "cited_obs_ids": [oid]})
+    pid = str(p["id"])
+    mine = [x for x in c.get("/proposals").json() if x["id"] == pid]
+    need(len(mine) == 1 and mine[0]["complaint"] == "Short of breath since morning." and mine[0]["patient_label"] == "P-014",
+         f"proposals {mine}")
+    r = c.post(f"/proposals/{pid}/approve", json={"colour": "ORANGE", "signs_kept": []})
+    need(r.status_code == 200, f"approve {r.text}")
+    cid = r.json()["command_id"]
+    gates = {g["gate"]: g for g in c.get(f"/proposals/{pid}/gates").json()}
+    need(all(gates[g]["at"] for g in gates), f"gates {gates}")
+    print(visit, cid)
+PY
+)
+API_VISIT=$(echo "$API_OUT" | tail -1 | tr -d '\r' | cut -d' ' -f1); API_CMD=$(echo "$API_OUT" | tail -1 | tr -d '\r' | cut -d' ' -f2)
+check "api: demo scenario, /vitals, /proposals, approve, gates all ticked" test "$(echo "$API_CMD" | grep -cE '^[0-9a-f-]{36}$')" = 1
+check "api approve -> exactly one Flag in HAPI and Encounter.priority ORANGE" mcpx "$API_VISIT" "$API_CMD" <<'PY'
+import sys, httpx
+visit, cid = sys.argv[1], sys.argv[2]
+F = "http://hapi:8080/fhir"
+flags = httpx.get(f"{F}/Flag", params={"identifier": f"urn:afya:command|{cid}"}, timeout=30).json().get("entry", [])
+enc = httpx.get(f"{F}/Encounter/{visit}", timeout=30).json()
+colour = [c["code"] for c in enc.get("priority", {}).get("coding", []) if c.get("system") == "urn:afya:sats-colour"]
+print(len(flags), colour)
+sys.exit(0 if len(flags) == 1 and colour == ["ORANGE"] else 1)
+PY
+
 echo "== host exposure"
 PUB=$(docker ps --filter "label=com.docker.compose.project=afya" --format '{{.Names}} {{.Ports}}' | grep -E '0\.0\.0\.0|\[::\]|127\.0\.0\.1' || true)
 if [ -z "$PUB" ]; then ok "no service publishes a host port (web profile off)"; else bad "published ports: $PUB"; fi

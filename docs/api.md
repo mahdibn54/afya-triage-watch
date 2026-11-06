@@ -505,7 +505,7 @@ marked done and `audited` the time of its audit row; both are written in one tra
 ## 8. Demo (DEMO_MODE=1 only, `404` otherwise)
 
 ### POST /demo/scenario
-Request `{ "name": "p014" }`. Loads the P-014 scenario (first reading YELLOW). Returns the visit.
+Request `{ "name": "p014" }` (the body is optional). Loads the P-014 scenario (first reading YELLOW). Returns the visit. The data is synthetic and defined in `api/afya_api/demo_scenario.py` (a label, no name; Patient identifier `urn:afya:label`). Loading again finishes the previous demo visit and starts a new one. Needs a signed-in user. The agent (E5) is what turns the second reading into a proposal; until E5 exists no proposal appears.
 
 <!-- example: POST /demo/scenario response -->
 ```json
@@ -513,7 +513,7 @@ Request `{ "name": "p014" }`. Loads the P-014 scenario (first reading YELLOW). R
 ```
 
 ### POST /demo/scenario/next
-No body. Adds the scenario's next reading (for P-014 the one that raises the score to ORANGE).
+No body. Adds the scenario's next reading (for P-014 the one that raises the score to ORANGE). `409` when no scenario is loaded or it has no more readings.
 
 <!-- example: POST /demo/scenario/next response -->
 ```json
