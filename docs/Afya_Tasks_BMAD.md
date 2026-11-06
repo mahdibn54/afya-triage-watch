@@ -202,9 +202,9 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E6-1a | [ ] | Read endpoints: `/login-as`, `/me`, `/queue`, `/audit` | B | Day 5–6 | 1.5 h | E0-5 |
+| E6-1a | [~] | Read endpoints: `/login-as`, `/me`, `/queue`, `/audit` | B | Day 5–6 | 1.5 h | E0-5 |
 | E6-1b | [x] | Write endpoints: `/vitals`, `/proposals`, approve, reject | M | Day 6–7 | 1.5 h | E0-5 |
-| E6-2 | [ ] | Demo sign-in session | B | Day 5 | 1 h | E6-1a |
+| E6-2 | [~] | Demo sign-in session | B | Day 5 | 1 h | E6-1a |
 | E6-3 | [x] | Approve = one transaction, then resume the graph | M | Day 7 | 1.5 h | E3-5 |
 | E6-4 | [x] | Startup sweep | M | Day 8 | 0.5 h | E3-5 |
 | E6-5 | [x] | UI data endpoints: visit timeline, run trace, proposal gates | M | Day 7 | 2.5 h | E4-8 |
