@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 61 done · 8 drafted · 22 to do · 0 blocked · 91 stories
+**Progress:** 61 done · 9 drafted · 21 to do · 0 blocked · 91 stories
 
 ---
 
@@ -265,7 +265,7 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
 | E8-1 | [x] | Eval harness `make eval` | M | Day 5 | 3 h | E5-2 |
-| E8-2 | [ ] | Group A: fixed-code and security tests (run once) | B | Day 8 | 3 h | E2-3, E3-* |
+| E8-2 | [~] | Group A: fixed-code and security tests (run once) | B | Day 8 | 3 h | E2-3, E3-* |
 | E8-3 | [~] | Group B: model-dependent runs | M | Day 9 | 2 h + runs | E5-* |
 | E8-4 | [x] | Group C: rules-only baseline | M | Day 9 | 0.5 h | E8-3 |
 | E8-5 | [x] | Metrics | M | Day 9 | 1 h | E8-1 |
