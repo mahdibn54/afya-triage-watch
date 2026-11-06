@@ -57,7 +57,9 @@ class HttpFhir:
 
     def __init__(self, base_url: str, timeout: float = 10.0):
         self.client = httpx.Client(base_url=base_url.rstrip("/") + "/", timeout=timeout,
-                                   headers={"Accept": "application/fhir+json"})
+                                   # HAPI reuses an identical search for 60 s unless told not to: the "newest reading"
+                                   # query must see a reading saved a moment ago.
+                                   headers={"Accept": "application/fhir+json", "Cache-Control": "no-cache"})
 
     def _call(self, method: str, url: str, **kw: Any) -> dict[str, Any]:
         try:

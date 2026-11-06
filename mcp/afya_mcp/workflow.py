@@ -212,14 +212,17 @@ def open_proposals(conn: psycopg.Connection) -> list[dict[str, Any]]:
 
 def list_proposals(conn: psycopg.Connection, status: str = "pending") -> list[dict[str, Any]]:
     """For GET /proposals: "pending" (default), "superseded" (not yet reviewed) or "all" (every proposal),
-    oldest first, with the visit's patient label."""
+    oldest first, with the visit's patient label. A row without a to_colour is not a card (it could not be approved)
+    and is left out."""
     where = {"pending": "p.status = 'pending'", "superseded": "p.status = 'superseded' AND NOT p.reviewed",
              "all": "true"}.get(status)
     if where is None:
         raise ValueError("status must be pending, superseded or all")
     return conn.execute(
-        f"SELECT p.*, v.patient_label FROM proposals p JOIN visits v ON v.id = p.visit_id WHERE {where} "
-        "ORDER BY p.created_at").fetchall()
+        "SELECT p.*, v.patient_label, r.complaint AS reading_complaint FROM proposals p "
+        "JOIN visits v ON v.id = p.visit_id "
+        "LEFT JOIN readings r ON r.obs_id = regexp_replace(p.obs_id, '^.*/', '') "
+        f"WHERE ({where}) AND p.payload ? 'to_colour' ORDER BY p.created_at").fetchall()
 
 
 def open_notifications(conn: psycopg.Connection) -> list[dict[str, Any]]:

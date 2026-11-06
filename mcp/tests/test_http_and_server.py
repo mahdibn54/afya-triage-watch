@@ -29,6 +29,11 @@ def test_timeout_is_unavailable():
         client(boom).read("Observation", "1")
 
 
+def test_requests_bypass_the_hapi_search_cache():
+    # HAPI reuses an identical search for 60 s: "newest reading" must see a reading saved a moment ago.
+    assert HttpFhir("http://hapi/fhir").client.headers["Cache-Control"] == "no-cache"
+
+
 def test_conditional_create_header_and_bundle_parsing():
     seen = {}
 

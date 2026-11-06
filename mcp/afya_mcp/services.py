@@ -310,7 +310,8 @@ def _queue_entry(fhir: Fhir, registry: list[dict[str, Any]], site: dict[str, Any
         scored = _score_reading(latest[0], patient, registry) if patient is not None else {}
         last = {"observation_id": f"Observation/{latest[0]['id']}", "effective": latest[0].get("effectiveDateTime"),
                 "tews": scored.get("tews"), "colour": scored.get("colour")}
-    flags = fhir.search("Flag", {"encounter": f"Encounter/{vid}", "status": "active", "_count": "20"})
+    # HAPI has no status search parameter on Flag: filter in code
+    flags = fhir.search("Flag", {"encounter": f"Encounter/{vid}", "_count": "50"})
     if any(_is_second_look(f) for f in flags):
         flag_codes = ["second_look"]
     else:
@@ -466,13 +467,14 @@ def seed_demo_visit(fhir: Fhir, label: str, birth_date: str, arrived_minutes_ago
          "gender": "other"}, f"{LABEL_SYSTEM}|{label}")
     for old in fhir.search("Encounter", {"subject": f"Patient/{patient['id']}", "status": ",".join(WAITING_STATUSES)}):
         fhir.update({**old, "status": "finished"})
+    key = uuid.uuid4().hex
     enc = fhir.conditional_create(
         {"resourceType": "Encounter", "status": "in-progress", "class": {"code": "EMER"},
-         "identifier": [{"system": DEMO_SYSTEM, "value": uuid.uuid4().hex}],
+         "identifier": [{"system": DEMO_SYSTEM, "value": key}],
          "subject": {"reference": f"Patient/{patient['id']}"},
          "period": {"start": (now - timedelta(minutes=arrived_minutes_ago)).isoformat()},
          "priority": {"coding": [{"system": COLOUR_SYSTEM, "code": confirmed_colour}]}},
-        f"{DEMO_SYSTEM}|{uuid.uuid4().hex}")
+        f"{DEMO_SYSTEM}|{key}")
     return {"status": "seeded", "patient_id": patient["id"], "visit_id": enc["id"], "patient_label": label}
 
 

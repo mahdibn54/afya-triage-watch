@@ -5,7 +5,7 @@ import copy
 import itertools
 from typing import Any
 
-from afya_mcp.fhir import FhirNotFound, FhirUnavailable
+from afya_mcp.fhir import FhirNotFound, FhirRejected, FhirUnavailable
 
 
 class FakeFhir:
@@ -50,6 +50,8 @@ class FakeFhir:
     def conditional_create(self, resource: dict[str, Any], identifier: str) -> dict[str, Any]:
         self._check()
         system, value = identifier.split("|", 1)
+        if not any(i.get("system") == system and i.get("value") == value for i in resource.get("identifier", [])):
+            raise FhirRejected("HTTP 400: conditional create identifier does not match the resource")   # like HAPI
         for existing in self.data.get(resource["resourceType"], {}).values():
             if any(i.get("system") == system and i.get("value") == value for i in existing.get("identifier", [])):
                 return copy.deepcopy(existing)
