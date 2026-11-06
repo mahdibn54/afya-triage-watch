@@ -182,13 +182,14 @@ async def map_signs(ctx: Any, run_id: str, visit_id: str, complaint: str | None,
     model = ctx.model
     args = f"complaint, {len(text)} characters"
     try:
-        raw, calls = await model.call_json(messages, "map_signs", schema(chart), parse, deadline=ctx.deadline)
+        raw, calls = await model.call_json(messages, "map_signs", schema(chart), parse, deadline=ctx.deadline,
+                                           seed=getattr(ctx, "seed", None))
     except ModelUnavailable as e:
         calls = getattr(e, "calls", [])
         await write_step(run_id, visit_id, "model", "map_signs", args, f"model unavailable ({e.reason}): rules only",
                          latency_ms=_sum(calls, "latency_ms"), tokens_in=_sum(calls, "tokens_in"),
-                         tokens_out=_sum(calls, "tokens_out"), cost_usd=0 if calls else None,
-                         model=await model.describe(), unavailable=e.reason)
+                         tokens_out=_sum(calls, "tokens_out"), cost_usd=_sum(calls, "cost_usd"),
+                         model=await model.describe(getattr(ctx, "seed", None)), unavailable=e.reason)
         return {"verdict": None, "kept": [], "rows": rows, "notices": notices, "model": f"unavailable:{e.reason}"}
     sign_rows, kept, drops = check_signs(raw, text, chart)
     others = [r["code"] for r in sign_rows if r["status"] == "other"]
@@ -197,9 +198,11 @@ async def map_signs(ctx: Any, run_id: str, visit_id: str, complaint: str | None,
                                                                                if drops else "")
     await write_step(run_id, visit_id, "model", "map_signs", args, summary,
                      latency_ms=_sum(calls, "latency_ms"), tokens_in=_sum(calls, "tokens_in"),
-                     tokens_out=_sum(calls, "tokens_out"), cost_usd=0,
-                     model={**await model.describe(), "temperature": model.s.temperatures["map_signs"],
+                     tokens_out=_sum(calls, "tokens_out"), cost_usd=_sum(calls, "cost_usd"),
+                     model={**await model.describe(getattr(ctx, "seed", None)),
+                            "temperature": model.s.temperatures["map_signs"],
                             "retried": len(calls) > 1, "load_ms": _sum(calls, "load_ms"),
-                            "eval_ms": _sum(calls, "eval_ms")},
+                            "eval_ms": _sum(calls, "eval_ms"),
+                            "served_by": next((c.reply.provider for c in calls if c.reply and c.reply.provider), None)},
                      model_verdict=raw["verdict"], kept=kept, other=others, dropped=drops)
     return {"verdict": verdict, "kept": kept, "rows": rows + sign_rows, "notices": notices, "model": "ok"}

@@ -7,7 +7,16 @@ import json
 import httpx
 import pytest
 
-from afya_api.model import CircuitBreaker, Model, ModelSettings, ModelUnavailable, OllamaBackend, Reply
+from afya_api.model import (
+    CircuitBreaker,
+    Model,
+    ModelSettings,
+    ModelUnavailable,
+    OllamaBackend,
+    OpenRouterBackend,
+    Reply,
+    backend_for,
+)
 
 
 class Clock:
@@ -141,9 +150,128 @@ def test_breaker_counts_failures_in_a_row_only():
 
 
 def test_settings_from_env(monkeypatch):
+    monkeypatch.setenv("MODEL_PROVIDER", "ollama")
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
     monkeypatch.setenv("MODEL", "qwen3:4b-instruct")
     monkeypatch.setenv("MODEL_SEED", "7")
     s = ModelSettings.from_env()
     assert (s.model, s.seed, s.call_timeout_s, s.run_timeout_s) == ("qwen3:4b-instruct", 7, 60.0, 240.0)
     assert run(Model(Scripted()).describe())["digest"] == "sha256:fake"
+
+
+# ---------- E5-11: OpenRouter, open-weights model, pinned provider, synthetic-data guard, billed cost ----------
+
+KEY = "sk-or-test-not-a-real-key"
+OR = ModelSettings(provider="openrouter", model="qwen/qwen3-30b-a3b-instruct-2507", openrouter_url="http://or.test",
+                   backoff_s=0.0)
+
+
+def or_answer(content="", tool_calls=None, cost=0.000042):
+    msg = {"role": "assistant", "content": content}
+    if tool_calls:
+        msg["tool_calls"] = tool_calls
+    return {"id": "gen-1", "model": "qwen/qwen3-30b-a3b-instruct-2507", "provider": "Nebius",
+            "choices": [{"message": msg, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 512, "completion_tokens": 40, "cost": cost}}
+
+
+def test_openrouter_request_pins_the_provider_and_reads_the_billed_cost():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["auth"] = request.headers.get("authorization")
+        seen["url"] = str(request.url)
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json=or_answer('{"verdict": "none", "signs": []}'))
+
+    backend = OpenRouterBackend(OR, transport=httpx.MockTransport(handler), api_key=KEY)
+    reply = run(backend.chat([{"role": "user", "content": "x"}], options=OR.options("map_signs", seed=7),
+                             tools=None, format={"type": "object"}))
+    assert seen["url"] == "http://or.test/chat/completions" and seen["auth"] == f"Bearer {KEY}"
+    assert seen["model"] == "qwen/qwen3-30b-a3b-instruct-2507"
+    assert seen["provider"] == {"order": ["nebius/fp8"], "allow_fallbacks": False, "require_parameters": True}
+    assert (seen["temperature"], seen["top_p"], seen["top_k"], seen["seed"], seen["max_tokens"]) == (0.0, 0.8, 20, 7,
+                                                                                                    384)
+    assert seen["response_format"]["json_schema"]["schema"] == {"type": "object"} and "tools" not in seen
+    assert seen["usage"] == {"include": True}
+    assert (reply.tokens_in, reply.tokens_out, reply.cost_usd, reply.provider) == (512, 40, 0.000042, "Nebius")
+    assert KEY not in repr(backend)
+
+
+def test_openrouter_tool_calls_round_trip_with_ids():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(json.loads(request.content))
+        call = {"id": "c1", "type": "function", "function": {"name": "fhir_search", "arguments": '{"count": 3}'}}
+        return httpx.Response(200, json=or_answer(tool_calls=[call]))
+
+    backend = OpenRouterBackend(OR, transport=httpx.MockTransport(handler), api_key=KEY)
+    history = [{"role": "system", "content": "s"},
+               {"role": "assistant", "content": "", "tool_calls": [{"id": "call_0_0", "function": {
+                   "name": "get_queue_state", "arguments": {}}}]},
+               {"role": "tool", "content": "{}", "tool_name": "get_queue_state", "tool_call_id": "call_0_0"}]
+    tools = [{"type": "function", "function": {"name": "fhir_search", "parameters": {"type": "object"}}}]
+    reply = run(backend.chat(history, options=OR.options("investigate"), tools=tools, format=None))
+    assert reply.tool_calls == [{"name": "fhir_search", "args": {"count": 3}}]
+    sent = seen["messages"]
+    assert sent[1]["tool_calls"][0] == {"id": "call_0_0", "type": "function",
+                                        "function": {"name": "get_queue_state", "arguments": "{}"}}
+    assert sent[2] == {"role": "tool", "tool_call_id": "call_0_0", "content": "{}"}
+    assert seen["tools"] == tools and seen["tool_choice"] == "auto"
+
+
+def test_remote_provider_is_refused_unless_the_data_is_synthetic():
+    calls = []
+    transport = httpx.MockTransport(lambda r: calls.append(r) or httpx.Response(200, json=or_answer("{}")))
+    real = ModelSettings(provider="openrouter", openrouter_url="http://or.test", data_classification="real")
+    m = Model(OpenRouterBackend(real, transport=transport, api_key=KEY), real)
+    with pytest.raises(ModelUnavailable) as e:
+        run(m.call([{"role": "user", "content": "x"}], "map_signs"))
+    assert e.value.reason == "data_not_synthetic" and calls == [] and m.breaker.failures == 0
+    assert m.status()["ready"] is False and m.status()["refused"] == "data_not_synthetic"
+    assert run(m.warm_up()) is False and calls == []
+    # the backend refuses on its own too (defence in depth), even without the Model wrapper
+    with pytest.raises(ModelUnavailable):
+        run(OpenRouterBackend(real, transport=transport, api_key=KEY).chat([], options=real.options("warm_up")))
+    assert calls == []
+
+
+def test_no_api_key_means_rules_only_without_counting_a_failure():
+    m = Model(OpenRouterBackend(OR, transport=httpx.MockTransport(lambda r: httpx.Response(500)), api_key=""), OR)
+    with pytest.raises(ModelUnavailable) as e:
+        run(m.call([], "map_signs"))
+    assert e.value.reason == "no_api_key" and m.breaker.failures == 0 and m.breaker.state == "closed"
+
+
+def test_429_and_5xx_are_retried_with_backoff_then_counted_once():
+    answers = [httpx.Response(429, headers={"retry-after": "0"}), httpx.Response(502),
+               httpx.Response(200, json=or_answer("ok"))]
+    m = Model(OpenRouterBackend(OR, transport=httpx.MockTransport(lambda r: answers.pop(0)), api_key=KEY), OR)
+    assert run(m.call([], "investigate")).content == "ok" and m.breaker.failures == 0
+    always = Model(OpenRouterBackend(OR, transport=httpx.MockTransport(lambda r: httpx.Response(503)),
+                                     api_key=KEY), OR)
+    with pytest.raises(ModelUnavailable) as e:
+        run(always.call([], "investigate"))
+    assert e.value.reason == "http_error" and always.breaker.failures == 1     # 3 attempts, one failure
+
+
+def test_settings_default_to_openrouter_and_the_key_is_never_in_settings(monkeypatch):
+    for k in ("MODEL_PROVIDER", "OPENROUTER_MODEL", "DATA_CLASSIFICATION", "MODEL"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", KEY)
+    s = ModelSettings.from_env()
+    assert (s.provider, s.model, s.openrouter_provider, s.data_classification) == (
+        "openrouter", "qwen/qwen3-30b-a3b-instruct-2507", "nebius/fp8", "synthetic")
+    m = Model(backend_for(s), s)
+    assert KEY not in repr(s) and KEY not in json.dumps(m.status()) and KEY not in json.dumps(run(m.describe()))
+    assert run(m.describe())["provider_pinned"] == "nebius/fp8"
+    monkeypatch.setenv("MODEL_PROVIDER", "elsewhere")
+    with pytest.raises(ValueError):
+        ModelSettings.from_env()
+
+
+def test_seed_varies_per_run_and_is_reproducible():
+    s = ModelSettings(seed=42, seed_per_run=True)
+    assert s.run_seed("v1:o1") == s.run_seed("v1:o1") != s.run_seed("v1:o2")
+    assert ModelSettings(seed=42).run_seed("v1:o1") == 42

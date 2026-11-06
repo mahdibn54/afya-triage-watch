@@ -20,7 +20,7 @@ from typing import Any
 import httpx
 from afya_api.agent import Agent
 from afya_api.demo_scenario import birth_date
-from afya_api.model import Model, ModelSettings, OllamaBackend
+from afya_api.model import Model, ModelSettings, backend_for
 from afya_mcp import db, workflow
 
 from .cases import Case
@@ -120,7 +120,7 @@ async def _put_note(client: httpx.AsyncClient, hapi: str, obs_ref: str, text: st
 
 async def run_trial(case: Case, tag: str, group: str, run_index: int, settings: ModelSettings, set_name: str,
                     gw: HostGateway, batch: str, commit: str, cleanup: bool = True) -> dict[str, Any]:
-    model = Model(OllamaBackend(settings), settings, enabled=(group == "B"))
+    model = Model(backend_for(settings), settings, enabled=(group == "B"))
     agent = Agent(gw, model, on_proposal=_no_hook)
     trial: dict[str, Any] = {
         "schema": SCHEMA, "trial_id": f"{group}-{tag}-{case.id}-{run_index}", "batch": batch, "group": group,
@@ -210,9 +210,11 @@ async def run_all(cases: list[Case], models: list[str], runs: int, rules_only_ru
     plan = [(RULES_ONLY, "C", rules_only_runs)] if rules_only_runs else []
     plan += [(m, "B", runs) for m in models]
     for tag, group, n in plan:
-        settings = ModelSettings(base_url=ollama_url, model=RULES_ONLY if group == "C" else tag)
+        # a tag with a slash is an OpenRouter model id (E5-11), anything else an Ollama tag
+        settings = ModelSettings(provider="openrouter" if "/" in tag else "ollama", base_url=ollama_url,
+                                 model=RULES_ONLY if group == "C" else tag)
         if group == "B":
-            warm = Model(OllamaBackend(settings), settings)
+            warm = Model(backend_for(settings), settings)
             t = time.perf_counter()
             ok = await warm.warm_up()
             log(f"warm-up {tag}: {'ok' if ok else 'FAILED'} in {time.perf_counter() - t:.1f}s")

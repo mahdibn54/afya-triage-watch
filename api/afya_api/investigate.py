@@ -231,10 +231,12 @@ def to_ollama(messages: list[AnyMessage]) -> list[dict[str, Any]]:
         elif isinstance(m, AIMessage):
             msg: dict[str, Any] = {"role": "assistant", "content": m.content or ""}
             if m.tool_calls:
-                msg["tool_calls"] = [{"function": {"name": c["name"], "arguments": c["args"]}} for c in m.tool_calls]
+                msg["tool_calls"] = [{"id": c.get("id"), "function": {"name": c["name"], "arguments": c["args"]}}
+                                     for c in m.tool_calls]
             out.append(msg)
         elif isinstance(m, ToolMessage):
-            out.append({"role": "tool", "content": m.content, "tool_name": m.name or ""})
+            out.append({"role": "tool", "content": m.content, "tool_name": m.name or "",
+                        "tool_call_id": m.tool_call_id})
     return out
 
 
@@ -272,12 +274,14 @@ async def investigate(ctx: Any, run_id: str, facts: dict[str, Any]) -> dict[str,
     bound = [convert_to_openai_tool(t) for t in tools]   # the model is bound to exactly this list...
     tool_node = ToolNode(tools)                           # ...and the ToolNode runs exactly this list
     model = ctx.model
-    info = {**await model.describe(), "temperature": model.s.temperatures["investigate"]}
+    seed = getattr(ctx, "seed", None)
+    info = {**await model.describe(seed), "temperature": model.s.temperatures["investigate"]}
 
     async def agent(s: LoopState) -> dict[str, Any]:
         turn = s.get("turns", 0)
         try:
-            reply = await model.call(to_ollama(s["messages"]), "investigate", deadline=ctx.deadline, tools=bound)
+            reply = await model.call(to_ollama(s["messages"]), "investigate", deadline=ctx.deadline, tools=bound,
+                                     seed=seed)
         except ModelUnavailable as e:
             await write_step(run_id, visit_id, "model", "investigate", f"turn {turn + 1}",
                              f"model unavailable ({e.reason}): rules only", model=info, unavailable=e.reason)
@@ -299,7 +303,8 @@ async def investigate(ctx: Any, run_id: str, facts: dict[str, Any]) -> dict[str,
         await write_step(run_id, visit_id, "model", "investigate", f"turn {turn + 1}",
                          summary + (f"; {dropped} call(s) over the limit of {MAX_CALLS} dropped" if dropped else ""),
                          latency_ms=reply.latency_ms, tokens_in=reply.tokens_in, tokens_out=reply.tokens_out,
-                         cost_usd=0, model={**info, "load_ms": reply.load_ms, "eval_ms": reply.eval_ms})
+                         cost_usd=reply.cost_usd, model={**info, "load_ms": reply.load_ms, "eval_ms": reply.eval_ms,
+                                                           "served_by": reply.provider})
         return {"messages": [AIMessage(content=reply.content or "", tool_calls=calls)], "turns": turn + 1,
                 "reads": s.get("reads", 0) + reads, "stop": None if calls else "no decision"}
 

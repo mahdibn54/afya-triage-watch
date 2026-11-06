@@ -343,7 +343,11 @@ PY
 
 echo "== host exposure"
 PUB=$(docker ps --filter "label=com.docker.compose.project=afya" --format '{{.Names}} {{.Ports}}' | grep -E '0\.0\.0\.0|\[::\]|127\.0\.0\.1' || true)
-if [ -z "$PUB" ]; then ok "no service publishes a host port (web profile off)"; else bad "published ports: $PUB"; fi
+# With the web profile up, the only allowed one is the web UI on the loopback (127.0.0.1:3000).
+OTHER=$(printf '%s\n' "$PUB" | grep -vE '^afya-web-1 127\.0\.0\.1:3000->3000/tcp$' | grep . || true)
+if [ -z "$PUB" ]; then ok "no service publishes a host port (web profile off)"
+elif [ -z "$OTHER" ]; then ok "only the web UI publishes a port, on 127.0.0.1:3000 (web profile on)"
+else bad "published ports: $OTHER"; fi
 check "compose publishes only 127.0.0.1:3000" test "$(dc --profile web config | grep -cE 'published:')" -le 1
 
 echo

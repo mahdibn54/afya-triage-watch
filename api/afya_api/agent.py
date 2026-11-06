@@ -72,6 +72,7 @@ class RunContext:
     run_id: str
     visit_id: str
     extra: dict[str, Any] = field(default_factory=dict)
+    seed: int | None = None     # the run's model seed (logged with each call)
 
     def chart(self, chart_id: str) -> dict[str, Any]:
         return next(c for c in self.registry if c["chart_id"] == chart_id)
@@ -318,7 +319,8 @@ class Agent:
 
     def _ctx(self, run_id: str, visit_id: str) -> RunContext:
         extra = {"on_proposal": self.on_proposal} if self.on_proposal else {}
-        return RunContext(self.gateway, self.model, self.registry, self.model.deadline(), run_id, visit_id, extra)
+        return RunContext(self.gateway, self.model, self.registry, self.model.deadline(), run_id, visit_id, extra,
+                          self.model.s.run_seed(run_id))
 
     @contextlib.asynccontextmanager
     async def graph(self, ctx: RunContext) -> AsyncIterator[CompiledStateGraph]:
