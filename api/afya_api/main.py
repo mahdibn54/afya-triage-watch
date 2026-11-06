@@ -6,15 +6,17 @@ import contextlib
 from fastapi import FastAPI
 
 from . import routes_demo, routes_proposals, routes_ui, routes_vitals
-from .deps import get_gateway, get_model
+from .deps import get_agent, get_gateway, get_model
 from .errors import install_error_handlers
 from .executor import sweep_on_startup
 
 
 @contextlib.asynccontextmanager
 async def lifespan(_app: FastAPI):
-    tasks = [asyncio.create_task(sweep_on_startup(get_gateway())),   # E6-4: resume approved commands that are not done
-             asyncio.create_task(get_model().warm_up())]           # E5-9: warm-up call at start (never blocks startup)
+    tasks = [
+        asyncio.create_task(sweep_on_startup(get_gateway(), agent=get_agent())),   # E6-4: resume approved commands
+        asyncio.create_task(get_model().warm_up()),        # E5-9: warm-up call at start (never blocks startup)
+    ]
     try:
         yield
     finally:

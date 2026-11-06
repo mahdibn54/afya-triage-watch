@@ -13,9 +13,11 @@ import pytest
 from afya_mcp import audit, db, rules, services
 from afya_mcp.fhir import COLOUR_SYSTEM
 from fake_fhir import FakeFhir
+from fake_model import ScriptedBackend
 from fastapi.testclient import TestClient
 
 from afya_api import deps
+from afya_api.agent import Agent
 from afya_api.main import app
 from afya_api.mcp_client import ToolRefused
 from afya_api.model import Model, ModelSettings, OllamaBackend
@@ -66,6 +68,12 @@ class InProcessGateway:
             def fn():
                 with db.connect() as conn:
                     return services.raise_recheck_flag(self.fhir, conn, args["command_id"], actor, run_id)
+        elif tool == "notify_staff":
+            inputs = {k: args.get(k) for k in ("kind", "proposal_id", "visit_id")}
+
+            def fn():
+                with db.connect() as conn:
+                    return services.notify_staff(conn, args["kind"], args.get("proposal_id"), args.get("visit_id"))
         elif tool == "seed_demo_visit":
             inputs = {k: args[k] for k in ("label", "birth_date", "arrived_minutes_ago", "confirmed_colour")}
             fn = lambda: services.seed_demo_visit(  # noqa: E731
@@ -76,6 +84,33 @@ class InProcessGateway:
             return audit.call(audit.PgAuditor(), tool, audit.ACT, inputs, fn, actor, run_id)
         except audit.ActorRefused as e:
             raise ToolRefused(str(e)) from e
+
+    async def read(self, tool: str, args: dict[str, Any]) -> dict[str, Any]:
+        """afya-mcp /read: the model-facing read tools, audited as actor 'agent' with the run_id."""
+        self.calls.append((tool, args))
+        run_id = args.get("run_id")
+        if tool == "compute_tews":
+            inputs = {"observation_id": args["observation_id"]}
+            fn = lambda: services.compute_tews(self.fhir, REG, args["observation_id"])  # noqa: E731
+        elif tool == "check_deterioration":
+            inputs = {"visit_id": args["visit_id"]}
+            fn = lambda: services.check_deterioration(self.fhir, REG, args["visit_id"])  # noqa: E731
+        elif tool == "get_queue_state":
+            inputs = {}
+            fn = lambda: services.get_queue_state(self.fhir, REG, SITE, db.PgVisitStore())  # noqa: E731
+        else:
+            raise AssertionError(tool)
+        return audit.call(audit.PgAuditor(), tool, audit.READ, inputs, fn, "agent", run_id)
+
+    async def wso2(self, tool: str, args: dict[str, Any]) -> dict[str, Any]:
+        """The borrowed WSO2 server: search returns a Bundle, read one resource (as the real one does)."""
+        self.calls.append(("wso2." + tool, args))
+        if tool == "search":
+            found = self.fhir.search(args["type"], {k: str(v) for k, v in args.get("searchParam", {}).items()})
+            return {"resourceType": "Bundle", "type": "searchset", "entry": [{"resource": r} for r in found]}
+        if tool == "read":
+            return self.fhir.read(args["type"], args["id"])
+        raise AssertionError(tool)
 
     async def ui(self, tool: str, args: dict[str, Any]) -> dict[str, Any]:
         if tool == "visit_timeline":
@@ -108,12 +143,24 @@ def gateway(fhir) -> InProcessGateway:
 
 
 @pytest.fixture
-def client(gateway, monkeypatch):
+def backend() -> ScriptedBackend:
+    """The model the agent talks to in tests: answers are scripted per test (default: model down)."""
+    return ScriptedBackend()
+
+
+@pytest.fixture
+def agent(gateway, backend) -> Agent:
+    return Agent(gateway, Model(backend, ModelSettings(call_timeout_s=5)))
+
+
+@pytest.fixture
+def client(gateway, agent, monkeypatch):
     async def no_sweep(*_a, **_k):   # the sweep has its own tests; here it would touch other tests' leftover commands
         return []
     monkeypatch.setattr("afya_api.main.sweep_on_startup", no_sweep, raising=False)
     monkeypatch.setattr("afya_api.main.get_model", lambda: Model(OllamaBackend(ModelSettings()), enabled=False))
     app.dependency_overrides[deps.get_gateway] = lambda: gateway
+    app.dependency_overrides[deps.get_agent] = lambda: agent
     with TestClient(app) as c:   # runs the lifespan too: the startup sweep must not break the app
         yield c
     app.dependency_overrides.clear()

@@ -2,6 +2,10 @@
 
 /act/mcp: executor tools (record_vitals, raise_recheck_flag, notify_staff, seed_demo_visit), called with an actor.
 /ui/mcp: read-only data for the screens (visit_timeline, demo_visit).
+/read/mcp: the model-facing read-only tools (compute_tews, check_deterioration, get_queue_state), called by the agent
+with the run_id so afya-mcp's audit row lands in the run's trace.
+wso2: the borrowed WSO2 FHIR MCP server (read-only behind the GET-only gateway); the agent only ever calls `search`
+and `read` on it (investigate.py wraps them).
 """
 from __future__ import annotations
 
@@ -33,12 +37,16 @@ class McpUnavailable(Exception):
 class Gateway(Protocol):
     async def act(self, tool: str, args: dict[str, Any]) -> dict[str, Any]: ...
     async def ui(self, tool: str, args: dict[str, Any]) -> dict[str, Any]: ...
+    async def read(self, tool: str, args: dict[str, Any]) -> dict[str, Any]: ...
+    async def wso2(self, tool: str, args: dict[str, Any]) -> dict[str, Any]: ...
 
 
 class McpGateway:
     def __init__(self) -> None:
         act = os.environ.get("AFYA_MCP_ACT_URL", "http://afya-mcp:9000/act/mcp")
-        self.urls = {"act": act, "ui": os.environ.get("AFYA_MCP_UI_URL", act.replace("/act/mcp", "/ui/mcp"))}
+        self.urls = {"act": act, "ui": os.environ.get("AFYA_MCP_UI_URL", act.replace("/act/mcp", "/ui/mcp")),
+                     "read": os.environ.get("AFYA_MCP_READ_URL", act.replace("/act/mcp", "/read/mcp")),
+                     "wso2": os.environ.get("WSO2_MCP_URL", "http://wso2-fhir-mcp:8000/mcp")}
 
     async def _call(self, mount: str, tool: str, args: dict[str, Any]) -> dict[str, Any]:
         url = self.urls[mount].rstrip("/")   # no trailing slash: "/act/mcp/" would be a 307 redirect
@@ -61,3 +69,11 @@ class McpGateway:
 
     async def ui(self, tool: str, args: dict[str, Any]) -> dict[str, Any]:
         return await self._call("ui", tool, args)
+
+    async def read(self, tool: str, args: dict[str, Any]) -> dict[str, Any]:
+        return await self._call("read", tool, args)
+
+    async def wso2(self, tool: str, args: dict[str, Any]) -> dict[str, Any]:
+        if tool not in ("search", "read"):   # the borrowed server also has create/update/delete: never called
+            raise ToolRefused(f"{tool} is not a read-only tool")
+        return await self._call("wso2", tool, args)

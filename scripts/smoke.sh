@@ -274,13 +274,15 @@ sys.exit(0 if out["status"] == "sent" and row["kind"] == "vitals_due" and row["t
 PY
 check "afya_app can only acknowledge notifications (no UPDATE of text, no DELETE)" test "$(app_atc "select has_column_privilege('afya_app','afya.notifications','acknowledged_at','UPDATE'), has_column_privilege('afya_app','afya.notifications','text','UPDATE'), has_table_privilege('afya_app','afya.notifications','DELETE')")" = "t|f|f"
 
-echo "== api end to end (E6): demo scenario -> /vitals -> proposal (test helper) -> approve -> Flag in HAPI"
+echo "== api end to end (E5/E6): P-014 second reading -> agent run -> exactly one proposal -> approve -> Flag in HAPI"
 API_OUT=$(dc exec -T api python - <<'PY' 2>/dev/null
-# In-process client of the real app against the real afya-mcp, HAPI and Postgres. current_user (E6-2, B) is replaced
-# by an override, so this runs without a session cookie.
+# In-process client of the real app against the real afya-mcp, WSO2, HAPI, Postgres and model (whatever its state:
+# with the model down the run goes on with the rules only). current_user (E6-2, B) is replaced by an override, so this
+# runs without a session cookie. The agent run starts after POST /vitals answers; TestClient waits for it.
+# Model-agnostic: nothing below depends on what the model said.
 import sys, uuid
 from fastapi.testclient import TestClient
-from afya_mcp import db, workflow
+from afya_mcp import db
 from afya_api import deps
 from afya_api.main import app
 
@@ -294,29 +296,40 @@ with TestClient(app) as c:
     r = c.post("/vitals", json={"visit_id": visit, "idempotency_key": "smoke-" + uuid.uuid4().hex, "resp_rate": 26,
                                 "heart_rate": 112, "systolic_bp": 120, "temperature": 38.6, "spo2": 93,
                                 "mobility": "walking", "consciousness": "alert", "trauma": "no",
-                                "complaint": "Short of breath since morning."})
+                                "complaint": "Short of breath since morning. My mother had chest pain last year."})
     need(r.status_code == 200 and r.json()["status"] == "saved", f"vitals {r.text}")
-    obs = r.json()["observation_id"]; oid = obs.split("/")[1]
-    need(r.json()["run_id"] == f"{visit}:{oid}", "run id")
+    obs = r.json()["observation_id"]; oid = obs.split("/")[1]; run_id = r.json()["run_id"]
+    need(run_id == f"{visit}:{oid}", "run id")
     tl = c.get(f"/visits/{visit}/timeline").json()
     need([(x["tews"], x["colour"]) for x in tl["readings"]] == [(3, "YELLOW"), (6, "ORANGE")], f"timeline {tl}")
-    with db.connect() as conn:   # what the agent (E5) will do
-        p = workflow.insert_proposal(conn, visit, "colour_rise", oid, workflow.evidence_hash([oid], [], "smoke"),
-                                     {"to_colour": "ORANGE", "current_colour": "YELLOW", "cited_obs_ids": [oid]})
-    pid = str(p["id"])
-    mine = [x for x in c.get("/proposals").json() if x["id"] == pid]
-    need(len(mine) == 1 and mine[0]["complaint"] == "Short of breath since morning." and mine[0]["patient_label"] == "P-014",
-         f"proposals {mine}")
+    mine = [x for x in c.get("/proposals").json() if x["visit_id"] == visit]
+    need(len(mine) == 1, f"exactly one proposal for the visit, got {len(mine)}")
+    p = mine[0]
+    need(p["obs_id"] == obs and p["trigger"] == "colour_rise" and p["current_colour"] == "YELLOW"
+         and p["proposed_colour"] == "ORANGE" and p["tews_before"] == 3 and p["tews_after"] == 6
+         and p["patient_label"] == "P-014" and p["complaint"].startswith("Short of breath")
+         and p["rationale_source"] in ("model", "code") and p["agent_action"] in
+         ("propose", "propose_and_remeasure", "request_missing_value"), f"proposal {p}")
+    need({"heart_rate", "temperature"} <= {e["input"] for e in p["evidence"] if e["band_changed"]}, "evidence rows")
+    steps = [(s["kind"], s["name"]) for s in c.get(f"/runs/{run_id}/trace").json()]
+    need({("tool", "compute_tews"), ("tool", "check_deterioration"), ("decision", "trigger"),
+          ("decision", "submit_decision"), ("gate", "paused_for_nurse")} <= set(steps), f"trace {steps}")
+    with db.connect() as conn:
+        n = conn.execute("SELECT count(*) AS n FROM lg.checkpoints WHERE thread_id = %s", (run_id,)).fetchone()["n"]
+    need(n > 0, "checkpoints in schema lg")
+    pid = p["id"]
     r = c.post(f"/proposals/{pid}/approve", json={"colour": "ORANGE", "signs_kept": []})
     need(r.status_code == 200, f"approve {r.text}")
     cid = r.json()["command_id"]
     gates = {g["gate"]: g for g in c.get(f"/proposals/{pid}/gates").json()}
     need(all(gates[g]["at"] for g in gates), f"gates {gates}")
+    steps = [(s["kind"], s["name"]) for s in c.get(f"/runs/{run_id}/trace").json()]
+    need(("tool", "raise_recheck_flag") in steps, "the executor ran inside the resumed run")
     print(visit, cid)
 PY
 )
 API_VISIT=$(echo "$API_OUT" | tail -1 | tr -d '\r' | cut -d' ' -f1); API_CMD=$(echo "$API_OUT" | tail -1 | tr -d '\r' | cut -d' ' -f2)
-check "api: demo scenario, /vitals, /proposals, approve, gates all ticked" test "$(echo "$API_CMD" | grep -cE '^[0-9a-f-]{36}$')" = 1
+check "api: P-014 second reading -> agent run -> exactly one proposal; approve resumes it; gates ticked" test "$(echo "$API_CMD" | grep -cE '^[0-9a-f-]{36}$')" = 1
 check "api approve -> exactly one Flag in HAPI and Encounter.priority ORANGE" mcpx "$API_VISIT" "$API_CMD" <<'PY'
 import sys, httpx
 visit, cid = sys.argv[1], sys.argv[2]

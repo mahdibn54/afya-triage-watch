@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 from afya_mcp import workflow
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from . import helpers
+from .agent import Agent
 from .demo_scenario import SCENARIOS, birth_date
-from .deps import User, current_user, demo_mode, get_gateway
+from .deps import User, current_user, demo_mode, get_agent, get_gateway
 from .errors import ERROR_RESPONSES, ApiError
 from .mcp_client import Gateway
 from .schemas import DemoNextOut, DemoScenarioIn, DemoVisitOut
@@ -34,8 +35,9 @@ async def _add_reading(gateway: Gateway, visit_id: str, n: int, reading: dict) -
 
 
 @router.post("/demo/scenario", response_model=DemoVisitOut, responses=ERROR_RESPONSES)
-async def load_scenario(body: DemoScenarioIn | None = None, _user: User = Depends(current_user),
-                        gateway: Gateway = Depends(get_gateway)) -> DemoVisitOut:
+async def load_scenario(background: BackgroundTasks, body: DemoScenarioIn | None = None,
+                        _user: User = Depends(current_user), gateway: Gateway = Depends(get_gateway),
+                        agent: Agent = Depends(get_agent)) -> DemoVisitOut:
     """Load the P-014 scenario: synthetic patient and a fresh visit confirmed YELLOW, plus the first reading
     (scored YELLOW). Loading again finishes the previous demo visit and starts a new one."""
     sc = SCENARIOS[(body or DemoScenarioIn()).name]
@@ -48,12 +50,14 @@ async def load_scenario(body: DemoScenarioIn | None = None, _user: User = Depend
         raise helpers.tool_error(e) from e
     if seeded["status"] != "seeded":
         raise ApiError(409, f"the scenario could not be loaded ({seeded.get('reason', seeded['status'])})")
-    await _add_reading(gateway, seeded["visit_id"], 1, sc["readings"][0])
+    obs = await _add_reading(gateway, seeded["visit_id"], 1, sc["readings"][0])
+    background.add_task(agent.run_event, seeded["visit_id"], obs, DEMO_ACTOR)   # logged only: same colour
     return DemoVisitOut(visit_id=seeded["visit_id"])
 
 
 @router.post("/demo/scenario/next", response_model=DemoNextOut, responses=ERROR_RESPONSES)
-async def next_reading(_user: User = Depends(current_user), gateway: Gateway = Depends(get_gateway)) -> DemoNextOut:
+async def next_reading(background: BackgroundTasks, _user: User = Depends(current_user),
+                       gateway: Gateway = Depends(get_gateway), agent: Agent = Depends(get_agent)) -> DemoNextOut:
     """Add the next reading of the loaded scenario (for P-014 the one that raises the score to ORANGE).
     409 when no scenario is loaded or all its readings are in."""
     sc = SCENARIOS["p014"]
@@ -66,4 +70,6 @@ async def next_reading(_user: User = Depends(current_user), gateway: Gateway = D
     n = visit["readings"]
     if n >= len(sc["readings"]):
         raise ApiError(409, "the scenario has no more readings")
-    return DemoNextOut(obs_id=await _add_reading(gateway, visit["visit_id"], n + 1, sc["readings"][n]))
+    obs = await _add_reading(gateway, visit["visit_id"], n + 1, sc["readings"][n])
+    background.add_task(agent.run_event, visit["visit_id"], obs, DEMO_ACTOR)   # the agent run, as after POST /vitals
+    return DemoNextOut(obs_id=obs)

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterator
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import psycopg
 from afya_mcp import db
@@ -12,6 +12,9 @@ from pydantic import BaseModel
 
 from .mcp_client import Gateway, McpGateway
 from .model import Model, model_from_env
+
+if TYPE_CHECKING:
+    from .agent import Agent
 
 Role = Literal["nurse", "clinician", "manager"]
 
@@ -61,6 +64,19 @@ def get_model() -> Model:
     if _model is None:
         _model = model_from_env()
     return _model
+
+
+_agent: Agent | None = None
+
+
+def get_agent() -> Agent:
+    """The LangGraph agent (E5): starts a run after each saved reading and resumes it after approval. Tests override
+    this with an agent on a scripted model."""
+    global _agent
+    if _agent is None:
+        from .agent import Agent
+        _agent = Agent(get_gateway(), get_model())
+    return _agent
 
 
 def demo_mode() -> bool:
