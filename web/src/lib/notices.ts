@@ -6,7 +6,7 @@ export const NOTICE: Record<NoticeCode, { title: string; body: string; tone: "in
   remeasure: {
     short: "Re-measure",
     title: "Please re-measure",
-    body: "A value was outside what a person can have, so nothing was saved or scored. Measure again and re-enter.",
+    body: "A value was outside the plausible range, so nothing was saved or scored. Measure again and re-enter.",
     tone: "warn",
   },
   no_chart: {

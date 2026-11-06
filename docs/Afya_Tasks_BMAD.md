@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 29 done · 4 drafted · 54 to do · 0 blocked · 87 stories
+**Progress:** 30 done · 4 drafted · 53 to do · 0 blocked · 87 stories
 
 ---
 
@@ -225,7 +225,7 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 |---|---|---|---|---|---|---|
 | E7-0 | [x] | App setup: Next.js + Tailwind + shadcn/ui + TanStack Query + generated API types + Dockerfile + `/api` proxy | B | Day 1 | 1.5 h | – |
 | E7-1 | [x] | **W1** Waiting-room board with time-to-target bars | B | Day 1–2 | 3 h | E0-5 |
-| E7-2 | [ ] | Vitals entry form | B | Day 2 | 2 h | E0-5 |
+| E7-2 | [x] | Vitals entry form | B | Day 2 | 2 h | E0-5 |
 | E7-3 | [ ] | Approval card + **W3** complaint with highlighted quotes | B | Day 3 | 3.5 h | E0-5 |
 | E7-4 | [ ] | **W2** Evidence table on the approval card | B | Day 4 | 1.5 h | E7-3 |
 | E7-5 | [ ] | **W5** Agent trace as a plain list | B | Day 7 | 2 h | E6-5 |
@@ -238,7 +238,7 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 
 **E7-0** · Files: `web/` · Acceptance: `npx create-next-app@latest` (TypeScript, App Router); Tailwind + shadcn/ui; TanStack Query; `openapi-typescript` generates `web/src/api/types.ts` from FastAPI's `/openapi.json`; production build on port 3000; `/api/*` proxied to `API_INTERNAL_URL`; enabled with `--profile web`. · Notes: done. Next.js 16 + Tailwind 4 + shadcn/ui (Base UI) + TanStack Query. `/api/*` is a route handler that proxies at request time to `API_INTERNAL_URL` (verified against the FastAPI app, and 503 with the contract error body when it is down), or serves an in-memory fake when `FAKE_API=1`; fixtures are extracted from the `docs/api.md` examples (`npm run fixtures`), the fake never scores. `npm run gen:api` generates `src/api/types.ts` (only `/healthz` today; `src/api/contract.ts` mirrors the contract until E6). Standalone Dockerfile verified (`docker build`, `/api/healthz` 200). Compose passes `DEMO_MODE` and `FAKE_API` (default 0). shadcn's CLI added an unknown `cn` npm package: replaced by `clsx` + `tailwind-merge`.
 **E7-1** · Acceptance: one row per waiting patient: confirmed colour chip with label and shape (■ ▲ ● ○), time-to-target bar filling towards the SATS target with a countdown, flags, notices; sorted by time left; "last updated n s ago"; works on fake JSON first; tablet-sized touch targets. · Notes: done on the fake API. Countdown runs every second from `arrived_at` and the server clock (skew learnt from `as_of`); bar fills in the SATS colour and turns striped red when over; patients without a target sort last with "No target" and the reason. Also: last TEWS with its shape, site re-check countdown, counters (waiting / over target / second looks to review), live indicator with "connection lost · retrying", rows with a pending proposal marked in the agent colour. 44 px touch targets; checked by screenshots at 1280, 800 and 390 px, day and night themes; manager sees no Vitals button.
-**E7-2** · Acceptance: coded fields (RR, HR, SBP, temperature, SpO2, mobility, consciousness, trauma) + free-text complaint; sends an idempotency key; shows the re-measure notice inline.
+**E7-2** · Acceptance: coded fields (RR, HR, SBP, temperature, SpO2, mobility, consciousness, trauma) + free-text complaint; sends an idempotency key; shows the re-measure notice inline. · Notes: done on the fake API. Large inputs with units, one-tap choices for mobility, AVPU and trauma, complaint with a 500-character counter (code points, as in the contract). Empty fields are not sent ("reported, never guessed"). One idempotency key per attempt, kept across network retries (checked: same key → same `observation_id`); a new key after `remeasure` or `422`. `remeasure` shows the notice inline with each value and its limits and highlights the field; `422` problems are mapped to fields. Demo-only button fills P-014's next reading from `docs/api.md`. Success screen says nothing changes on the board until a nurse confirms. Checked at 1280 and 390 px.
 **E7-3** · Acceptance: proposed vs current colour; complaint shown with matched phrases highlighted (sliced from `quote_span`, plain text only) and linked to sign chips; "other" mentions greyed with the reason; sign tickboxes; colour override + reason; approve/reject; 403/409 shown clearly.
 **E7-4** · Acceptance: a table of the cited readings: vital, previous value → new value, points before → after, record ID; rows that moved into a higher band are emphasised.
 **E7-5** · Acceptance: per run, an ordered list: tool calls tagged **ours** / **borrowed (WSO2)**, model calls with tokens and latency, the decision with cited IDs; the manager can read it; used in the demo video.
