@@ -7,7 +7,7 @@ import { ColourChip } from "@/components/afya/colour-chip";
 import { NoticeCallout, NoticeChip } from "@/components/afya/notice-chip";
 import { useQueue } from "@/lib/queries";
 import { SATS } from "@/lib/sats";
-import { ago, clockShort, mmss, useNow } from "@/lib/time";
+import { ago, clockShort, mmss, useClientNow, useNow } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 /** Seconds left to the SATS time-to-be-seen target (negative = over). null = no target. */
@@ -40,6 +40,7 @@ export function Board({
 }) {
   const q = useQueue();
   const now = useNow(1000);
+  const clientNow = useClientNow(1000);
   const canWrite = me.role !== "manager";
 
   const patients = q.data ? sortByTimeLeft(q.data.patients, now) : [];
@@ -57,7 +58,7 @@ export function Board({
             Sorted by time left to the SATS target of each patient&apos;s confirmed colour.
           </p>
         </div>
-        <LiveStatus updatedAt={q.dataUpdatedAt} failed={q.isError} fetching={q.isFetching} now={Date.now()} />
+        <LiveStatus updatedAt={q.dataUpdatedAt} failed={q.isError} fetching={q.isFetching} now={clientNow} />
       </div>
 
       <dl className="mt-5 grid grid-cols-3 gap-3 sm:max-w-xl">

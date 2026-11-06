@@ -48,3 +48,13 @@ export function ago(fromMs: number, nowMs: number): string {
   if (m < 60) return `${m} min ago`;
   return `${Math.floor(m / 60)} h ${m % 60} min ago`;
 }
+
+/** Client clock, re-rendering every `ms` (for "updated n s ago", which compares client timestamps). */
+export function useClientNow(ms = 1000): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), ms);
+    return () => clearInterval(id);
+  }, [ms]);
+  return now;
+}
