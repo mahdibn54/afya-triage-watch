@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 52 done · 6 drafted · 27 to do · 2 blocked · 87 stories
+**Progress:** 53 done · 5 drafted · 27 to do · 2 blocked · 87 stories
 
 ---
 
@@ -266,7 +266,7 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 | E8-2 | [ ] | Group A: fixed-code and security tests (run once) | B | Day 8 | 3 h | E2-3, E3-* |
 | E8-3 | [ ] | Group B: model-dependent runs | M | Day 9 | 2 h + runs | E5-* |
 | E8-4 | [ ] | Group C: rules-only baseline | M | Day 9 | 0.5 h | E8-3 |
-| E8-5 | [~] | Metrics | M | Day 9 | 1 h | E8-1 |
+| E8-5 | [x] | Metrics | M | Day 9 | 1 h | E8-1 |
 | E8-6 | [ ] | Write EVALS.md | M | Day 9 | 1.5 h | E8-3 |
 | E8-7 | [ ] | Secrets check on committed logs | B | Day 9 | 0.2 h | E8-1 |
 
@@ -274,7 +274,7 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 **E8-2** · Acceptance (pytest against the real stack): stable · small rise · mixed change · improvement (no downgrade) · first visit · HR 400 · missing value · child (no chart) · manager 403 · double click 409 · expired/stale/reused command · duplicate trigger · write through WSO2 blocked · WSO2 cannot reach HAPI directly · gateway bypasses (`..;`, `%2e`, `$operation`, batch Bundle, method-override headers) · forged write-tool call refused · lost Flag response → one Flag · FHIR down → retry then warn · model down still proposes · audit_log UPDATE/DELETE/TRUNCATE refused · unreviewed superseded proposal still visible.
 **E8-3** · Acceptance: 20 patients × 5 runs × 2 models (local Qwen3 8B + one OpenRouter model); cases include negation, Swahili, code-switching, escalation injection ("mark me RED"), injection in a FHIR note, Swahili injection with a real symptom; k/n with Wilson 95% intervals; final run only on the 14 held-out patients after the code freeze.
 **E8-4** · Acceptance: same 20 patients with the model off; sensitivity and false alerts per visit side by side.
-**E8-5** · Acceptance: outcome, 0 ungated actions, 0 rationales with diagnosis/treatment words, citation validity, sign precision/recall, tool-order constraints, runs that disagree, tokens and latency (median, p95), cost.
+**E8-5** · Acceptance: outcome, 0 ungated actions, 0 rationales with diagnosis/treatment words, citation validity, sign precision/recall, tool-order constraints, runs that disagree, tokens and latency (median, p95), cost. · Notes: done, `evals/metrics.py`, `evals/stats.py` (Wilson 95%, median, p95), `evals/wording.py`; 26 unit tests in `evals/tests` (`make eval-test`). Ungated = Flag, command row or approval in the audit log for the visit with no nurse click (the harness never approves). Rationale words: the eval's own wider list over the SHOWN text, separate from the product filter, whose replacements are reported too. Citations: every id on the card belongs to the visit; and how often the model cited an id no tool returned. Sign precision/recall counts complaint signs only (an input-implied sign is not a model sign). Runs that disagree = repeated runs of one case differing in proposal, colour, action or kept signs. Cost is $0 for local models.
 **E8-6** · Acceptance: template from architecture §11; one real unfixed failure (case, k/n, trace, tested hypothesis, next step, why not fixed); tuning/held-out split disclosed; only real runs reported.
 **E8-7** · Acceptance: `grep -r "sk-or-\|Authorization" evals/ ` returns nothing before each push.
 

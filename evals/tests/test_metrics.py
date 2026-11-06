@@ -235,3 +235,18 @@ def test_report_rewrite_keeps_the_text_around_the_block(tmp_path):
     text = md.read_text(encoding="utf-8")
     assert text.startswith("intro") and text.rstrip().endswith("after") and "old" not in text
     assert "No runs logged yet" in text
+
+
+def test_worst_table_orders_by_failure_rate_and_points_into_the_log():
+    pos = {"proposal": True, "to_colour": "ORANGE"}
+
+    def mk(case, i, ok):
+        t = trial(case=case, i=i, proposal=card() if ok else None, expected=pos)
+        t.update({"set": "s", "run_id": f"v:{case}{i}", "_file": "f.jsonl", "_line": i})
+        return t
+
+    ts = [mk("easy", 1, True), mk("easy", 2, False), mk("hard", 1, False), mk("hard", 2, False), mk("fine", 1, True)]
+    md = report.worst_table(ts)
+    assert md.index("`hard`") < md.index("`easy`") and "fine" not in md
+    assert "v:hard1" in md and "f.jsonl:1" in md
+    assert report.worst_table([mk("ok", 1, True)]) == "No trial differed from its label."
