@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 39 done · 9 drafted · 38 to do · 1 blocked · 87 stories
+**Progress:** 40 done · 8 drafted · 38 to do · 1 blocked · 87 stories
 
 ---
 
@@ -206,7 +206,7 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 | E6-1b | [x] | Write endpoints: `/vitals`, `/proposals`, approve, reject | M | Day 6–7 | 1.5 h | E0-5 |
 | E6-2 | [ ] | Demo sign-in session | B | Day 5 | 1 h | E6-1a |
 | E6-3 | [~] | Approve = one transaction, then resume the graph | M | Day 7 | 1.5 h | E3-5 |
-| E6-4 | [~] | Startup sweep | M | Day 8 | 0.5 h | E3-5 |
+| E6-4 | [x] | Startup sweep | M | Day 8 | 0.5 h | E3-5 |
 | E6-5 | [~] | UI data endpoints: visit timeline, run trace, proposal gates | M | Day 7 | 2.5 h | E4-8 |
 | E6-6 | [~] | Demo endpoint: load the P-014 scenario (DEMO_MODE only) | M | Day 8 | 0.5 h | E5-7 |
 
@@ -216,6 +216,7 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 **E6-3** · Acceptance: body = colour, signs kept, override reason; role check 403 → single-use update 409 → decision + audit + command in one transaction → resume LangGraph with the command ID.
 **E6-3** · Notes: `[~]` on purpose: the LangGraph agent (E5) does not exist yet. Done: `POST /proposals/{id}/approve` runs role check (403), single-use update (409), then decision + audit + command in ONE transaction (`workflow.approve_proposal`, body = `colour`, `signs_kept`, `override_reason`); the executor is then triggered as a background task through `afya_api/executor.py::resume_after_approval(command_id)`, which calls afya-mcp act `raise_recheck_flag` with the approving user as actor (looked up from the proposal). It never raises: if FHIR or afya-mcp is down the approval stays committed, the command stays open and the E6-4 sweep finishes it. **E5 replaces** `resume_after_approval` with "resume the paused graph with this command id" (the graph node then calls the same tool); the approve route does not change. Tests: `api/tests/test_executor.py` (Flag in FHIR, Encounter.priority, override to a lower colour, idempotent resume).
 **E6-4** · Acceptance: on start, resumes approved commands not done (idempotent).
+**E6-4** · Notes: done. `executor.sweep_on_startup()` runs from the app's lifespan as a background task (the api starts even if afya-mcp is late): it lists `workflow.sweep_open_commands` (approved, not done, attempts < 5, claimed or not yet expired) and runs each through the executor with actor `system` (the executor claims or resumes). Idempotent: the Flag is a conditional create and the colour an absolute set, so a command that is already done answers `already_done` and is not listed again. If Postgres is not ready it retries 5 times, then logs and gives up. Tests: `api/tests/test_sweep.py` (FHIR down during approval, then the sweep finishes it once, a second sweep finds nothing). Checked on the live stack: the sweep logs commands it cannot run (stale readings are refused, as designed).
 **E6-5** · Acceptance: `GET /visits/{id}/timeline` (readings with per-input points and record IDs), `GET /runs/{run_id}/trace` (ordered steps: server ours/borrowed, tool or model, trimmed args, result summary, latency, tokens, cost), `GET /proposals/{id}/gates` (time per gate step + refused attempts); all built from `audit_log` and FHIR, no new state.
 **E6-6** · Acceptance: `POST /demo/scenario` loads P-014 and `POST /demo/scenario/next` adds its next reading; both return 404 unless `DEMO_MODE=1`.
 

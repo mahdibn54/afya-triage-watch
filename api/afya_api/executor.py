@@ -1,4 +1,4 @@
-"""E6-3: run an approved command (E6-4 adds the startup sweep to this module).
+"""E6-3 / E6-4: run an approved command and the startup sweep.
 
 `resume_after_approval` is the seam the LangGraph agent (E5) replaces: today it calls the executor directly
 (afya-mcp act tool raise_recheck_flag, actor = the approving user); E5 will resume the paused graph with the
@@ -10,7 +10,7 @@ import asyncio
 import logging
 from typing import Any
 
-from afya_mcp import db
+from afya_mcp import db, workflow
 
 from .deps import get_gateway
 from .mcp_client import Gateway
@@ -42,3 +42,28 @@ async def resume_after_approval(command_id: str, actor: str | None = None,
     if out.get("status") not in ("done", "already_done"):
         log.warning("command %s: %s (%s)", command_id, out.get("status"), out.get("reason"))
     return out
+
+
+def _open_commands() -> list[str]:
+    with db.connect() as conn:
+        return [str(c["id"]) for c in workflow.sweep_open_commands(conn)]
+
+
+async def sweep_on_startup(gateway: Gateway | None = None, attempts: int = 5,
+                           delay: float = 3.0) -> list[dict[str, Any]]:
+    """E6-4: resume every approved command that is not done (claimed ones resume, unclaimed ones are claimed while
+    not expired), as actor 'system'. Idempotent: the executor is safe to run twice. If the database is not up yet
+    it retries a few times, then gives up with a log line (the api still starts)."""
+    for attempt in range(attempts):
+        try:
+            ids = await asyncio.to_thread(_open_commands)
+            break
+        except Exception as e:  # noqa: BLE001
+            log.warning("startup sweep: database not ready (%s)", type(e).__name__)
+            await asyncio.sleep(delay)
+    else:
+        return []
+    results = [await resume_after_approval(cid, "system", gateway) for cid in ids]
+    if ids:
+        log.info("startup sweep: %d open command(s): %s", len(ids), [r.get("status") for r in results])
+    return results

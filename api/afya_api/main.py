@@ -1,11 +1,28 @@
 """Afya API (FastAPI). Endpoints follow docs/api.md. Routers live in routes_*.py; add new ones with one
 `app.include_router(...)` line below."""
+import asyncio
+import contextlib
+
 from fastapi import FastAPI
 
 from . import routes_proposals, routes_vitals
+from .deps import get_gateway
 from .errors import install_error_handlers
+from .executor import sweep_on_startup
 
-app = FastAPI(title="Afya Triage Watch API", version="0.1.0")
+
+@contextlib.asynccontextmanager
+async def lifespan(_app: FastAPI):
+    task = asyncio.create_task(sweep_on_startup(get_gateway()))   # E6-4: resume approved commands that are not done
+    try:
+        yield
+    finally:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+
+app = FastAPI(title="Afya Triage Watch API", version="0.1.0", lifespan=lifespan)
 install_error_handlers(app)
 
 
