@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 42 done · 6 drafted · 38 to do · 1 blocked · 87 stories
+**Progress:** 42 done · 7 drafted · 37 to do · 1 blocked · 87 stories
 
 ---
 
@@ -180,7 +180,7 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 | E5-6 | [ ] | Rationale filter | M | Day 7 | 1 h | E5-4 |
 | E5-7 | [ ] | Watch loop and immediate RED/ORANGE notifications | M | Day 8 | 2 h | E4-7 |
 | E5-8 | [ ] | Supersession and "not reviewed" | M | Day 8 | 1 h | E5-2 |
-| E5-9 | [ ] | Model settings and limits | M | Day 6 | 1 h | E2-5 |
+| E5-9 | [~] | Model settings and limits | M | Day 6 | 1 h | E2-5 |
 | E5-10 | [ ] | Model-down fallback | M | Day 8 | 0.5 h | E5-2 |
 | E5-11 | [ ] | OpenRouter client (guarded) | M | Day 9 | 1 h | E5-9 |
 
