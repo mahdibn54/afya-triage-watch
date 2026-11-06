@@ -14,7 +14,7 @@ FastAPI on `api:8080`. The Next.js app calls `/api/...` and its proxy strips the
 | IDs | `visit_id` is the bare FHIR Encounter id (`v014`). Observation ids are always the full reference (`Observation/1057`). `proposal_id`, `command_id`, `notification_id` are UUIDs. `run_id` is URL-safe (letters, digits, `:` `-` `_` `.`). |
 | Colours | `RED` `ORANGE` `YELLOW` `GREEN`. The UI also shows a label and a shape (■ ▲ ● ○), never colour alone. |
 | Roles | `nurse`, `clinician`, `manager`. A manager reads only. `agent` and `system` exist in the database but never sign in. |
-| Auth | Everything except `/healthz` and `/login-as` needs the session cookie: `401` otherwise. |
+| Auth | Everything except `/healthz`, `/login-as` and `/demo/users` needs the session cookie: `401` otherwise. |
 | Errors | Always `{ "error": { "code": string, "message": string } }`. Codes: `unauthorized` 401, `forbidden` 403, `not_found` 404, `conflict` 409, `invalid` 422 (adds `problems[]`), `unavailable` 503. FastAPI's own validation errors are mapped to `invalid`. |
 | Text | Quotes, complaints and rationale are plain text. Never `dangerouslySetInnerHTML`. |
 | Offsets | `quote_span` is `{ start, end }`, half-open, counted in Unicode code points of the **original** `complaint` the card shows (not the NFKC, case-folded copy the sign check uses). The UI slices with `Array.from(complaint).slice(start, end).join("")`. |
@@ -26,17 +26,17 @@ FastAPI on `api:8080`. The Next.js app calls `/api/...` and its proxy strips the
 
 | Method | Path | Who | Backend today |
 |---|---|---|---|
-| POST | `/login-as` | anyone, `DEMO_MODE=1` only | users table ready; session cookie is E6-2 (B) |
-| GET | `/demo/users` | anyone, `DEMO_MODE=1` only | users table ready |
-| GET | `/me` | signed in | users table ready |
-| GET | `/queue` | signed in | partial: `services.get_queue_state`; patient label, last TEWS and flags missing (Q3) |
+| POST | `/login-as` | anyone, `DEMO_MODE=1` only | done (E6-2): `routes_session.py`, signed cookie in `session.py` |
+| GET | `/demo/users` | anyone, `DEMO_MODE=1` only | done (E6-2) |
+| GET | `/me` | signed in | done (E6-1a) |
+| GET | `/queue` | signed in | done (E6-1a): afya-mcp `queue_state` on `/ui` (not audited) |
 | POST | `/vitals` | nurse, clinician | partial: `services.record_vitals` ready; complaint and starting the agent run missing (Q1) |
 | GET | `/proposals` | signed in | partial: `workflow.open_proposals` returns few fields; the card needs the payload (Q4, Q5) |
 | POST | `/proposals/{id}/approve` | nurse, clinician | partial: `workflow.approve_proposal` ready; colour override and `signs_kept` missing (Q6) |
 | POST | `/proposals/{id}/reject` | nurse, clinician | to build: no reject function yet (Q6) |
 | POST | `/proposals/{id}/acknowledge` | nurse, clinician | ready: `workflow.acknowledge` |
 | POST | `/notifications/{id}/acknowledge` | nurse, clinician | grant ready: `afya_app` may update `acknowledged_at` only |
-| GET | `/audit` | signed in (manager too) | ready: SELECT on `audit_log` |
+| GET | `/audit` | signed in (manager too) | done (E6-1a): SELECT on `audit_log` |
 | GET | `/visits/{id}/timeline` | signed in | partial: `compute_tews` per reading; raw values come from FHIR (Q5) |
 | GET | `/runs/{run_id}/trace` | signed in | to build (E6-5) from `audit_log` |
 | GET | `/proposals/{id}/gates` | signed in | to build (E6-5); the data exists |
@@ -61,16 +61,21 @@ At least one must be present. Limits are the provisional ones in `rules/plausibi
 
 ## 4. Auth
 
-### The `current_user` seam (for E6-2, B)
+### The session (E6-2, done)
 Every protected router depends on one function, `afya_api.deps.current_user` (returns `deps.User { id, name, role }`).
-Today it raises `501` ("demo session not available yet (E6-2)"); tests replace it with
-`app.dependency_overrides[deps.current_user]`. E6-2 plugs in by replacing the body of that function (same name, same
-module): read the signed session cookie, return the `User` (role from `afya.users`), raise `HTTPException(401)` when there
-is no valid session. Routers use `user.id` as the audit actor and never read a user from a request body. The error
-handlers in `afya_api/errors.py` already turn `HTTPException` into the error body of section 1.
+It reads the cookie `afya_session`: the user id only, signed with `SESSION_SECRET` (itsdangerous, salt
+`afya-demo-session`, expires after 12 h). The name and role are read from `afya.users` on every request, never from the
+cookie. `401` when `DEMO_MODE` is not `1` (there is no other sign-in), when the cookie is missing, tampered with, signed
+with another secret or expired, or when the user is not a nurse, clinician or manager. `503` when `SESSION_SECRET` is
+missing, shorter than 16 characters or still the `.env.example` value (sessions are refused, never signed with a weak
+key). Cookie flags: `HttpOnly; SameSite=Strict; Path=/; Max-Age=43200`; `Secure` only with `SESSION_COOKIE_SECURE=1`
+(the demo is served over plain http on 127.0.0.1). Tests replace it with `app.dependency_overrides[deps.current_user]`.
+Routers use `user.id` as the audit actor and never read a user from a request body.
 
 ### POST /login-as
-Request `{ "user_id": "nurse-a" }`. Sets the session cookie. `404` when `DEMO_MODE` is off or the user is unknown.
+Request `{ "user_id": "nurse-a" }` (no other field: `422`). Sets the session cookie and writes one audit row
+(`kind: "login"`, the person as actor, `auth: "demo_switcher"`, payload `{ "role": ... }`). `404` when `DEMO_MODE` is
+off, the user is unknown, or the user is `agent` or `system` (they never sign in).
 
 <!-- example: POST /login-as response -->
 ```json
@@ -104,6 +109,9 @@ The people the "Sign in as…" switcher offers (no `agent` or `system`).
 `confirmed_colour` is what a nurse last confirmed, never the agent's proposal. `null` target means no chart or no
 confirmed colour. `flags` currently holds `second_look` (an active second-look Flag on the visit).
 `notices` on a patient are open notices for that visit; the top-level `notices` are not tied to one visit.
+A field is `null` when the record lacks the data (the patient then has a `data_incomplete` notice). FHIR down: `200`
+with no patients and a top-level `fhir_unavailable` notice; afya-mcp down: `503`. Reading the queue writes no audit
+row (the screens poll it every few seconds).
 
 <!-- example: GET /queue -->
 ```json
@@ -382,7 +390,8 @@ Notices appear in `/queue` (per patient, or top level) and in proposals. The UI 
 ## 7. Audit, timeline, trace, gates
 
 ### GET /audit?visit_id=&run_id=&kind=&limit=
-Newest first, `limit` default 100. Rows are the `afya.audit_log` columns. `payload` holds IDs, codes and numbers only.
+Newest first, `limit` default 100, at most 500 (`422` outside 1 to 500). Filters are exact matches and can be
+combined. Rows are the `afya.audit_log` columns. `payload` holds IDs, codes and numbers only.
 
 <!-- example: GET /audit -->
 ```json

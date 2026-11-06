@@ -7,9 +7,10 @@ from typing import TYPE_CHECKING, Literal
 
 import psycopg
 from afya_mcp import db
-from fastapi import HTTPException
+from fastapi import Cookie, HTTPException
 from pydantic import BaseModel
 
+from . import session
 from .mcp_client import Gateway, McpGateway
 from .model import Model, model_from_env
 
@@ -25,17 +26,26 @@ class User(BaseModel):
     role: Role
 
 
-def current_user() -> User:
-    """The signed-in user: ALWAYS from the session cookie, never from a request body.
+def current_user(afya_session: str | None = Cookie(default=None)) -> User:
+    """The signed-in user: ALWAYS from the session cookie, never from a request body (E6-2, session.py).
 
-    Implemented by E6-2 (B). Until then this raises 501, and tests replace it with
+    401 when demo mode is off (there is no other sign-in), or the cookie is missing, tampered with or expired, or
+    the user is no longer a nurse, clinician or manager in afya.users. The role comes from afya.users on every
+    request, never from the cookie. Tests replace this with
     `app.dependency_overrides[deps.current_user] = lambda: deps.User(id="nurse-a", name="Nurse A.", role="nurse")`.
-    E6-2 replaces the body of this function (same name, same module, returns `User`; raise 401 when there is no
-    session) or sets `app.dependency_overrides[current_user]` at startup. The routers only ever do
-    `user: User = Depends(current_user)`; they use `user.id` as the audit actor and `user.role` for 403 checks.
-    The users table is the source of truth for the role (workflow.py re-checks it in SQL anyway).
+    The routers only ever do `user: User = Depends(current_user)`; they use `user.id` as the audit actor and
+    `user.role` for 403 checks (workflow.py re-checks the role in SQL anyway).
     """
-    raise HTTPException(status_code=501, detail="demo session not available yet (E6-2)")
+    if not demo_mode():
+        raise HTTPException(status_code=401, detail="sign in first: demo sign-in is off (DEMO_MODE=0)")
+    try:
+        uid = session.user_id_from(afya_session)
+    except session.SessionUnavailable as e:
+        raise HTTPException(status_code=503, detail=str(e)) from None
+    row = session.load_user(uid) if uid else None
+    if row is None:
+        raise HTTPException(status_code=401, detail="sign in first")
+    return User(**row)
 
 
 def get_conn() -> Iterator[psycopg.Connection]:

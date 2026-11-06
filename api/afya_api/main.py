@@ -5,7 +5,7 @@ import contextlib
 
 from fastapi import FastAPI
 
-from . import routes_demo, routes_proposals, routes_ui, routes_vitals
+from . import routes_demo, routes_proposals, routes_read, routes_session, routes_ui, routes_vitals
 from .deps import get_agent, get_gateway, get_model
 from .errors import install_error_handlers
 from .executor import sweep_on_startup
@@ -42,3 +42,6 @@ app.include_router(routes_vitals.router)       # E6-1b (M)
 app.include_router(routes_proposals.router)    # E6-1b (M)
 app.include_router(routes_ui.router)           # E6-5 (M)
 app.include_router(routes_demo.router)         # E6-6 (M)
+app.include_router(routes_session.demo)        # E6-2 (B): /login-as, /demo/users (DEMO_MODE only)
+app.include_router(routes_session.router)      # E6-1a (B): /me
+app.include_router(routes_read.router)         # E6-1a (B): /queue, /audit

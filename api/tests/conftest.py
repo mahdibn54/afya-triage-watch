@@ -118,6 +118,8 @@ class InProcessGateway:
             return services.visit_timeline(self.fhir, REG, args["visit_id"])
         if tool == "demo_visit":
             return services.demo_visit(self.fhir, args["label"])
+        if tool == "queue_state":
+            return services.get_queue_state(self.fhir, REG, SITE, db.PgVisitStore())
         raise AssertionError(tool)
 
 

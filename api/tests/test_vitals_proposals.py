@@ -8,9 +8,9 @@ from afya_mcp import services, workflow
 from support import GOOD, error, new_proposal, vitals  # noqa: F401
 
 
-def test_without_a_session_the_stub_answers_501(client):
-    e = error(client.get("/proposals"), 501, "unavailable")
-    assert "E6-2" in e["message"]
+def test_without_a_session_the_api_answers_401(client):
+    e = error(client.get("/proposals"), 401, "unauthorized")   # E6-2 replaced the 501 stub
+    assert "sign in" in e["message"]
 
 
 def test_vitals_saved_run_id_complaint_and_retry(client, as_user, visit, conn):

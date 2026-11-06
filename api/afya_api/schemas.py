@@ -214,3 +214,72 @@ class DemoVisitOut(BaseModel):
 
 class DemoNextOut(BaseModel):
     obs_id: str
+
+
+# ---------- session and read endpoints (E6-1a, E6-2) ----------
+
+class LoginIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    user_id: str = Field(min_length=1, max_length=64)
+
+
+class UserOut(BaseModel):
+    id: str
+    name: str
+    role: Literal["nurse", "clinician", "manager"]
+
+
+class MeOut(UserOut):
+    demo: bool
+
+
+class LastReading(BaseModel):
+    observation_id: str
+    effective: str | None = None
+    tews: int | None = None
+    colour: Colour | None = None
+
+
+class Recheck(BaseModel):
+    rule: str
+    interval_minutes: int | None = None
+    due_at: str | None = None
+    overdue: bool
+    overdue_minutes: int | None = None
+
+
+class QueuePatient(BaseModel):
+    """api.md section 5. Fields are null when the record lacks the data (the patient then has data_incomplete)."""
+    visit_id: str
+    patient_id: str | None = None
+    patient_label: str | None = None
+    confirmed_colour: Colour | None = None
+    arrived_at: str | None = None
+    minutes_waited: int | None = None
+    target_minutes: int | None = None
+    over_target_minutes: int | None = None
+    over_target: bool
+    last_reading: LastReading | None = None
+    recheck: Recheck | None = None
+    pending_proposals: int
+    flags: list[Literal["second_look"]] = []
+    notices: list[Notice] = []
+
+
+class Queue(BaseModel):
+    as_of: str
+    site_rule_source: str | None = None
+    truncated: bool
+    notices: list[Notice] = []
+    patients: list[QueuePatient]
+
+
+class AuditRowOut(BaseModel):
+    id: int
+    at: str
+    kind: str
+    actor: str
+    auth: str | None = None
+    visit_id: str | None = None
+    run_id: str | None = None
+    payload: dict[str, Any]

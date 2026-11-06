@@ -4,8 +4,8 @@ Three mounts on one port (9000):
   /read/mcp  model-facing, read-only tools (compute_tews, check_deterioration, get_queue_state)
   /act/mcp   executor-only tools (record_vitals, raise_recheck_flag, notify_staff, seed_demo_visit);
              the model's client never connects here.
-  /ui/mcp    read-only data for the api's screens (visit_timeline, demo_visit); the model's client never connects
-             here either, and it is not audited (it changes nothing).
+  /ui/mcp    read-only data for the api's screens (visit_timeline, queue_state, demo_visit); the model's client
+             never connects here either, and it is not audited (it changes nothing).
 Every call is audited (audit.py, E4-8).
 """
 from __future__ import annotations
@@ -194,6 +194,13 @@ async def seed_demo_visit(label: str, birth_date: str, arrived_minutes_ago: int,
 async def visit_timeline(visit_id: str) -> dict:
     """Read-only, for the api: the readings of one visit, oldest first, with raw values and points per input."""
     return await _run(lambda: services.visit_timeline(_fhir(), _registry(), visit_id))
+
+
+@ui.tool()
+async def queue_state() -> dict:
+    """Read-only, for the api's waiting-room board (GET /queue, polled every few seconds by every screen). Same data
+    as get_queue_state, but on this mount so the screens' polling is not written to the audit log as agent calls."""
+    return await _run(lambda: services.get_queue_state(_fhir(), _registry(), _site(), _store()))
 
 
 @ui.tool()
