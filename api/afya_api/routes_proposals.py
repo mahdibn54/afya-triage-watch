@@ -5,11 +5,13 @@ from typing import Any, Literal
 
 import psycopg
 from afya_mcp import rules, workflow
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 
 from . import helpers
-from .deps import User, current_user, get_conn
+from .deps import User, current_user, get_conn, get_gateway
 from .errors import ERROR_RESPONSES, ApiError
+from .executor import resume_after_approval
+from .mcp_client import Gateway
 from .schemas import (
     AcknowledgedNotification,
     AcknowledgedProposal,
@@ -59,10 +61,13 @@ def get_proposals(status: Literal["pending", "superseded", "all"] = Query("pendi
 
 
 @router.post("/proposals/{proposal_id}/approve", response_model=ApproveOut, responses=ERROR_RESPONSES)
-def approve(proposal_id: str, body: ApproveIn, user: User = Depends(current_user),
-            conn: psycopg.Connection = Depends(get_conn)) -> ApproveOut:
+def approve(proposal_id: str, body: ApproveIn, background: BackgroundTasks,
+                  user: User = Depends(current_user), conn: psycopg.Connection = Depends(get_conn),
+                  gateway: Gateway = Depends(get_gateway)) -> ApproveOut:
     """403 role, 409 not pending (or unknown), 422 override without a reason. Decision + audit + command are ONE
-    transaction (workflow.approve_proposal)."""
+    transaction (workflow.approve_proposal); the executor then runs in the background (resume_after_approval) and
+    the Flag appears when it finishes: watch /proposals/{id}/gates. A failed execution leaves the command open for the
+    startup sweep."""
     pid = helpers.uuid_or_conflict(proposal_id)
     try:
         out = workflow.approve_proposal(conn, pid, user.id, body.colour, body.signs_kept, body.override_reason)
@@ -73,6 +78,7 @@ def approve(proposal_id: str, body: ApproveIn, user: User = Depends(current_user
     except workflow.InvalidDecision as e:
         raise ApiError(422, str(e)) from e
     command_id = str(out["command"]["id"])
+    background.add_task(resume_after_approval, command_id, user.id, gateway)
     return ApproveOut(proposal_id=pid, command_id=command_id, status="approved")
 
 
