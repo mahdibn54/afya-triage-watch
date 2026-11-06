@@ -16,7 +16,7 @@ from typing import Protocol
 import psycopg
 from psycopg.rows import dict_row
 
-from .workflow import open_proposals, supersede_pending
+from .workflow import open_notifications, open_proposals, supersede_pending
 
 
 def connect(url: str | None = None) -> psycopg.Connection:
@@ -26,11 +26,18 @@ def connect(url: str | None = None) -> psycopg.Connection:
 
 
 class VisitStore(Protocol):
-    def record_reading(self, visit_id: str, patient_id: str, latest_obs_id: str) -> None:
+    def record_reading(self, visit_id: str, patient_id: str, latest_obs_id: str,
+                       patient_label: str | None = None) -> None:
         """Upsert the visit and set latest_obs_id; older pending proposals become superseded (same transaction)."""
+
+    def save_complaint(self, visit_id: str, obs_id: str, complaint: str) -> None:
+        """Store the complaint of one reading (Postgres only, once: a retry keeps the first text)."""
 
     def open_proposals(self) -> list[dict]:
         """Pending proposals and superseded ones not yet reviewed (workflow.open_proposals)."""
+
+    def open_notifications(self) -> list[dict]:
+        """Notices nobody dismissed yet (workflow.open_notifications)."""
 
 
 class PgVisitStore:
@@ -44,16 +51,27 @@ class PgVisitStore:
         with connect(self.url) as conn:
             yield conn
 
-    def record_reading(self, visit_id: str, patient_id: str, latest_obs_id: str) -> None:
+    def record_reading(self, visit_id: str, patient_id: str, latest_obs_id: str,
+                       patient_label: str | None = None) -> None:
         with self.connection() as conn:
-            upsert_visit(conn, visit_id, patient_id, latest_obs_id)
+            upsert_visit(conn, visit_id, patient_id, latest_obs_id, patient_label)
+
+    def save_complaint(self, visit_id: str, obs_id: str, complaint: str) -> None:
+        with self.connection() as conn:
+            conn.execute("INSERT INTO readings (obs_id, visit_id, complaint) VALUES (%s, %s, %s) "
+                         "ON CONFLICT (obs_id) DO NOTHING", (obs_id, visit_id, complaint))
 
     def open_proposals(self) -> list[dict]:
         with self.connection() as conn:
             return open_proposals(conn)
 
+    def open_notifications(self) -> list[dict]:
+        with self.connection() as conn:
+            return open_notifications(conn)
 
-def upsert_visit(conn: psycopg.Connection, visit_id: str, patient_id: str, latest_obs_id: str) -> None:
+
+def upsert_visit(conn: psycopg.Connection, visit_id: str, patient_id: str, latest_obs_id: str,
+                 patient_label: str | None = None) -> None:
     """E4-2 (DB part): visit row and latest reading in one transaction. A visit never changes patient.
 
     Proposals still pending for an older reading are superseded here (reviewed stays false, so an unread one stays
@@ -61,7 +79,8 @@ def upsert_visit(conn: psycopg.Connection, visit_id: str, patient_id: str, lates
     """
     with conn.transaction():
         conn.execute(
-            "INSERT INTO visits (id, patient_id, latest_obs_id) VALUES (%s, %s, %s) "
-            "ON CONFLICT (id) DO UPDATE SET latest_obs_id = EXCLUDED.latest_obs_id",
-            (visit_id, patient_id, latest_obs_id))
+            "INSERT INTO visits (id, patient_id, latest_obs_id, patient_label) VALUES (%s, %s, %s, %s) "
+            "ON CONFLICT (id) DO UPDATE SET latest_obs_id = EXCLUDED.latest_obs_id, "
+            "patient_label = COALESCE(EXCLUDED.patient_label, visits.patient_label)",
+            (visit_id, patient_id, latest_obs_id, patient_label))
         supersede_pending(conn, visit_id, latest_obs_id)

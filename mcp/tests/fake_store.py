@@ -8,12 +8,22 @@ class FakeStore:
         self.calls = 0
         self.fail = fail
         self.proposals: list[dict] = []
+        self.notifications: list[dict] = []
+        self.complaints: dict[str, tuple[str, str]] = {}
 
-    def record_reading(self, visit_id: str, patient_id: str, latest_obs_id: str) -> None:
+    def record_reading(self, visit_id: str, patient_id: str, latest_obs_id: str,
+                       patient_label: str | None = None) -> None:
         self.calls += 1
         if self.fail:
             raise ConnectionError("database down")
-        self.visits[visit_id] = {"patient_id": patient_id, "latest_obs_id": latest_obs_id}
+        self.visits[visit_id] = {"patient_id": patient_id, "latest_obs_id": latest_obs_id,
+                                 "patient_label": patient_label}
+
+    def save_complaint(self, visit_id: str, obs_id: str, complaint: str) -> None:
+        self.complaints.setdefault(obs_id, (visit_id, complaint))
+
+    def open_notifications(self) -> list[dict]:
+        return list(self.notifications)
 
     def open_proposals(self) -> list[dict]:
         return list(self.proposals)

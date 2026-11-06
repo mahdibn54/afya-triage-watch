@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS visits (
   patient_id    text NOT NULL,
   latest_obs_id text
 );
+-- Display label of the patient (Patient.identifier urn:afya:label, e.g. "P-014"), copied here so proposal lists need no
+-- FHIR call. Never a name.
+ALTER TABLE visits ADD COLUMN IF NOT EXISTS patient_label text;
 
 CREATE TABLE IF NOT EXISTS proposals (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -49,6 +52,16 @@ CREATE TABLE IF NOT EXISTS commands (
   CONSTRAINT commands_done_needs_claim CHECK (done_at IS NULL OR claimed_at IS NOT NULL)
 );
 
+-- Free-text complaint entered with a reading (api.md Q1). Kept in Postgres only: it never goes into FHIR, so it never
+-- reaches the model as FHIR text; only map_signs sees it. NFKC-normalised, at most 500 characters.
+CREATE TABLE IF NOT EXISTS readings (
+  obs_id     text PRIMARY KEY,                        -- bare Observation id
+  visit_id   text NOT NULL REFERENCES visits,
+  complaint  text NOT NULL CHECK (char_length(complaint) BETWEEN 1 AND 500),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS readings_visit ON readings (visit_id);
+
 CREATE TABLE IF NOT EXISTS audit_log (
   id       bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   at       timestamptz NOT NULL DEFAULT now(),
@@ -74,7 +87,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   acknowledged_at timestamptz
 );
 
--- Proposals are single-use: once decided they cannot change status, and only a nurse or clinician can approve.
+-- Proposals are single-use: once decided they cannot change status, and only a nurse or clinician can approve or reject.
 -- (The reviewed flag may still go false -> true: a nurse acknowledges a superseded proposal.)
 CREATE OR REPLACE FUNCTION proposals_guard() RETURNS trigger LANGUAGE plpgsql AS
 $$
@@ -84,10 +97,11 @@ BEGIN
        OR NEW.decided_at IS DISTINCT FROM OLD.decided_at THEN
       RAISE EXCEPTION 'proposal % is already %', OLD.id, OLD.status USING ERRCODE = 'check_violation';
     END IF;
-  ELSIF NEW.status = 'approved' THEN
+  ELSIF NEW.status IN ('approved', 'rejected') THEN
     IF NEW.decided_by IS NULL OR NOT EXISTS (SELECT 1 FROM users WHERE id = NEW.decided_by
                                              AND role IN ('nurse', 'clinician')) THEN
-      RAISE EXCEPTION 'only a nurse or clinician can approve a proposal' USING ERRCODE = 'insufficient_privilege';
+      RAISE EXCEPTION 'only a nurse or clinician can approve or reject a proposal'
+        USING ERRCODE = 'insufficient_privilege';
     END IF;
   END IF;
   RETURN NEW;
@@ -134,6 +148,7 @@ ON CONFLICT (id) DO NOTHING;
 -- Grants for the application role.
 GRANT USAGE ON SCHEMA afya, lg TO afya_app;
 GRANT SELECT, INSERT, UPDATE ON visits, proposals, commands TO afya_app;
+GRANT SELECT, INSERT ON readings TO afya_app;   -- a complaint is written once with its reading, never edited
 GRANT SELECT ON users TO afya_app;
 -- notifications: staff only mark one acknowledged; kind, text and targets never change after insert.
 REVOKE ALL ON notifications FROM afya_app;

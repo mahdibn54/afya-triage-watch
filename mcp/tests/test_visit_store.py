@@ -28,7 +28,8 @@ def rec(fhir, store, key, when, values=BASE):
 def test_saved_reading_sets_latest_obs_id(fhir):
     store = FakeStore()
     out = rec(fhir, store, "k1", T0)
-    assert store.visits["v1"] == {"patient_id": "p1", "latest_obs_id": out["observation_id"].split("/")[1]}
+    assert store.visits["v1"] == {"patient_id": "p1", "latest_obs_id": out["observation_id"].split("/")[1],
+                                  "patient_label": None}
 
 
 def test_newer_reading_moves_latest_and_retry_of_older_does_not(fhir):

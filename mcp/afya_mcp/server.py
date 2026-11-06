@@ -1,9 +1,11 @@
 """afya-mcp: our MCP server.
 
-Two mounts on one port (9000):
+Three mounts on one port (9000):
   /read/mcp  model-facing, read-only tools (compute_tews, check_deterioration, get_queue_state)
-  /act/mcp   executor-only tools (record_vitals, raise_recheck_flag, notify_staff);
+  /act/mcp   executor-only tools (record_vitals, raise_recheck_flag, notify_staff, seed_demo_visit);
              the model's client never connects here.
+  /ui/mcp    read-only data for the api's screens (visit_timeline, demo_visit); the model's client never connects
+             here either, and it is not audited (it changes nothing).
 Every call is audited (audit.py, E4-8).
 """
 from __future__ import annotations
@@ -40,6 +42,7 @@ def _server_settings() -> dict[str, Any]:
 
 read = FastMCP("afya-read", stateless_http=True, **_server_settings())
 act = FastMCP("afya-act", stateless_http=True, **_server_settings())
+ui = FastMCP("afya-ui", stateless_http=True, **_server_settings())
 
 
 async def _run(fn: Any, *args: Any) -> Any:
@@ -121,15 +124,19 @@ async def get_queue_state(run_id: str | None = None) -> dict:
 
 
 @act.tool()
-async def record_vitals(patient_id: str, visit_id: str, values: dict, idempotency_key: str, actor: str,
-                        run_id: str | None = None) -> dict:
+async def record_vitals(visit_id: str, values: dict, idempotency_key: str, actor: str, patient_id: str | None = None,
+                        run_id: str | None = None, complaint: str | None = None) -> dict:
     """Save a nurse's entry as one FHIR Observation (conditional create on the idempotency key).
     Unknown inputs or values are rejected ("invalid"); impossible values are not saved ("remeasure").
+    patient_id: optional, the visit's patient is used when it is left out.
+    complaint: optional free text (at most 500 characters after NFKC normalisation), kept in Postgres only and
+    never written to FHIR; the audit row records only its length.
     actor: the user id (afya.users) of the nurse who took the reading, or 'system' for seeded data. Audited."""
-    inputs = {"patient_id": patient_id, "visit_id": visit_id, "values": values, "idempotency_key": idempotency_key}
+    inputs = {"patient_id": patient_id, "visit_id": visit_id, "values": values, "idempotency_key": idempotency_key,
+              "complaint_chars": len(complaint) if isinstance(complaint, str) else None}
     return await _audited("record_vitals", audit.ACT, inputs,
                           lambda: services.record_vitals(_fhir(), _plausibility(), _registry(), patient_id, visit_id,
-                                                         values, idempotency_key, None, _store()),
+                                                         values, idempotency_key, None, _store(), complaint),
                           actor=actor, run_id=run_id)
 
 
@@ -163,6 +170,33 @@ async def notify_staff(kind: str, actor: str, proposal_id: str | None = None, vi
     return await _audited("notify_staff", audit.ACT, inputs, run, actor=actor, run_id=run_id)
 
 
+@act.tool()
+async def seed_demo_visit(label: str, birth_date: str, arrived_minutes_ago: int, confirmed_colour: str,
+                          actor: str, run_id: str | None = None) -> dict:
+    """Demo only (DEMO_MODE=1): create the synthetic patient with this label (identifier urn:afya:label, no name) and
+    a fresh waiting visit whose colour a nurse already confirmed. Earlier waiting visits of that demo patient are
+    finished. Refused when DEMO_MODE is not 1. actor: 'system'. Audited."""
+    def run() -> dict:
+        if os.environ.get("DEMO_MODE") != "1":
+            return {"status": "refused", "reason": "DEMO_MODE is not 1"}
+        return services.seed_demo_visit(_fhir(), label, birth_date, arrived_minutes_ago, confirmed_colour)
+    inputs = {"label": label, "birth_date": birth_date, "arrived_minutes_ago": arrived_minutes_ago,
+              "confirmed_colour": confirmed_colour}
+    return await _audited("seed_demo_visit", audit.ACT, inputs, run, actor=actor, run_id=run_id)
+
+
+@ui.tool()
+async def visit_timeline(visit_id: str) -> dict:
+    """Read-only, for the api: the readings of one visit, oldest first, with raw values and points per input."""
+    return await _run(lambda: services.visit_timeline(_fhir(), _registry(), visit_id))
+
+
+@ui.tool()
+async def demo_visit(label: str) -> dict:
+    """Read-only, for the api: the waiting visit of the demo patient with this label and its number of readings."""
+    return await _run(lambda: services.demo_visit(_fhir(), label))
+
+
 async def health(_request):
     return PlainTextResponse("ok")
 
@@ -172,6 +206,7 @@ async def lifespan(_app):
     async with contextlib.AsyncExitStack() as stack:
         await stack.enter_async_context(read.session_manager.run())
         await stack.enter_async_context(act.session_manager.run())
+        await stack.enter_async_context(ui.session_manager.run())
         yield
 
 
@@ -180,6 +215,7 @@ app = Starlette(
         Route("/healthz", health),
         Mount("/read", app=read.streamable_http_app()),
         Mount("/act", app=act.streamable_http_app()),
+        Mount("/ui", app=ui.streamable_http_app()),
     ],
     lifespan=lifespan,
 )

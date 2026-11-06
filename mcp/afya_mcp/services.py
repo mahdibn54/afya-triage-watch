@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import contextlib
 import re
+import unicodedata
 import uuid
 from collections.abc import Callable
 from dataclasses import asdict
@@ -19,11 +20,13 @@ from .db import VisitStore
 from .fhir import (
     AFYA,
     COLOUR_SYSTEM,
+    COLOURS,
     COMPONENTS,
     PANEL_CODE,
     REQ_SYSTEM,
     Fhir,
     FhirNotFound,
+    FhirUnavailable,
     UnusableObservation,
     age_years,
     confirmed_colour,
@@ -32,39 +35,76 @@ from .fhir import (
     vitals_observation,
 )
 
+LABEL_SYSTEM = "urn:afya:label"
+MAX_COMPLAINT = 500
 KEY_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,64}$")
 USABLE_STATUSES = ("final", "amended", "corrected")
 WAITING_STATUSES = ("arrived", "triaged", "in-progress")
 QUEUE_LIMIT = 100
 
 
-def record_vitals(fhir: Fhir, plausibility: dict[str, Any], registry: list[dict[str, Any]], patient_id: str,
+def record_vitals(fhir: Fhir, plausibility: dict[str, Any], registry: list[dict[str, Any]], patient_id: str | None,
                   visit_id: str, values: dict[str, Any], idempotency_key: str,
-                  when: datetime | None = None, store: VisitStore | None = None) -> dict[str, Any]:
+                  when: datetime | None = None, store: VisitStore | None = None,
+                  complaint: str | None = None) -> dict[str, Any]:
     """E4-2. Validation and plausibility first: anything wrong or impossible means nothing is saved.
 
     Conditional create on the request identifier, so a retried call returns the same Observation.
-    After the FHIR write, the visit row and latest_obs_id are upserted in Postgres (`store`, one transaction). The
-    latest reading is read back from FHIR, so a retry of an older entry never moves latest_obs_id backwards. If the
-    database write fails the error propagates; the nurse's retry converges (same Observation, same upsert).
+    patient_id may be None: the patient is then the visit's subject. complaint: free text (Postgres only, see
+    _clean_complaint). After the FHIR write, the visit row and latest_obs_id are upserted in Postgres (`store`, one
+    transaction). The latest reading is read back from FHIR, so a retry of an older entry never moves latest_obs_id
+    backwards. If the database write fails the error propagates; the nurse's retry converges (same Observation,
+    same upsert).
     """
     problems = _invalid_entry(values, registry, idempotency_key)
+    clean_complaint, complaint_problem = _clean_complaint(complaint)
+    problems += complaint_problem
     if problems:
         return {"status": "invalid", "saved": False, "problems": problems}
     implausible = rules.check_plausible(values, plausibility)
     if implausible:
         return {"status": "remeasure", "saved": False, "problems": [asdict(p) for p in implausible]}
-    pid, vid = ref_id(patient_id, "Patient"), ref_id(visit_id, "Encounter")
+    vid = ref_id(visit_id, "Encounter")
     encounter = fhir.read("Encounter", vid)
-    if encounter.get("subject", {}).get("reference", "").rstrip("/").split("/")[-2:] != ["Patient", pid]:
+    subject = encounter.get("subject", {}).get("reference", "").rstrip("/").split("/")[-2:]
+    pid = ref_id(patient_id, "Patient") if patient_id else (subject[-1] if subject[:1] == ["Patient"] else "")
+    if not pid or subject != ["Patient", pid]:
         return {"status": "invalid", "saved": False, "problems": ["visit does not belong to this patient"]}
     obs = vitals_observation(pid, vid, values, idempotency_key, when)
     created = fhir.conditional_create(obs, f"{REQ_SYSTEM}|{idempotency_key}")
     if store is not None:
         newest = fhir.search("Observation", {"encounter": f"Encounter/{vid}", "code": f"http://loinc.org|{PANEL_CODE}",
                                              "status": ",".join(USABLE_STATUSES), "_sort": "-date", "_count": "1"})
-        store.record_reading(vid, pid, newest[0]["id"] if newest else created["id"])
+        store.record_reading(vid, pid, newest[0]["id"] if newest else created["id"], _patient_label(fhir, pid))
+        if clean_complaint:   # api.md Q1: Postgres only, never FHIR; a retry keeps the first text
+            store.save_complaint(vid, created["id"], clean_complaint)
     return {"status": "saved", "saved": True, "observation_id": f"Observation/{created['id']}"}
+
+
+def _clean_complaint(text: str | None) -> tuple[str | None, list[str]]:
+    """NFKC-normalised, control characters turned into spaces, trimmed; empty means none. At most 500 characters
+    AFTER normalisation (architecture Appendix B), so what is stored is what the limit was checked on."""
+    if text is None:
+        return None, []
+    if not isinstance(text, str):
+        return None, ["complaint: not text"]
+    clean = "".join(c if c == "\n" or c.isprintable() else " " for c in unicodedata.normalize("NFKC", text)).strip()
+    if len(clean) > MAX_COMPLAINT:
+        return None, [f"complaint: at most {MAX_COMPLAINT} characters"]
+    return clean or None, []
+
+
+def _patient_label(fhir: Fhir, patient_id: str) -> str | None:
+    """Display label (Patient.identifier urn:afya:label), or None. Never a name."""
+    try:
+        return label_of(fhir.read("Patient", patient_id))
+    except FhirNotFound:
+        return None
+
+
+def label_of(patient: dict[str, Any]) -> str | None:
+    return next((i["value"] for i in patient.get("identifier", []) if i.get("system") == LABEL_SYSTEM
+                 and i.get("value")), None)
 
 
 def _invalid_entry(values: dict[str, Any], registry: list[dict[str, Any]], key: str) -> list[str]:
@@ -108,6 +148,12 @@ def compute_tews(fhir: Fhir, registry: list[dict[str, Any]], observation_id: str
         return {"status": "not_usable", "observation_id": ref,
                 "notice": "not a current vital-signs reading (wrong code or status)"}
     patient = fhir.read("Patient", ref_id(obs["subject"]["reference"], "Patient"))
+    return _score_reading(obs, patient, registry)
+
+
+def _score_reading(obs: dict[str, Any], patient: dict[str, Any], registry: list[dict[str, Any]]) -> dict[str, Any]:
+    """Score an already-read usable Observation for its (already-read) Patient."""
+    ref = f"Observation/{obs['id']}"
     try:
         chart = rules.select_chart(age_years(patient), _height_cm(patient), registry)
     except rules.NoChartForPatient as e:
@@ -180,69 +226,101 @@ def _height_cm(patient: dict[str, Any]) -> float | None:
 def get_queue_state(fhir: Fhir, registry: list[dict[str, Any]], site: dict[str, Any],
                     store: VisitStore | None = None, now: datetime | None = None) -> dict[str, Any]:
     """Read-only. For each waiting visit (FHIR Encounter in arrived/triaged/in-progress), oldest arrival first:
-    minutes waited since Encounter.period.start against the SATS target of the colour a nurse confirmed
-    (Encounter.priority; target from the patient's chart), and when the next reading is due by the site re-check
-    interval (site rule, not SATS). Plus the proposals nobody has decided (pending) or reviewed (superseded), with
-    their age, from Postgres. Only IDs, codes, times and numbers: no names or notes.
+    patient_label, minutes waited since Encounter.period.start against the SATS target of the colour a nurse
+    confirmed (Encounter.priority; target from the patient's chart), the last reading with its TEWS and colour, active
+    flags, and when the next reading is due by the site re-check interval (site rule, not SATS). Plus the proposals
+    nobody has decided (pending) or reviewed (superseded), with their age, from Postgres. Only IDs, codes, times and
+    numbers: no names or notes. Notices are objects {code, notification_id?, at?} with the codes of docs/api.md
+    section 6; if FHIR cannot be reached the patients are empty and the notice is fhir_unavailable (not an error).
     """
     now = now or datetime.now(timezone.utc)
-    encounters = fhir.search("Encounter", {"status": ",".join(WAITING_STATUSES), "_sort": "-date",
-                                           "_count": str(QUEUE_LIMIT)})
     proposals = _open_proposals(store, site, now)
+    notifications = store.open_notifications() if store is not None else []
+    notices: list[dict[str, Any]] = [] if store is not None else [{"code": "data_incomplete"}]
+    notices += [workflow.notice_from_notification(n) for n in notifications if not n["visit_id"]]
     pending_by_visit: dict[str, int] = {}
+    unreviewed = set()
     for p in proposals or []:
         if p["status"] == "pending":
             pending_by_visit[p["visit_id"]] = pending_by_visit.get(p["visit_id"], 0) + 1
-    charts: dict[str, dict[str, Any] | None] = {}
-    patients = [_queue_entry(fhir, registry, site, e, charts, pending_by_visit, now) for e in encounters]
+        else:
+            unreviewed.add(p["visit_id"])
+    by_visit: dict[str, list[dict[str, Any]]] = {}
+    for n in notifications:
+        if n["visit_id"]:
+            by_visit.setdefault(n["visit_id"], []).append(workflow.notice_from_notification(n))
+    patients: list[dict[str, Any]] = []
+    truncated = False
+    try:
+        encounters = fhir.search("Encounter", {"status": ",".join(WAITING_STATUSES), "_sort": "-date",
+                                               "_count": str(QUEUE_LIMIT)})
+        truncated = len(encounters) >= QUEUE_LIMIT
+        cache: dict[str, tuple[dict[str, Any] | None, dict[str, Any] | None]] = {}
+        patients = [_queue_entry(fhir, registry, site, e, cache, pending_by_visit, unreviewed,
+                                 by_visit.get(e["id"], []), now) for e in encounters]
+    except FhirUnavailable:
+        patients = []
+        notices.append({"code": "fhir_unavailable"})
     patients.sort(key=lambda p: (p["arrived_at"] is None, p["arrived_at"] or ""))
     return {
         "status": "ok",
         "as_of": now.isoformat(),
         "site_rule_source": site.get("source"),
-        "truncated": len(encounters) >= QUEUE_LIMIT,
+        "truncated": truncated,
         "patients": patients,
         "proposals": proposals,
-        "notices": [] if proposals is not None else ["proposals unavailable: no database connection"],
+        "notices": notices,
     }
 
 
 def _queue_entry(fhir: Fhir, registry: list[dict[str, Any]], site: dict[str, Any], enc: dict[str, Any],
-                 charts: dict[str, dict[str, Any] | None], pending_by_visit: dict[str, int],
+                 cache: dict[str, tuple[dict[str, Any] | None, dict[str, Any] | None]],
+                 pending_by_visit: dict[str, int], unreviewed: set[str], visit_notices: list[dict[str, Any]],
                  now: datetime) -> dict[str, Any]:
     vid = enc["id"]
-    notices: list[str] = []
+    notices: list[dict[str, Any]] = []
     pid = None
     try:
         pid = ref_id(enc.get("subject", {}).get("reference", ""), "Patient")
     except ValueError:
-        notices.append("visit has no patient reference")
+        notices.append({"code": "data_incomplete"})
     try:
         colour = confirmed_colour(enc)
     except ValueError:
         colour = None
-        notices.append("Encounter.priority holds an unknown colour")
+        notices.append({"code": "data_incomplete"})
     arrived = _when(enc.get("period", {}).get("start"))
     if arrived is None:
-        notices.append("arrival time unknown (Encounter.period.start)")
+        notices.append({"code": "data_incomplete"})
     waited = _minutes(now - arrived) if arrived else None
 
+    patient, chart = _patient_and_chart(fhir, registry, pid, cache) if pid else (None, None)
     target = None
     if colour and pid:
-        chart = _chart_for(fhir, registry, pid, charts)
         if chart is None:
-            notices.append("no chart for this patient yet: no SATS target")
+            notices.append({"code": "no_chart"})
         else:
             target = rules.target_minutes(chart, colour)
     over = max(0, waited - target) if waited is not None and target is not None else None
 
     latest = fhir.search("Observation", {"encounter": f"Encounter/{vid}", "code": f"http://loinc.org|{PANEL_CODE}",
                                          "status": ",".join(USABLE_STATUSES), "_sort": "-date", "_count": "1"})
-    last = {"observation_id": f"Observation/{latest[0]['id']}",
-            "effective": latest[0].get("effectiveDateTime")} if latest else None
+    last = None
+    if latest:
+        scored = _score_reading(latest[0], patient, registry) if patient is not None else {}
+        last = {"observation_id": f"Observation/{latest[0]['id']}", "effective": latest[0].get("effectiveDateTime"),
+                "tews": scored.get("tews"), "colour": scored.get("colour")}
+    flags = fhir.search("Flag", {"encounter": f"Encounter/{vid}", "status": "active", "_count": "20"})
+    if any(_is_second_look(f) for f in flags):
+        flag_codes = ["second_look"]
+    else:
+        flag_codes = []
+    if vid in unreviewed:
+        notices.append({"code": "not_reviewed"})
     return {
         "visit_id": vid,
         "patient_id": pid,
+        "patient_label": label_of(patient) if patient else None,
         "confirmed_colour": colour,
         "arrived_at": arrived.isoformat() if arrived else None,
         "minutes_waited": waited,
@@ -252,8 +330,18 @@ def _queue_entry(fhir: Fhir, registry: list[dict[str, Any]], site: dict[str, Any
         "last_reading": last,
         "recheck": _recheck(site, colour, arrived, _when(last["effective"]) if last else None, last is None, now),
         "pending_proposals": pending_by_visit.get(vid, 0),
-        "notices": notices,
+        "flags": flag_codes,
+        "notices": [*_dedup(notices), *visit_notices],
     }
+
+
+def _dedup(notices: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [n for i, n in enumerate(notices) if n not in notices[:i]]
+
+
+def _is_second_look(flag: dict[str, Any]) -> bool:
+    return flag.get("status") == "active" and any(
+        c.get("code") == "second-look" for c in flag.get("code", {}).get("coding", []))
 
 
 def _recheck(site: dict[str, Any], colour: str | None, arrived: datetime | None, last_at: datetime | None,
@@ -287,14 +375,20 @@ def _open_proposals(store: VisitStore | None, site: dict[str, Any], now: datetim
     return out
 
 
-def _chart_for(fhir: Fhir, registry: list[dict[str, Any]], pid: str,
-               cache: dict[str, dict[str, Any] | None]) -> dict[str, Any] | None:
+def _patient_and_chart(fhir: Fhir, registry: list[dict[str, Any]], pid: str,
+                       cache: dict[str, tuple[dict[str, Any] | None, dict[str, Any] | None]]
+                       ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """The Patient (None if it does not exist) and the chart that fits it (None if there is none yet)."""
     if pid not in cache:
         try:
             patient = fhir.read("Patient", pid)
-            cache[pid] = rules.select_chart(age_years(patient), _height_cm(patient), registry)
-        except (FhirNotFound, rules.NoChartForPatient):
-            cache[pid] = None
+        except FhirNotFound:
+            cache[pid] = (None, None)
+        else:
+            try:
+                cache[pid] = (patient, rules.select_chart(age_years(patient), _height_cm(patient), registry))
+            except rules.NoChartForPatient:
+                cache[pid] = (patient, None)
     return cache[pid]
 
 
@@ -311,6 +405,91 @@ def _when(value: str | None) -> datetime | None:
 
 def _minutes(delta: timedelta) -> int:
     return int(delta.total_seconds() // 60)
+
+
+# ---------- E6-5: visit timeline (read by the api, never offered to the model) ----------
+
+def visit_timeline(fhir: Fhir, registry: list[dict[str, Any]], visit_id: str) -> dict[str, Any]:
+    """Readings of one visit, oldest first, with the raw values from FHIR (api.md Q5) and the points of each input.
+    points is None for an input that is shown but not scored (SpO2). Only IDs, codes and numbers."""
+    vid = ref_id(visit_id, "Encounter")
+    try:
+        encounter = fhir.read("Encounter", vid)
+    except FhirNotFound:
+        return {"status": "not_found", "visit_id": vid}
+    patient = None
+    with contextlib.suppress(ValueError, FhirNotFound):
+        patient = fhir.read("Patient", ref_id(encounter["subject"]["reference"], "Patient"))
+    found = fhir.search("Observation", {"encounter": f"Encounter/{vid}", "code": f"http://loinc.org|{PANEL_CODE}",
+                                        "status": ",".join(USABLE_STATUSES), "_sort": "-date", "_count": "100"})
+    readings, chart_id = [], None
+    for obs in sorted(found, key=lambda o: o.get("effectiveDateTime", "")):
+        scored = _score_reading(obs, patient, registry) if patient is not None else {}
+        try:
+            values = observation_values(obs)
+        except UnusableObservation:
+            values = {}
+        points = scored.get("points", {}) if scored.get("status") == "scored" else {}
+        chart_id = chart_id or scored.get("chart_id")
+        readings.append({
+            "obs_id": f"Observation/{obs['id']}",
+            "at": obs.get("effectiveDateTime"),
+            "values": {name: {"value": _plain(values[name]), "unit": COMPONENTS[name][2], "points": points.get(name)}
+                       for name in COMPONENTS if name in values},
+            "tews": scored.get("tews"), "colour": scored.get("colour"), "complete": scored.get("complete", False),
+            "missing": scored.get("missing", []), "signs": scored.get("signs", []),
+        })
+    return {"status": "ok", "visit_id": vid, "chart_id": chart_id, "readings": readings}
+
+
+def _plain(v: Any) -> Any:
+    return int(v) if isinstance(v, float) and v.is_integer() else v
+
+
+# ---------- E6-6: demo visit (synthetic data only, DEMO_MODE) ----------
+
+DEMO_SYSTEM = "urn:afya:demo"
+
+
+def seed_demo_visit(fhir: Fhir, label: str, birth_date: str, arrived_minutes_ago: int, confirmed_colour: str,
+                    now: datetime | None = None) -> dict[str, Any]:
+    """Create (or reuse) the synthetic Patient with this label and a fresh in-progress Encounter that a nurse already
+    confirmed at `confirmed_colour`. Earlier waiting Encounters of that demo patient are finished, so loading the
+    scenario again starts from a clean queue entry. Nothing here is real data: labels only, no names."""
+    if not re.fullmatch(r"[A-Za-z0-9-]{1,32}", label or ""):
+        return {"status": "invalid", "reason": "label must be 1-32 letters, digits or '-'"}
+    if confirmed_colour not in COLOURS:
+        return {"status": "invalid", "reason": f"confirmed_colour must be one of {COLOURS}"}
+    now = now or datetime.now(timezone.utc)
+    patient = fhir.conditional_create(
+        {"resourceType": "Patient", "identifier": [{"system": LABEL_SYSTEM, "value": label}], "birthDate": birth_date,
+         "gender": "other"}, f"{LABEL_SYSTEM}|{label}")
+    for old in fhir.search("Encounter", {"subject": f"Patient/{patient['id']}", "status": ",".join(WAITING_STATUSES)}):
+        fhir.update({**old, "status": "finished"})
+    enc = fhir.conditional_create(
+        {"resourceType": "Encounter", "status": "in-progress", "class": {"code": "EMER"},
+         "identifier": [{"system": DEMO_SYSTEM, "value": uuid.uuid4().hex}],
+         "subject": {"reference": f"Patient/{patient['id']}"},
+         "period": {"start": (now - timedelta(minutes=arrived_minutes_ago)).isoformat()},
+         "priority": {"coding": [{"system": COLOUR_SYSTEM, "code": confirmed_colour}]}},
+        f"{DEMO_SYSTEM}|{uuid.uuid4().hex}")
+    return {"status": "seeded", "patient_id": patient["id"], "visit_id": enc["id"], "patient_label": label}
+
+
+def demo_visit(fhir: Fhir, label: str) -> dict[str, Any]:
+    """The waiting Encounter of the demo patient with this label and how many readings it has so far."""
+    patients = fhir.search("Patient", {"identifier": f"{LABEL_SYSTEM}|{label}", "_count": "1"})
+    if not patients:
+        return {"status": "not_found"}
+    pid = patients[0]["id"]
+    encounters = fhir.search("Encounter", {"subject": f"Patient/{pid}", "status": ",".join(WAITING_STATUSES),
+                                           "_count": "1"})
+    if not encounters:
+        return {"status": "not_found"}
+    vid = encounters[0]["id"]
+    n = len(fhir.search("Observation", {"encounter": f"Encounter/{vid}", "code": f"http://loinc.org|{PANEL_CODE}",
+                                        "status": ",".join(USABLE_STATUSES), "_count": "100"}))
+    return {"status": "found", "visit_id": vid, "patient_id": pid, "readings": n}
 
 
 # ---------- E4-6: executor registry and raise_recheck_flag ----------

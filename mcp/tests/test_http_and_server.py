@@ -61,9 +61,10 @@ def test_mounts_split_read_and_act_and_check_the_host():
     from afya_mcp.server import app
     with TestClient(app, base_url="http://afya-mcp:9000") as c:
         assert c.get("/healthz").text == "ok"
-        read, act = _tools(c, "read"), _tools(c, "act")
+        read, act, ui = _tools(c, "read"), _tools(c, "act"), _tools(c, "ui")
         assert set(read) == {"compute_tews", "check_deterioration", "get_queue_state"}
-        assert set(act) == {"record_vitals", "raise_recheck_flag", "notify_staff"}
+        assert set(act) == {"record_vitals", "raise_recheck_flag", "notify_staff", "seed_demo_visit"}
+        assert set(ui) == {"visit_timeline", "demo_visit"}   # read-only data for the api, no actor, not model-facing
         # E4-8: the model-facing tools have no actor field (always logged as 'agent'); act tools require one.
         for schema in read.values():
             assert "actor" not in schema["properties"] and "run_id" not in schema.get("required", [])

@@ -88,9 +88,9 @@ def test_child_without_chart_and_unknown_colour_give_notices(fhir):
     fhir.put({"resourceType": "Encounter", "id": "v-odd", "status": "arrived", "subject": {"reference": "Patient/p1"},
               "priority": {"coding": [{"system": COLOUR_SYSTEM, "code": "PURPLE"}]}})
     q = by_visit(services.get_queue_state(fhir, REG, SITE, FakeStore(), NOW))
-    assert q["v-kid"]["target_minutes"] is None and "no chart" in q["v-kid"]["notices"][0]
+    assert q["v-kid"]["target_minutes"] is None and q["v-kid"]["notices"] == [{"code": "no_chart"}]
     assert q["v-odd"]["confirmed_colour"] is None and q["v-odd"]["minutes_waited"] is None
-    assert len(q["v-odd"]["notices"]) == 2
+    assert q["v-odd"]["notices"] == [{"code": "data_incomplete"}]
 
 
 def test_open_proposals_with_age_and_reminder_due(fhir):
@@ -114,10 +114,47 @@ def test_open_proposals_with_age_and_reminder_due(fhir):
 
 def test_without_database_proposals_are_reported_unavailable(fhir):
     state = services.get_queue_state(fhir, REG, SITE, None, NOW)
-    assert state["proposals"] is None and state["notices"]
+    assert state["proposals"] is None and state["notices"] == [{"code": "data_incomplete"}]
 
 
 def test_site_rules_reject_unknown_colours(tmp_path):
     (tmp_path / "site.yaml").write_text("source: x\nrecheck_minutes: {BLUE: 5}\n")
     with pytest.raises(ValueError):
         rules.load_site(tmp_path)
+
+
+def test_patient_label_last_reading_score_and_flags(fhir):
+    fhir.data["Patient"]["p1"]["identifier"] = [{"system": "urn:afya:label", "value": "P-014"}]
+    fhir.put({"resourceType": "Flag", "id": "f1", "status": "active", "encounter": {"reference": "Encounter/v-orange"},
+              "code": {"coding": [{"system": "urn:afya:codes", "code": "second-look"}]}})
+    fhir.put({"resourceType": "Flag", "id": "f2", "status": "inactive", "encounter": {"reference": "Encounter/v-green"},
+              "code": {"coding": [{"system": "urn:afya:codes", "code": "second-look"}]}})
+    q = by_visit(services.get_queue_state(fhir, REG, SITE, FakeStore(), NOW))
+    assert q["v-orange"]["patient_label"] == "P-014" and q["v-kid"]["patient_label"] is None
+    last = q["v-orange"]["last_reading"]
+    assert (last["tews"], last["colour"]) == (0, "GREEN") and last["observation_id"].startswith("Observation/")
+    assert q["v-new"]["last_reading"] is None
+    assert q["v-orange"]["flags"] == ["second_look"] and q["v-green"]["flags"] == []
+
+
+def test_notices_are_codes_with_notification_ids(fhir):
+    store = FakeStore()
+    store.notifications = [
+        {"id": "n1", "at": ago(5), "kind": "vitals_due", "visit_id": "v-orange", "proposal_id": None},
+        {"id": "n2", "at": ago(4), "kind": "clinician_reminder", "visit_id": "v-orange", "proposal_id": "a"},
+        {"id": "n3", "at": ago(3), "kind": "model_unavailable", "visit_id": None, "proposal_id": None},
+    ]
+    store.proposals = [{"id": "c", "visit_id": "v-green", "trigger": "colour_rise", "obs_id": "o0",
+                        "status": "superseded", "to_colour": "RED", "created_at": ago(40)}]
+    state = services.get_queue_state(fhir, REG, SITE, store, NOW)
+    q = by_visit(state)
+    assert [n["code"] for n in q["v-orange"]["notices"]] == ["vitals_due", "clinician_reminded"]
+    assert q["v-orange"]["notices"][0]["notification_id"] == "n1"
+    assert q["v-green"]["notices"] == [{"code": "not_reviewed"}]
+    assert [n["code"] for n in state["notices"]] == ["model_unavailable"]
+
+
+def test_fhir_down_is_a_notice_not_an_error(fhir):
+    fhir.down = True
+    state = services.get_queue_state(fhir, REG, SITE, FakeStore(), NOW)
+    assert state["patients"] == [] and state["notices"] == [{"code": "fhir_unavailable"}]
