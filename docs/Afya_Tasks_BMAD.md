@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 57 done · 9 drafted · 25 to do · 0 blocked · 91 stories
+**Progress:** 57 done · 10 drafted · 24 to do · 0 blocked · 91 stories
 
 ---
 
@@ -240,7 +240,7 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 | E7-7 | [x] | **W4** Gate steps as a simple list of ticks | B | Day 6 | 1 h | E6-5 |
 | E7-8 | [x] | Notices | B | Day 6 | 2 h | E7-1 |
 | E7-9 | [x] | **W6** Demo scenario loader | B | Day 8 | 1 h | E6-6 |
-| E7-10 | [ ] | Wire everything to the real API, remove fake JSON | B | Day 7–8 | 2 h | E6-1a, E6-1b |
+| E7-10 | [~] | Wire everything to the real API, remove fake JSON | B | Day 7–8 | 2 h | E6-1a, E6-1b |
 | E7-11 | [~] | Playwright end-to-end test of the P-014 flow | B | Day 8 | 1.5 h | E7-10 |
 
 **E7-0** · Files: `web/` · Acceptance: `npx create-next-app@latest` (TypeScript, App Router); Tailwind + shadcn/ui; TanStack Query; `openapi-typescript` generates `web/src/api/types.ts` from FastAPI's `/openapi.json`; production build on port 3000; `/api/*` proxied to `API_INTERNAL_URL`; enabled with `--profile web`. · Notes: done. Next.js 16 + Tailwind 4 + shadcn/ui (Base UI) + TanStack Query. `/api/*` is a route handler that proxies at request time to `API_INTERNAL_URL` (verified against the FastAPI app, and 503 with the contract error body when it is down), or serves an in-memory fake when `FAKE_API=1`; fixtures are extracted from the `docs/api.md` examples (`npm run fixtures`), the fake never scores. `npm run gen:api` generates `src/api/types.ts` (only `/healthz` today; `src/api/contract.ts` mirrors the contract until E6). Standalone Dockerfile verified (`docker build`, `/api/healthz` 200). Compose passes `DEMO_MODE` and `FAKE_API` (default 0). shadcn's CLI added an unknown `cn` npm package: replaced by `clsx` + `tailwind-merge`.
