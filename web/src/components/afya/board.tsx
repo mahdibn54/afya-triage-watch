@@ -2,7 +2,7 @@
 
 import { Activity, ChevronRight, Clock3, Flag, PenLine, RefreshCw, Sparkles, WifiOff } from "lucide-react";
 
-import type { Me, QueuePatient } from "@/api/contract";
+import type { Me, Proposal, QueuePatient } from "@/api/contract";
 import { ColourChip } from "@/components/afya/colour-chip";
 import { NoticeCallout, NoticeChip } from "@/components/afya/notice-chip";
 import { useProposals, useQueue } from "@/lib/queries";
@@ -14,6 +14,12 @@ import { cn } from "@/lib/utils";
 export function secondsLeft(p: QueuePatient, now: number): number | null {
   if (p.target_minutes === null) return null;
   return p.target_minutes * 60 - (now - Date.parse(p.arrived_at)) / 1000;
+}
+
+/** "cites 2 readings": the records behind the suggestion (at least its own reading). */
+function citesText(pr: Proposal): string {
+  const n = new Set([pr.obs_id, ...pr.evidence.flatMap((e) => [e.before.obs_id, e.after.obs_id])]).size;
+  return `cites ${n} ${n === 1 ? "reading" : "readings"}`;
 }
 
 function sortByTimeLeft(ps: QueuePatient[], now: number): QueuePatient[] {
@@ -90,7 +96,7 @@ export function Board({
                   Second look suggested for <span className="font-mono">{pr.patient_label ?? pr.visit_id}</span>
                 </span>
                 <span className="block text-sm text-agent-foreground/80">
-                  {pr.reasons[0] && pr.reasons[0].charAt(0).toUpperCase() + pr.reasons[0].slice(1).replace("->", "→")} · cites {new Set(pr.evidence.flatMap((e) => [e.before.obs_id, e.after.obs_id])).size || 1} readings
+                  {pr.reasons[0] && pr.reasons[0].charAt(0).toUpperCase() + pr.reasons[0].slice(1).replace("->", "→")} · {citesText(pr)}
                 </span>
               </span>
               <span className="flex items-center gap-2">

@@ -105,7 +105,8 @@ export function useTrace(runId: string | null, live = true) {
     queryKey: keys.trace(runId ?? ""),
     queryFn: () => api<TraceStep[]>(`/runs/${encodeURIComponent(runId!)}/trace`),
     enabled: !!runId,
-    refetchInterval: live ? 1000 : false,
+    // A 404 (no such run) will not change by polling every second; check again slowly.
+    refetchInterval: (q) => (!live ? false : q.state.error instanceof ApiError && q.state.error.status === 404 ? 15_000 : 1000),
     retry: (n, e) => !(e instanceof ApiError && e.status === 404) && n < 2,
   });
 }
