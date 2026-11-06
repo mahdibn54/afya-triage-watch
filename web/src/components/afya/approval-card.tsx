@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import type { Colour, Me, Proposal } from "@/api/contract";
 import { ColourChip } from "@/components/afya/colour-chip";
 import { Complaint, reasonText } from "@/components/afya/complaint";
+import { EvidenceTable } from "@/components/afya/evidence";
 import { NoticeCallout } from "@/components/afya/notice-chip";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ApiError } from "@/lib/api";
@@ -36,7 +37,7 @@ function decisionError(e: unknown): { title: string; body: string } {
   return { title: "Not sent", body: `${e instanceof Error ? e.message : "Unknown error"} Nothing was changed; you can try again.` };
 }
 
-export function ApprovalCard({ me, proposal, evidence }: { me: Me; proposal: Proposal; evidence?: React.ReactNode }) {
+export function ApprovalCard({ me, proposal }: { me: Me; proposal: Proposal }) {
   const p = proposal;
   const now = useClientNow(15_000);
   const canDecide = me.role === "nurse" || me.role === "clinician";
@@ -147,7 +148,7 @@ export function ApprovalCard({ me, proposal, evidence }: { me: Me; proposal: Pro
           <NoticeCallout key={`${n.code}-${i}`} code={n.code} />
         ))}
 
-        {evidence}
+        <EvidenceTable rows={p.evidence} />
 
         {/* The patient's words */}
         {p.complaint && (
