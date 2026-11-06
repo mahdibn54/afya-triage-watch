@@ -342,7 +342,7 @@ handed to B in the run report.
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
 | E12-1 | [x] | LLM agent audit fixes (with E5-11) | M | Day 9 | 4 h | E5-11 |
-| E12-2 | [ ] | Database audit fixes | M | Day 9 | 3 h | E12-1 |
+| E12-2 | [~] | Database audit fixes | M | Day 9 | 3 h | E12-1 |
 | E12-3 | [ ] | Security audit fixes | M | Day 9 | 3 h | E12-2 |
 | E12-4 | [ ] | Evaluation audit fixes, eval rerun on the OpenRouter model, docs | M | Day 9 | 3 h | E12-3 |
 
