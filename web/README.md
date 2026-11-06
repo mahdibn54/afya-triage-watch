@@ -22,6 +22,16 @@ npm run build           # production build (standalone server)
 
 In compose: `docker compose --profile web up --build` (UI on `127.0.0.1:3000`).
 
+## End-to-end test (E7-11)
+
+```bash
+npx playwright install chromium          # once
+npm run test:e2e                         # starts the UI on the fake API and runs the P-014 flow
+PW_BASE_URL=http://localhost:3000 npm run test:e2e   # against a running stack instead
+```
+
+`FAKE_ALL_NOTICES=1` makes the fake also show `model_unavailable` and `instruction_like_text`.
+
 ## Fake JSON
 
 `npm run fixtures` copies every `<!-- example: ... -->` block of `docs/api.md` into `src/api/fixtures/`, so the
