@@ -1,0 +1,7 @@
+# Always check out text files with LF, whatever core.autocrlf says.
+# Files are mounted into Linux containers (db/init.sh, gateway/nginx.conf, rules/, scripts/); CRLF breaks them.
+* text=auto eol=lf
+*.pdf binary
+*.png binary
+*.jpg binary
+*.gif binary
