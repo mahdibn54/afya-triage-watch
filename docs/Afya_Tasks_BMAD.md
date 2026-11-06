@@ -203,12 +203,12 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
 | E6-1a | [ ] | Read endpoints: `/login-as`, `/me`, `/queue`, `/audit` | B | Day 5–6 | 1.5 h | E0-5 |
-| E6-1b | [ ] | Write endpoints: `/vitals`, `/proposals`, approve, reject | M | Day 6–7 | 1.5 h | E0-5 |
+| E6-1b | [~] | Write endpoints: `/vitals`, `/proposals`, approve, reject | M | Day 6–7 | 1.5 h | E0-5 |
 | E6-2 | [ ] | Demo sign-in session | B | Day 5 | 1 h | E6-1a |
-| E6-3 | [ ] | Approve = one transaction, then resume the graph | M | Day 7 | 1.5 h | E3-5 |
-| E6-4 | [ ] | Startup sweep | M | Day 8 | 0.5 h | E3-5 |
-| E6-5 | [ ] | UI data endpoints: visit timeline, run trace, proposal gates | M | Day 7 | 2.5 h | E4-8 |
-| E6-6 | [ ] | Demo endpoint: load the P-014 scenario (DEMO_MODE only) | M | Day 8 | 0.5 h | E5-7 |
+| E6-3 | [~] | Approve = one transaction, then resume the graph | M | Day 7 | 1.5 h | E3-5 |
+| E6-4 | [~] | Startup sweep | M | Day 8 | 0.5 h | E3-5 |
+| E6-5 | [~] | UI data endpoints: visit timeline, run trace, proposal gates | M | Day 7 | 2.5 h | E4-8 |
+| E6-6 | [~] | Demo endpoint: load the P-014 scenario (DEMO_MODE only) | M | Day 8 | 0.5 h | E5-7 |
 
 **E6-1a / E6-1b** · Files: `api/afya_api/` · Acceptance: match `docs/api.md` exactly; JSON errors with clear messages.
 **E6-2** · Acceptance: only when `DEMO_MODE=1`; signed session cookie (SameSite=Strict, secret from `SESSION_SECRET`); user always from the session, never the body; `auth: demo_switcher` in audit rows.
