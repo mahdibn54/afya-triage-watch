@@ -8,6 +8,7 @@ import type { Colour, Me, Proposal } from "@/api/contract";
 import { ColourChip } from "@/components/afya/colour-chip";
 import { Complaint, reasonText } from "@/components/afya/complaint";
 import { EvidenceTable } from "@/components/afya/evidence";
+import { GateSteps } from "@/components/afya/gate-steps";
 import { NoticeCallout } from "@/components/afya/notice-chip";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ApiError } from "@/lib/api";
@@ -233,6 +234,11 @@ export function ApprovalCard({ me, proposal }: { me: Me; proposal: Proposal }) {
           </section>
         )}
       </div>
+
+      <section aria-label="Safety gates" className="border-t px-5 py-4 sm:px-6">
+        <h3 className="mb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">Safety gates</h3>
+        <GateSteps proposalId={p.id} />
+      </section>
 
       {/* Decision */}
       {canDecide ? (

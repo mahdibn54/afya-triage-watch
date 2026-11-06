@@ -6,6 +6,7 @@ import type { Me, Proposal, QueuePatient } from "@/api/contract";
 import { ApprovalCard } from "@/components/afya/approval-card";
 import { TargetBar } from "@/components/afya/board";
 import { ColourChip } from "@/components/afya/colour-chip";
+import { GateSteps } from "@/components/afya/gate-steps";
 import { NoticeCallout } from "@/components/afya/notice-chip";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { useAcknowledgeNotice, useAcknowledgeProposal, useProposals, useQueue, useUserName } from "@/lib/queries";
@@ -175,6 +176,9 @@ function DecidedCard({ proposal: x, by }: { proposal: Proposal; by: string }) {
           <ColourChip colour={x.current_colour} size="sm" muted />→<ColourChip colour={x.proposed_colour} size="sm" />
           <span className="text-xs text-muted-foreground">suggested</span>
         </span>
+      </div>
+      <div className="mt-4 rounded-xl border bg-card p-4">
+        <GateSteps proposalId={x.id} outcome={ok ? undefined : "rejected"} />
       </div>
     </article>
   );

@@ -110,12 +110,12 @@ export function useTrace(runId: string | null, live = true) {
   });
 }
 
-export function useGates(proposalId: string | null) {
+export function useGates(proposalId: string | null, live = true) {
   return useQuery({
     queryKey: keys.gates(proposalId ?? ""),
     queryFn: () => api<Gate[]>(`/proposals/${proposalId}/gates`),
     enabled: !!proposalId,
-    refetchInterval: (q) => (q.state.data?.every((g) => g.at) ? false : 1000),
+    refetchInterval: (q) => (!live || q.state.data?.every((g) => g.at) ? false : 1000),
   });
 }
 

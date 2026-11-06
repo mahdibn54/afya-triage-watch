@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 33 done · 3 drafted · 51 to do · 0 blocked · 87 stories
+**Progress:** 34 done · 3 drafted · 50 to do · 0 blocked · 87 stories
 
 ---
 
@@ -230,7 +230,7 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 | E7-4 | [x] | **W2** Evidence table on the approval card | B | Day 4 | 1.5 h | E7-3 |
 | E7-5 | [ ] | **W5** Agent trace as a plain list | B | Day 7 | 2 h | E6-5 |
 | E7-6 | [x] | "Sign in as…" switcher with DEMO badge | B | Day 5 | 1 h | E6-2 |
-| E7-7 | [ ] | **W4** Gate steps as a simple list of ticks | B | Day 6 | 1 h | E6-5 |
+| E7-7 | [x] | **W4** Gate steps as a simple list of ticks | B | Day 6 | 1 h | E6-5 |
 | E7-8 | [ ] | Notices | B | Day 6 | 2 h | E7-1 |
 | E7-9 | [ ] | **W6** Demo scenario loader | B | Day 8 | 1 h | E6-6 |
 | E7-10 | [ ] | Wire everything to the real API, remove fake JSON | B | Day 7–8 | 2 h | E6-1a, E6-1b |
@@ -243,7 +243,7 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 **E7-4** · Acceptance: a table of the cited readings: vital, previous value → new value, points before → after, record ID; rows that moved into a higher band are emphasised. · Notes: done on the fake API, from the proposal's `evidence` (no extra call). Units in nurse terms (°C, mmHg), coded values in words; band-changed rows tinted with an arrow and the new points as a filled badge, plus a count in the heading. Both record ids per row (previous, new). Line under the table: points come from the fixed SATS rules, not the language model.
 **E7-5** · Acceptance: per run, an ordered list: tool calls tagged **ours** / **borrowed (WSO2)**, model calls with tokens and latency, the decision with cited IDs; the manager can read it; used in the demo video.
 **E7-6** · Acceptance: nurse / clinician / manager; visible DEMO badge; the manager sees no approve button anywhere. · Notes: first screen "Sign in as…" (cards with what each role can do) and a switcher in the top bar, both with a DEMO badge; shown only when `/demo/users` answers (DEMO_MODE=1). Switching resets every cached query. Verified in the browser on the fake API (nurse → manager). Manager check done with E7-3: no confirm, reject or vitals button anywhere (checked in the DOM), a read-only footer on the card instead.
-**E7-7** · Acceptance: a list of ticks Proposed → Paused for nurse → Confirmed by <name> → Command claimed → Written to record → Audited, each with its time; refused attempts listed with role and time.
+**E7-7** · Acceptance: a list of ticks Proposed → Paused for nurse → Confirmed by <name> → Command claimed → Written to record → Audited, each with its time; refused attempts listed with role and time. · Notes: done on the fake API (`/proposals/{id}/gates`). Shown on the pending card ("waiting" on the confirm step) and on the decided card, where the ticks arrive live (polls every second until all six are done; stops for rejected proposals, which show "not reached: rejected"). Refusals hang on the confirm step in red with name, role and time. Verified in the browser: manager refused through the API, nurse confirms in the UI → six ticks, P-014 ORANGE with its flag.
 **E7-8** · Acceptance: `remeasure`, `no_chart`, `not_reviewed`, `instruction_like_text`, `vitals_due`, `clinician_reminded`, `model_unavailable`, each with clear wording from the say/avoid table.
 **E7-9** · Acceptance: only with `DEMO_MODE=1`: a button loads the P-014 scenario and another adds its next reading. For the video, set `WATCH_INTERVAL_SECONDS` and the unread-reminder time low in `.env`.
 **E7-10** · Acceptance: the full P-014 flow works by clicking only; nothing changes colour before approval.
