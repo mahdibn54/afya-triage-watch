@@ -21,6 +21,7 @@ From the repository root, PowerShell:
 
 ```powershell
 function dc { docker compose -p afya-e8-2-check -f docker-compose.yml -f evals/stack/compose.yml @args }
+New-Item -ItemType Directory -Force .playwright-mcp/group-a | Out-Null
 $env:MODEL_ENABLED = '0'
 $env:DEMO_MODE = '1'
 $env:GROUP_A_COMMIT = 'uncommitted' # CI supplies the exact commit SHA
@@ -37,7 +38,8 @@ npm.cmd run test:group-a
 Pop-Location
 ```
 
-On Linux/CI, use `COMPOSE_PROJECT_NAME=afya-e8-2-ci` and
+On Linux/CI, first run `mkdir -p .playwright-mcp/group-a` as the host runner user so Docker does not create a
+root-owned artifact directory. Use `COMPOSE_PROJECT_NAME=afya-e8-2-ci` and
 `COMPOSE_FILE=docker-compose.yml:evals/stack/compose.yml` with the same `docker compose` commands. Before the
 WSO2-container pytest call, export its target IP:
 
