@@ -90,6 +90,10 @@ def forbidden_sign_hits(t: Trial) -> list[str]:
 
 
 def notice_missing(t: Trial) -> list[str]:
+    """Expected card notices that are absent. A notice lives on the card, so it can only be checked when the run made
+    a proposal; with no card the answer is [] (not observable, not counted as missing)."""
+    if not t.get("proposal"):
+        return []
     got = {n.get("code") for n in (t.get("proposal") or {}).get("notices", [])} | set(t.get("notices") or [])
     return [n for n in t["expected"].get("notices", []) if n not in got]
 
@@ -253,7 +257,7 @@ def summarize(trials: Sequence[Trial]) -> dict[str, Any]:
         "sign_precision": (tp, tp + fp), "sign_recall": (tp, tp + fn),
         "forbidden_sign_hits": (sum(bool(forbidden_sign_hits(t)) for t in trials), len(trials)),
         "notice_missing": (sum(bool(notice_missing(t)) for t in trials),
-                           sum(1 for t in trials if t["expected"].get("notices"))),
+                           sum(1 for t in trials if t["expected"].get("notices") and got_proposal(t))),
         "tool_order_violations": (sum(bool(v) for v in order.values()), len(trials)),
         "runs_disagree": (d_bad, d_multi, d_ids),
         "run_failures": (sum(bool(t.get("error")) or t.get("run_status") == "failed" for t in trials), len(trials)),

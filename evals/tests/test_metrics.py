@@ -250,3 +250,10 @@ def test_worst_table_orders_by_failure_rate_and_points_into_the_log():
     assert md.index("`hard`") < md.index("`easy`") and "fine" not in md
     assert "v:hard1" in md and "f.jsonl:1" in md
     assert report.worst_table([mk("ok", 1, True)]) == "No trial differed from its label."
+
+
+def test_notice_missing_only_counts_when_there_is_a_card():
+    exp = {"proposal": True, "to_colour": "ORANGE", "notices": ["instruction_like_text"]}
+    assert metrics.notice_missing(trial(proposal=card(notices=["instruction_like_text"]), expected=exp)) == []
+    assert metrics.notice_missing(trial(proposal=card(), expected=exp)) == ["instruction_like_text"]
+    assert metrics.notice_missing(trial(expected=exp)) == []   # no card: not observable

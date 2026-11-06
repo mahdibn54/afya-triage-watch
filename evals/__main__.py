@@ -44,7 +44,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{k} is not set; run: eval \"$(sh evals/stack_env.sh)\"", file=sys.stderr)
             return 2
     paths = asyncio.run(run_all(cases, models, a.runs, a.rules_only_runs, Path(a.out), set_name,
-                                os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434"), not a.no_cleanup))
+                                os.environ.get("OLLAMA_BASE_URL", "http://172.17.0.1:11434"), not a.no_cleanup))
     for p in paths:
         print("wrote", p)
     return 0
