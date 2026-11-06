@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 const TRIGGER: Record<string, string> = {
   colour_rise: "Colour rise",
   sign: "SATS sign in the complaint",
-  nurse_reported: "Nurse-reported worsening",
+  nurse_reported: "Patient or nurse reports worse",
 };
 
 const ACTION: Record<NonNullable<Proposal["agent_action"]>, string> = {

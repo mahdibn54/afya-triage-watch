@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Loader2, Sparkles } from "lucide-react";
+import { Check, Loader2, Sparkles, TrendingDown } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { Consciousness, Me, Mobility, QueuePatient, RemeasureProblem, VitalsRequest } from "@/api/contract";
@@ -50,6 +50,7 @@ const SCENARIO: Form = {
   consciousness: "alert",
   trauma: "no",
   complaint: "Short of breath since morning. My mother had chest pain last year.",
+  reported_worsening: false,
 };
 
 type Form = Record<NumKey, string> & {
@@ -57,6 +58,7 @@ type Form = Record<NumKey, string> & {
   consciousness: Consciousness | "";
   trauma: "yes" | "no" | "";
   complaint: string;
+  reported_worsening: boolean;
 };
 
 const EMPTY: Form = {
@@ -69,6 +71,7 @@ const EMPTY: Form = {
   consciousness: "",
   trauma: "",
   complaint: "",
+  reported_worsening: false,
 };
 
 const MAX_COMPLAINT = 500;
@@ -124,6 +127,7 @@ function VitalsForm({ me, patient, onClose }: { me: Me; patient: QueuePatient; o
     if (form.consciousness) body.consciousness = form.consciousness;
     if (form.trauma) body.trauma = form.trauma;
     if (form.complaint.trim()) body.complaint = form.complaint.trim();
+    if (form.reported_worsening) body.reported_worsening = true;
     if (complaintLen > MAX_COMPLAINT) local.complaint = `At most ${MAX_COMPLAINT} characters`;
     if (Object.keys(local).length) {
       setInvalid(local);
@@ -292,6 +296,44 @@ function VitalsForm({ me, patient, onClose }: { me: Me; patient: QueuePatient; o
           </span>
           {invalid.complaint && <span className="mt-1 block text-xs text-destructive">{invalid.complaint}</span>}
         </label>
+
+        <div
+          className={cn(
+            "flex items-start gap-3 rounded-xl border p-3.5 transition",
+            form.reported_worsening ? "border-agent/50 bg-agent-soft" : "bg-background",
+          )}
+        >
+          <button
+            type="button"
+            role="switch"
+            aria-checked={form.reported_worsening}
+            aria-labelledby="worse-label"
+            aria-describedby="worse-help"
+            data-testid="reported-worsening"
+            onClick={() => set("reported_worsening", !form.reported_worsening)}
+            className={cn(
+              "relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full border-2 border-transparent transition",
+              form.reported_worsening ? "bg-agent" : "bg-muted-foreground/30",
+            )}
+          >
+            <span
+              aria-hidden
+              className={cn(
+                "inline-block size-6 rounded-full bg-white shadow transition-transform",
+                form.reported_worsening ? "translate-x-5" : "translate-x-0",
+              )}
+            />
+          </button>
+          <span className="min-w-0 flex-1">
+            <span id="worse-label" className="flex items-center gap-1.5 text-sm font-semibold">
+              <TrendingDown className="size-4" /> Patient or nurse reports the patient is worse
+            </span>
+            <span id="worse-help" className="mt-0.5 block text-xs text-muted-foreground">
+              For example &ldquo;I feel worse than when I arrived&rdquo;. The watch agent then suggests a second look even if
+              the numbers did not change. Record at least one value with it (a quick AVPU is enough).
+            </span>
+          </span>
+        </div>
 
         {save.isError && !(save.error instanceof ApiError && save.error.code === "invalid") && (
           <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">

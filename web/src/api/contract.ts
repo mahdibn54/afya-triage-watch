@@ -89,6 +89,8 @@ export interface VitalsRequest {
   consciousness?: Consciousness;
   trauma?: "yes" | "no";
   complaint?: string;
+  /** The patient (or the nurse) reports that the patient is worse: a second look even without a score rise. */
+  reported_worsening?: boolean;
 }
 
 export interface RemeasureProblem {

@@ -616,7 +616,10 @@ function postVitals(s: State, me: User, body: Record<string, unknown>, now: numb
   if (complaint !== undefined && complaint !== null && (typeof complaint !== "string" || Array.from(complaint).length > 500)) {
     problems.push({ name: "complaint", message: "at most 500 characters" });
   }
-  const allowed = new Set(["visit_id", "idempotency_key", "complaint", ...Object.keys(UNITS), ...Object.keys(ENUMS)]);
+  if (body.reported_worsening !== undefined && typeof body.reported_worsening !== "boolean") {
+    problems.push({ name: "reported_worsening", message: "true or false" });
+  }
+  const allowed = new Set(["visit_id", "idempotency_key", "complaint", "reported_worsening", ...Object.keys(UNITS), ...Object.keys(ENUMS)]);
   for (const k of Object.keys(body)) if (!allowed.has(k)) problems.push({ name: k, message: "unknown input" });
   const inputs = (Object.keys(UNITS) as VitalInput[]).concat(Object.keys(ENUMS) as VitalInput[]).filter((k) => body[k] !== undefined && body[k] !== null && body[k] !== "");
   if (inputs.length === 0) problems.push({ name: "inputs", message: "at least one value" });
@@ -664,9 +667,50 @@ function postVitals(s: State, me: User, body: Record<string, unknown>, now: numb
     v.last_vitals_at = now;
     v.notices = v.notices.filter((n) => n.code !== "vitals_due" && n.code !== "remeasure");
     audit(s, { at: now, kind: "vitals_recorded", actor: me.id, visit_id: v.visit_id, run_id: runId, payload: { obs_id: obsId } });
+    if (body.reported_worsening === true) reportedWorsening(s, v, obsId, typeof complaint === "string" ? complaint : null, now);
   }
   s.idem.set(key as string, { observation_id: obsId, run_id: runId });
   return { status: 200, body: { status: "saved", observation_id: obsId, run_id: runId } };
+}
+
+/**
+ * Patient-reported change (Deterioration Watch): like the real agent's `nurse_reported` trigger, a second look at
+ * the confirmed colour even when the score did not rise. The fake never scores, so it never proposes a higher colour.
+ */
+function reportedWorsening(s: State, v: VisitState, obsId: string, complaint: string | null, now: number): void {
+  if (!v.confirmed_colour) return;
+  for (const old of s.proposals.values()) {
+    if (old.visit_id === v.visit_id && old.status === "pending") old.status = "superseded";
+  }
+  const p: Proposal = {
+    ...(clone(proposalsFx[0]) as unknown as Proposal),
+    id: uuid(),
+    visit_id: v.visit_id,
+    patient_label: v.patient_label,
+    trigger: "nurse_reported",
+    status: "pending",
+    reviewed: false,
+    created_at: iso(now + 1000),
+    age_minutes: 0,
+    obs_id: obsId,
+    current_colour: v.confirmed_colour,
+    proposed_colour: v.confirmed_colour,
+    tews_before: null,
+    tews_after: null,
+    reasons: ["nurse reported worsening"],
+    evidence: [],
+    agent_action: "propose",
+    missing_input: null,
+    complaint,
+    signs: [],
+    signs_verdict: complaint ? "none" : null,
+    rationale: "The patient or the nurse reported that the patient feels worse. Please take a second look.",
+    rationale_source: "code",
+    notices: [],
+  };
+  s.proposals.set(p.id, p);
+  s.gates.set(p.id, { proposed: now + 1000, paused: now + 1500, confirmed: null, written: null, refused: [] });
+  audit(s, { at: now + 1000, kind: "proposal_created", actor: "agent", visit_id: v.visit_id, run_id: null, payload: { proposal_id: p.id, obs_id: obsId, to_colour: p.proposed_colour } });
 }
 
 function decide(s: State, me: User, pid: string, what: "approve" | "reject", body: Record<string, unknown> | null, now: number): FakeRes {
