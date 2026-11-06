@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 50 done · 5 drafted · 30 to do · 2 blocked · 87 stories
+**Progress:** 50 done · 6 drafted · 29 to do · 2 blocked · 87 stories
 
 ---
 
@@ -181,7 +181,7 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 | E5-7 | [x] | Watch loop and immediate RED/ORANGE notifications | M | Day 8 | 2 h | E4-7 |
 | E5-8 | [x] | Supersession and "not reviewed" | M | Day 8 | 1 h | E5-2 |
 | E5-9 | [!] | Model settings and limits | M | Day 6 | 1 h | E2-5 |
-| E5-10 | [ ] | Model-down fallback | M | Day 8 | 0.5 h | E5-2 |
+| E5-10 | [~] | Model-down fallback | M | Day 8 | 0.5 h | E5-2 |
 | E5-11 | [ ] | OpenRouter client (guarded) | M | Day 9 | 1 h | E5-9 |
 
 **E5-1** · Files: `evals/fixtures/synthetic/*.json` · Acceptance: 8 positive (YELLOW→ORANGE, GREEN→YELLOW, ORANGE→RED, sign-only SOB, sign-only confused, gradual rise over 3 readings, Swahili-only complaint, code-switched or misspelt complaint) and 12 negative (stable, B→B2, M1→M2, improvement, first visit, HR 400, temperature in °F, missing mobility, negation, injection, child, boundary HR 100→101); invented complaints in English, Swahili and French; ground truth from the scorer; split 6 tuning / 14 held out.
