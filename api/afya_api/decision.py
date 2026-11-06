@@ -130,6 +130,13 @@ def merge_decision(dec: dict[str, Any], trigger: dict[str, Any], score: dict[str
             "extra_triggers": extra}, notes
 
 
+def model_down(s: dict[str, Any]) -> bool:
+    """E5-10: the model was needed in this run and did not answer (down, timeout, invalid output, breaker open or
+    switched off). The card then says "no model"; the score, trigger and proposal are unchanged."""
+    used = [str(s.get("signs", {}).get("model", "")), str((s.get("decision") or {}).get("model", ""))]
+    return any(m.startswith("unavailable:") for m in used)
+
+
 def build_payload(s: dict[str, Any], chart: dict[str, Any],
                   evidence: list[dict[str, Any]]) -> tuple[dict[str, Any], list[str]]:
     """The proposal payload (workflow.PAYLOAD_FIELDS) from the run state. Returns it with the sign codes that go
@@ -153,7 +160,7 @@ def build_payload(s: dict[str, Any], chart: dict[str, Any],
         "signs": list(signs["rows"]),
         "rationale": rationale,
         "rationale_source": source,
-        "notices": list(signs.get("notices", [])),
+        "notices": list(signs.get("notices", [])) + ([{"code": "model_unavailable"}] if model_down(s) else []),
         "agent_action": merged["action"],
         "missing_input": merged["missing_input"],
         "signs_verdict": signs.get("verdict"),

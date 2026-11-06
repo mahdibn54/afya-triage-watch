@@ -299,6 +299,16 @@ class Agent:
         self.registry = registry if registry is not None else rules.load_registry()
         self.on_proposal = on_proposal or watch.notify_at_creation   # E5-7: RED/ORANGE notify at creation
         self._running: set[str] = set()
+        if model.on_open is None:
+            model.on_open = self._model_down
+
+    async def _model_down(self, reason: str) -> None:
+        """E5-10: the breaker just opened (2 failures in a row): one fixed-text notice for the nurses, not tied to a
+        visit. Scoring, triggers and proposals go on with the rules only."""
+        try:
+            await self.gateway.act("notify_staff", {"kind": "model_unavailable", "actor": "agent"})
+        except Exception as e:  # noqa: BLE001
+            log.warning("model_unavailable notice failed (%s)", type(e).__name__)
 
     def _ctx(self, run_id: str, visit_id: str) -> RunContext:
         extra = {"on_proposal": self.on_proposal} if self.on_proposal else {}
