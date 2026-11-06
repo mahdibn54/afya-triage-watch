@@ -1,6 +1,6 @@
 # API contract (E0-5)
 
-**Status: proposed by B (brother), to be agreed by M (Mahdi).** Section 9 lists what M must confirm or build. Until
+**Status: agreed. Proposed by B, all open questions in section 9 accepted by M.** Section 9 records the answers. Until
 then the UI is built against the example JSON in this file.
 
 FastAPI on `api:8080`. The Next.js app calls `/api/...` and its proxy strips the `/api` prefix (so `/api/queue` reaches
@@ -354,7 +354,7 @@ Dismisses one notice. No body. `200 { "notification_id": ..., "acknowledged": tr
 Notices appear in `/queue` (per patient, or top level) and in proposals. The UI owns the wording.
 
 | Code | Meaning | Comes from |
-|---|---|---|
+|---|---|---|---|
 | `remeasure` | an impossible value was refused | notification `remeasure` |
 | `no_chart` | no SATS chart for this patient yet | queue (chart selection) |
 | `not_reviewed` | superseded proposal nobody reviewed | proposal `status: superseded`, `reviewed: false` |
@@ -503,20 +503,20 @@ No body. Adds the scenario's next reading (for P-014 the one that raises the sco
 
 ## 9. Open questions for M
 
-Each has B's proposal. Mark the answer in the backlog (E0-5 Notes) and change this file.
+Each has B's proposal. **Mahdi accepted all of Q1 to Q13** (Q6 with the any-level override above); the answers are in the last column and in the backlog (E0-5 Notes).
 
-| # | Question | B's proposal |
-|---|---|---|
-| Q1 | The backend has no place for the **complaint**: `record_vitals` takes no complaint and nothing stores it. The architecture fixes the limit (500 characters, NFKC-normalised, only `map_signs` sees it) but not where it is stored. | Store it with the reading in Postgres (not in FHIR, so it never reaches the model as FHIR text). |
-| Q2 | `patient_label` | B puts it on the Patient as identifier system `urn:afya:label` in the seed (E5-1, E2-6); the API reads it. No names anywhere. |
-| Q3 | `get_queue_state` has no `patient_label`, no `last_reading.tews`/`colour`, no `flags`, and notices are free-text strings. | Add them in the API or the tool; `notices` become codes from section 6. |
-| Q4 | `insert_proposal` validates only `to_colour` and `cited_obs_ids`. The card also needs `current_colour`, `tews_before/after`, `reasons`, `evidence`, `complaint`, `signs`, `rationale`, `notices` (incl. `instruction_like_text`). | Put them in `payload` with exactly the names above and validate them in `_check_payload`. |
-| Q5 | `compute_tews` returns points and record ids but **not the raw values** (`check_deterioration.changes` neither). | The timeline and `evidence` read values from the FHIR Observation (`observation_values`). |
-| Q6 | Architecture section 7: "the nurse can untick a sign or override the colour with a reason", but `approve_proposal(conn, proposal_id, user_id)` has no colour, `signs_kept` or reason, and there is no `reject_proposal`. May the override be lower than proposed? | Add `colour`, `signs_kept`, `override_reason` (audited); add `reject_proposal` with the same role check. |
-| Q7 | Notice names: the backlog says `clinician_reminded`, the database says `clinician_reminder`. | The API translates to `clinician_reminded`. |
-| Q8 | `run_id` / thread id is `visit:obs_id`; the observation id contains a slash if given as a reference. | Use `v014:1057` (bare id), URL-safe. |
-| Q9 | `proposals.obs_id` is stored as given (bare or `Observation/…`). | The API always returns `Observation/<id>`; `ref_id` already accepts both. |
-| Q10 | Error body shape. | As in section 1. |
-| Q11 | Architecture Appendix B names the model-facing WSO2 tools `fhir_search` and `fhir_read`; the live WSO2 server calls them `search` and `read`. Which name does the trace show? | The real server's name (`search`, `read`) with `server: "borrowed"`; the wrapper name only in the model prompt. |
-| Q12 | Architecture section 10: "FHIR down: retry 3 times, then warn the nurse". The backlog's 7 notice codes have none for it. | Add `fhir_unavailable` to the notice list (the UI shows it like `model_unavailable`), or reuse a top-level notice. |
-| Q13 | `agent_action`, `missing_input`, `signs_verdict`, `rationale_source` come from `submit_decision` and `map_signs` (Appendix B) and must be kept in the proposal payload (with Q4). | As in the `/proposals` example. |
+| # | Question | B's proposal | Answer (M) |
+|---|---|---|---|
+| Q1 | The backend has no place for the **complaint**: `record_vitals` takes no complaint and nothing stores it. The architecture fixes the limit (500 characters, NFKC-normalised, only `map_signs` sees it) but not where it is stored. | Store it with the reading in Postgres (not in FHIR, so it never reaches the model as FHIR text). | **Answer: accepted (stored in Postgres next to the reading, table `afya.readings`, never in FHIR).** |
+| Q2 | `patient_label` | B puts it on the Patient as identifier system `urn:afya:label` in the seed (E5-1, E2-6); the API reads it. No names anywhere. | **Answer: accepted (`patient_label` read from Patient.identifier `urn:afya:label`).** |
+| Q3 | `get_queue_state` has no `patient_label`, no `last_reading.tews`/`colour`, no `flags`, and notices are free-text strings. | Add them in the API or the tool; `notices` become codes from section 6. | **Answer: accepted (`get_queue_state` returns `patient_label`, `last_reading.tews`/`colour`, `flags`, notices as codes).** |
+| Q4 | `insert_proposal` validates only `to_colour` and `cited_obs_ids`. The card also needs `current_colour`, `tews_before/after`, `reasons`, `evidence`, `complaint`, `signs`, `rationale`, `notices` (incl. `instruction_like_text`). | Put them in `payload` with exactly the names above and validate them in `_check_payload`. | **Answer: accepted (field names as listed, validated in `workflow._check_payload`).** |
+| Q5 | `compute_tews` returns points and record ids but **not the raw values** (`check_deterioration.changes` neither). | The timeline and `evidence` read values from the FHIR Observation (`observation_values`). | **Answer: accepted (values read from the FHIR Observation, E6-5).** |
+| Q6 | Architecture section 7: "the nurse can untick a sign or override the colour with a reason", but `approve_proposal(conn, proposal_id, user_id)` has no colour, `signs_kept` or reason, and there is no `reject_proposal`. May the override be lower than proposed? | Add `colour`, `signs_kept`, `override_reason` (audited); add `reject_proposal` with the same role check. | **Answer: accepted, with one decision: the nurse or clinician may override the colour to ANY level, including lower than proposed, with a mandatory reason; the agent itself still never proposes a downgrade.** |
+| Q7 | Notice names: the backlog says `clinician_reminded`, the database says `clinician_reminder`. | The API translates to `clinician_reminded`. | **Answer: accepted (API translates `clinician_reminder` to `clinician_reminded`).** |
+| Q8 | `run_id` / thread id is `visit:obs_id`; the observation id contains a slash if given as a reference. | Use `v014:1057` (bare id), URL-safe. | **Answer: accepted (`run_id` = `<visit_id>:<bare observation id>`).** |
+| Q9 | `proposals.obs_id` is stored as given (bare or `Observation/…`). | The API always returns `Observation/<id>`; `ref_id` already accepts both. | **Answer: accepted (API always returns `Observation/<id>`).** |
+| Q10 | Error body shape. | As in section 1. | **Answer: accepted.** |
+| Q11 | Architecture Appendix B names the model-facing WSO2 tools `fhir_search` and `fhir_read`; the live WSO2 server calls them `search` and `read`. Which name does the trace show? | The real server's name (`search`, `read`) with `server: "borrowed"`; the wrapper name only in the model prompt. | **Answer: accepted (real names `search` and `read`, `server: "borrowed"`).** |
+| Q12 | Architecture section 10: "FHIR down: retry 3 times, then warn the nurse". The backlog's 7 notice codes have none for it. | Add `fhir_unavailable` to the notice list (the UI shows it like `model_unavailable`), or reuse a top-level notice. | **Answer: accepted (`fhir_unavailable` added to the notice codes).** |
+| Q13 | `agent_action`, `missing_input`, `signs_verdict`, `rationale_source` come from `submit_decision` and `map_signs` (Appendix B) and must be kept in the proposal payload (with Q4). | As in the `/proposals` example. | **Answer: accepted (kept in the proposal payload with Q4).** |
