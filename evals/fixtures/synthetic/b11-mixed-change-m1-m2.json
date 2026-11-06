@@ -1,0 +1,50 @@
+{
+  "id": "b11-mixed-change-m1-m2",
+  "synthetic": true,
+  "title": "Architecture M1 to M2: a falling pulse and rising respiratory rate",
+  "split": "held_out",
+  "tags": [
+    "mixed-change-m1-m2",
+    "swahili",
+    "architecture-fixture"
+  ],
+  "age_years": 42,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 45,
+  "readings": [
+    {
+      "values": {"resp_rate": 14, "heart_rate": 105, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": null
+    },
+    {
+      "values": {"resp_rate": 16, "heart_rate": 80, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": "Hali yangu haijabadilika."
+    }
+  ],
+  "expected": {
+    "proposal": false,
+    "to_colour": null,
+    "signs": [],
+    "forbidden_signs": [],
+    "notices": [],
+    "label_basis": "Architecture M1 -> M2: HR 105/RR 14 -> HR 80/RR 16 changes the source of the point, not TEWS 1 or GREEN. Complaint means my condition has not changed."
+  },
+  "reference": {
+    "readings": [
+      {
+        "status": "scored",
+        "tews": 1,
+        "colour": "GREEN"
+      },
+      {
+        "status": "scored",
+        "tews": 1,
+        "colour": "GREEN"
+      }
+    ],
+    "trigger_kind": null,
+    "trigger_colour": "GREEN",
+    "annotations": [],
+    "instruction_like_text": false
+  }
+}

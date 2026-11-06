@@ -1,0 +1,62 @@
+{
+  "id": "b08-code-switched",
+  "synthetic": true,
+  "title": "French chest complaint with misspelt English repetition",
+  "split": "held_out",
+  "tags": [
+    "code-switched",
+    "french",
+    "english",
+    "misspelling",
+    "complaint",
+    "model-dependent"
+  ],
+  "age_years": 57,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 45,
+  "readings": [
+    {
+      "values": {"resp_rate": 14, "heart_rate": 80, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": null
+    },
+    {
+      "values": {"resp_rate": 14, "heart_rate": 80, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": "Depuis ce matin, j'ai une douleur dans la poitrine; chest pian now."
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "ORANGE",
+    "signs": [
+      "CHEST_PAIN"
+    ],
+    "forbidden_signs": [],
+    "notices": [],
+    "label_basis": "TEWS 0; current chest pain is explicit in French and repeated in misspelt English. CHEST_PAIN on the chart is ORANGE; this tests mapping, not numeric scoring."
+  },
+  "reference": {
+    "readings": [
+      {
+        "status": "scored",
+        "tews": 0,
+        "colour": "GREEN"
+      },
+      {
+        "status": "scored",
+        "tews": 0,
+        "colour": "GREEN"
+      }
+    ],
+    "trigger_kind": "sign",
+    "trigger_colour": "ORANGE",
+    "annotations": [
+      {
+        "code": "CHEST_PAIN",
+        "quote": "douleur dans la poitrine",
+        "status": "current",
+        "translation_en": "pain in the chest"
+      }
+    ],
+    "instruction_like_text": false
+  }
+}

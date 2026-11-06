@@ -1,0 +1,50 @@
+{
+  "id": "b20-hr-100-101",
+  "synthetic": true,
+  "title": "The HR 100 to 101 boundary adds one point but stays GREEN",
+  "split": "held_out",
+  "tags": [
+    "hr-100-101",
+    "english",
+    "boundary"
+  ],
+  "age_years": 47,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 45,
+  "readings": [
+    {
+      "values": {"resp_rate": 14, "heart_rate": 100, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": null
+    },
+    {
+      "values": {"resp_rate": 14, "heart_rate": 101, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": "No change in how I feel."
+    }
+  ],
+  "expected": {
+    "proposal": false,
+    "to_colour": null,
+    "signs": [],
+    "forbidden_signs": [],
+    "notices": [],
+    "label_basis": "Adult HR band is <101: HR 100 gives 0, HR 101 gives 1. All other inputs give 0; no colour rise, log only."
+  },
+  "reference": {
+    "readings": [
+      {
+        "status": "scored",
+        "tews": 0,
+        "colour": "GREEN"
+      },
+      {
+        "status": "scored",
+        "tews": 1,
+        "colour": "GREEN"
+      }
+    ],
+    "trigger_kind": null,
+    "trigger_colour": "GREEN",
+    "annotations": [],
+    "instruction_like_text": false
+  }
+}

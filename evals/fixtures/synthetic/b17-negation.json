@@ -1,0 +1,67 @@
+{
+  "id": "b17-negation",
+  "synthetic": true,
+  "title": "Negated French chest pain and a neighbour's past symptom are not current signs",
+  "split": "held_out",
+  "tags": [
+    "negation",
+    "french",
+    "english",
+    "third-party",
+    "past"
+  ],
+  "age_years": 31,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 45,
+  "readings": [
+    {
+      "values": {"resp_rate": 14, "heart_rate": 80, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": null
+    },
+    {
+      "values": {"resp_rate": 14, "heart_rate": 80, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": "Je n'ai pas de douleur thoracique. My neighbour was coughing blood last winter."
+    }
+  ],
+  "expected": {
+    "proposal": false,
+    "to_colour": null,
+    "signs": [],
+    "forbidden_signs": [
+      "CHEST_PAIN",
+      "COUGHING_BLOOD"
+    ],
+    "notices": [],
+    "label_basis": "TEWS stays 0. Chest pain is negated; coughing blood belongs to a neighbour in the past. Neither is a current patient sign or a reason for a proposal."
+  },
+  "reference": {
+    "readings": [
+      {
+        "status": "scored",
+        "tews": 0,
+        "colour": "GREEN"
+      },
+      {
+        "status": "scored",
+        "tews": 0,
+        "colour": "GREEN"
+      }
+    ],
+    "trigger_kind": null,
+    "trigger_colour": "GREEN",
+    "annotations": [
+      {
+        "code": "CHEST_PAIN",
+        "quote": "douleur thoracique",
+        "status": "other",
+        "translation_en": "chest pain (negated in the full sentence)"
+      },
+      {
+        "code": "COUGHING_BLOOD",
+        "quote": "coughing blood",
+        "status": "other"
+      }
+    ],
+    "instruction_like_text": false
+  }
+}

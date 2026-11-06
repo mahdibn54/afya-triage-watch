@@ -119,6 +119,23 @@ def test_timeline_has_raw_values_points_and_unscored_spo2():
     assert services.visit_timeline(f, REG, "nope")["status"] == "not_found"
 
 
+def test_seed_unconfirmed_first_visit_is_baseline_even_with_red_score():
+    f = FakeFhir()
+    visit = services.seed_demo_visit(f, "FIRST", "1990-01-01", 0, None)
+    assert visit["status"] == "seeded"
+    assert "priority" not in f.read("Encounter", visit["visit_id"])
+    saved = services.record_vitals(f, rules.load_plausibility(), REG, None, visit["visit_id"],
+                                  {**BASE, "resp_rate": 30, "heart_rate": 135, "mobility": "with_help"},
+                                  "first-reading")
+    assert saved["status"] == "saved"
+    checked = services.check_deterioration(f, REG, visit["visit_id"])
+    assert checked["confirmed_colour"] is None and checked["previous"] is None
+    assert checked["latest"]["colour"] == "RED"
+    assert checked["trigger"]["propose"] is False
+    assert checked["trigger"]["reasons"] == ["first reading: baseline only"]
+    assert services.seed_demo_visit(f, "BAD", "1990-01-01", 0, "BLUE")["status"] == "invalid"
+
+
 def test_seed_demo_visit_reload_finishes_the_previous_visit():
     f = FakeFhir()
     a = services.seed_demo_visit(f, "P-014", "1986-01-01", 52, "YELLOW")

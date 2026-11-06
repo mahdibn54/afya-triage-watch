@@ -1,0 +1,39 @@
+{
+  "id": "b19-child",
+  "synthetic": true,
+  "title": "A child outside the chart registry receives no adult score",
+  "split": "held_out",
+  "tags": [
+    "child",
+    "swahili",
+    "no-chart"
+  ],
+  "age_years": 8,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 45,
+  "readings": [
+    {
+      "values": {"resp_rate": 24, "heart_rate": 96, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": "Mtoto anasubiri kupimwa."
+    }
+  ],
+  "expected": {
+    "proposal": false,
+    "to_colour": null,
+    "signs": [],
+    "forbidden_signs": [],
+    "notices": [],
+    "label_basis": "Age 8 and no height supplied: no adult chart applies. Input is saved, compute_tews returns no_chart; no adult score or proposal is invented. Complaint means the child is waiting to be assessed."
+  },
+  "reference": {
+    "readings": [
+      {
+        "status": "no_chart"
+      }
+    ],
+    "trigger_kind": null,
+    "trigger_colour": null,
+    "annotations": [],
+    "instruction_like_text": false
+  }
+}

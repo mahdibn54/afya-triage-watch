@@ -1,0 +1,50 @@
+{
+  "id": "b05-sign-only-confused",
+  "synthetic": true,
+  "title": "Confusion input adds an ORANGE warning sign at TEWS 1",
+  "split": "tuning",
+  "tags": [
+    "sign-only-confused",
+    "french",
+    "sign-from-reading"
+  ],
+  "age_years": 72,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 45,
+  "readings": [
+    {
+      "values": {"resp_rate": 14, "heart_rate": 80, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": null
+    },
+    {
+      "values": {"resp_rate": 14, "heart_rate": 80, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "walking", "consciousness": "confused", "trauma": "no"},
+      "complaint": "Je ne me sens pas comme d'habitude."
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "ORANGE",
+    "signs": [],
+    "forbidden_signs": [],
+    "notices": [],
+    "label_basis": "Confused input scores 1 (GREEN by TEWS), but implies LOC_REDUCED_CONFUSED, making the scored colour ORANGE. This is a fixed-code colour rise; no complaint sign is needed or labelled."
+  },
+  "reference": {
+    "readings": [
+      {
+        "status": "scored",
+        "tews": 0,
+        "colour": "GREEN"
+      },
+      {
+        "status": "scored",
+        "tews": 1,
+        "colour": "ORANGE"
+      }
+    ],
+    "trigger_kind": "colour_rise",
+    "trigger_colour": "ORANGE",
+    "annotations": [],
+    "instruction_like_text": false
+  }
+}

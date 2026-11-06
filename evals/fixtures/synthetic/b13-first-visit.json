@@ -1,0 +1,41 @@
+{
+  "id": "b13-first-visit",
+  "synthetic": true,
+  "title": "An unconfirmed first reading is baseline even at TEWS 7",
+  "split": "held_out",
+  "tags": [
+    "first-visit",
+    "english",
+    "unconfirmed"
+  ],
+  "age_years": 36,
+  "confirmed_colour": null,
+  "arrived_minutes_ago": 45,
+  "readings": [
+    {
+      "values": {"resp_rate": 30, "heart_rate": 135, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "with_help", "consciousness": "alert", "trauma": "no"},
+      "complaint": "First set of readings on arrival."
+    }
+  ],
+  "expected": {
+    "proposal": false,
+    "to_colour": null,
+    "signs": [],
+    "forbidden_signs": [],
+    "notices": [],
+    "label_basis": "No confirmed colour and no previous reading. RR 3 + HR 3 + mobility 1 = TEWS 7, RED; evaluate_trigger returns first reading: baseline only. RED is the score, not a confirmed queue change."
+  },
+  "reference": {
+    "readings": [
+      {
+        "status": "scored",
+        "tews": 7,
+        "colour": "RED"
+      }
+    ],
+    "trigger_kind": null,
+    "trigger_colour": "RED",
+    "annotations": [],
+    "instruction_like_text": false
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "id": "b03-orange-red",
+  "synthetic": true,
+  "title": "A numeric rise from ORANGE to RED",
+  "split": "held_out",
+  "tags": [
+    "orange-red",
+    "french",
+    "numeric-rise"
+  ],
+  "age_years": 64,
+  "confirmed_colour": "ORANGE",
+  "arrived_minutes_ago": 45,
+  "readings": [
+    {
+      "values": {"resp_rate": 31, "heart_rate": 119, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "with_help", "consciousness": "alert", "trauma": "no"},
+      "complaint": null
+    },
+    {
+      "values": {"resp_rate": 32, "heart_rate": 138, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "with_help", "consciousness": "alert", "trauma": "no"},
+      "complaint": "Je me sens plus faible en attendant."
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "RED",
+    "signs": [],
+    "forbidden_signs": [],
+    "notices": [],
+    "label_basis": "RR 3 + HR 2 + mobility 1 = TEWS 6; HR rises to 3 points, giving TEWS 7 and RED above confirmed ORANGE."
+  },
+  "reference": {
+    "readings": [
+      {
+        "status": "scored",
+        "tews": 6,
+        "colour": "ORANGE"
+      },
+      {
+        "status": "scored",
+        "tews": 7,
+        "colour": "RED"
+      }
+    ],
+    "trigger_kind": "colour_rise",
+    "trigger_colour": "RED",
+    "annotations": [],
+    "instruction_like_text": false
+  }
+}

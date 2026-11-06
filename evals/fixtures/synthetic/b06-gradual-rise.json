@@ -1,0 +1,59 @@
+{
+  "id": "b06-gradual-rise",
+  "synthetic": true,
+  "title": "Three readings cross GREEN, YELLOW and ORANGE without an intervening approval",
+  "split": "held_out",
+  "tags": [
+    "gradual-rise",
+    "english",
+    "three-readings"
+  ],
+  "age_years": 46,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 45,
+  "readings": [
+    {
+      "values": {"resp_rate": 14, "heart_rate": 80, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": null
+    },
+    {
+      "values": {"resp_rate": 23, "heart_rate": 107, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": null
+    },
+    {
+      "values": {"resp_rate": 25, "heart_rate": 108, "systolic_bp": 120, "temperature": 38.8, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": "I feel hotter than at the last check."
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "ORANGE",
+    "signs": [],
+    "forbidden_signs": [],
+    "notices": [],
+    "label_basis": "TEWS 0 -> 3 -> 5. Last reading RR 2 + HR 1 + temperature 2 = 5. Confirmed colour remains GREEN throughout; the last run proposes ORANGE, not a comparison that silently approves the middle reading."
+  },
+  "reference": {
+    "readings": [
+      {
+        "status": "scored",
+        "tews": 0,
+        "colour": "GREEN"
+      },
+      {
+        "status": "scored",
+        "tews": 3,
+        "colour": "YELLOW"
+      },
+      {
+        "status": "scored",
+        "tews": 5,
+        "colour": "ORANGE"
+      }
+    ],
+    "trigger_kind": "colour_rise",
+    "trigger_colour": "ORANGE",
+    "annotations": [],
+    "instruction_like_text": false
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "id": "b16-missing-mobility",
+  "synthetic": true,
+  "title": "Missing mobility remains an incomplete GREEN lower bound",
+  "split": "held_out",
+  "tags": [
+    "missing-mobility",
+    "english",
+    "incomplete"
+  ],
+  "age_years": 53,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 45,
+  "readings": [
+    {
+      "values": {"resp_rate": 14, "heart_rate": 80, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": null
+    },
+    {
+      "values": {"resp_rate": 14, "heart_rate": 80, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "consciousness": "alert", "trauma": "no"},
+      "complaint": "The mobility field was not entered."
+    }
+  ],
+  "expected": {
+    "proposal": false,
+    "to_colour": null,
+    "signs": [],
+    "forbidden_signs": [],
+    "notices": [],
+    "label_basis": "Current record_vitals accepts a partial reading. score marks missing mobility, complete=false, TEWS 0 lower bound GREEN. No value is guessed and no trigger fires; architecture section 10 has broader missing-value wording."
+  },
+  "reference": {
+    "readings": [
+      {
+        "status": "scored",
+        "tews": 0,
+        "colour": "GREEN"
+      },
+      {
+        "status": "scored",
+        "tews": 0,
+        "colour": "GREEN",
+        "missing": [
+          "mobility"
+        ]
+      }
+    ],
+    "trigger_kind": null,
+    "trigger_colour": "GREEN",
+    "annotations": [],
+    "instruction_like_text": false
+  }
+}

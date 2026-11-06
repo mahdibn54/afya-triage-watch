@@ -176,10 +176,10 @@ async def notify_staff(kind: str, actor: str, proposal_id: str | None = None, vi
 
 
 @act.tool()
-async def seed_demo_visit(label: str, birth_date: str, arrived_minutes_ago: int, confirmed_colour: str,
+async def seed_demo_visit(label: str, birth_date: str, arrived_minutes_ago: int, confirmed_colour: str | None,
                           actor: str, run_id: str | None = None) -> dict:
     """Demo only (DEMO_MODE=1): create the synthetic patient with this label (identifier urn:afya:label, no name) and
-    a fresh waiting visit whose colour a nurse already confirmed. Earlier waiting visits of that demo patient are
+    a fresh waiting visit (confirmed_colour=None leaves it unconfirmed). Earlier waiting visits of that demo patient are
     finished. Refused when DEMO_MODE is not 1. actor: 'system'. Audited."""
     def run() -> dict:
         if os.environ.get("DEMO_MODE") != "1":

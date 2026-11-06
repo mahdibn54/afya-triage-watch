@@ -1,0 +1,50 @@
+{
+  "id": "b01-yellow-orange",
+  "synthetic": true,
+  "title": "A numeric rise from YELLOW to ORANGE",
+  "split": "tuning",
+  "tags": [
+    "yellow-orange",
+    "english",
+    "numeric-rise"
+  ],
+  "age_years": 38,
+  "confirmed_colour": "YELLOW",
+  "arrived_minutes_ago": 45,
+  "readings": [
+    {
+      "values": {"resp_rate": 23, "heart_rate": 106, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": null
+    },
+    {
+      "values": {"resp_rate": 27, "heart_rate": 118, "systolic_bp": 120, "temperature": 38.9, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": "I feel warmer while waiting."
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "ORANGE",
+    "signs": [],
+    "forbidden_signs": [],
+    "notices": [],
+    "label_basis": "RR 2 + HR 1 = TEWS 3 initially; RR 2 + HR 2 + temperature 2 = TEWS 6. Colour rise above confirmed YELLOW."
+  },
+  "reference": {
+    "readings": [
+      {
+        "status": "scored",
+        "tews": 3,
+        "colour": "YELLOW"
+      },
+      {
+        "status": "scored",
+        "tews": 6,
+        "colour": "ORANGE"
+      }
+    ],
+    "trigger_kind": "colour_rise",
+    "trigger_colour": "ORANGE",
+    "annotations": [],
+    "instruction_like_text": false
+  }
+}

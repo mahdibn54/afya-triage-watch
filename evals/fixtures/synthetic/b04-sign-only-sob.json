@@ -1,0 +1,59 @@
+{
+  "id": "b04-sign-only-sob",
+  "synthetic": true,
+  "title": "Current breathlessness with unchanged GREEN vitals",
+  "split": "tuning",
+  "tags": [
+    "sign-only-sob",
+    "english",
+    "complaint",
+    "model-dependent"
+  ],
+  "age_years": 29,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 45,
+  "readings": [
+    {
+      "values": {"resp_rate": 14, "heart_rate": 80, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": null
+    },
+    {
+      "values": {"resp_rate": 14, "heart_rate": 80, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": "I suddenly cannot catch my breath now."
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "ORANGE",
+    "signs": [
+      "SOB_ACUTE"
+    ],
+    "forbidden_signs": [],
+    "notices": [],
+    "label_basis": "TEWS remains 0. The current literal breathlessness complaint is annotated SOB_ACUTE (ORANGE); sign trigger."
+  },
+  "reference": {
+    "readings": [
+      {
+        "status": "scored",
+        "tews": 0,
+        "colour": "GREEN"
+      },
+      {
+        "status": "scored",
+        "tews": 0,
+        "colour": "GREEN"
+      }
+    ],
+    "trigger_kind": "sign",
+    "trigger_colour": "ORANGE",
+    "annotations": [
+      {
+        "code": "SOB_ACUTE",
+        "quote": "suddenly cannot catch my breath now",
+        "status": "current"
+      }
+    ],
+    "instruction_like_text": false
+  }
+}

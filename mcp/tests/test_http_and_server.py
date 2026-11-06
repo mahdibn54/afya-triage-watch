@@ -69,6 +69,9 @@ def test_mounts_split_read_and_act_and_check_the_host():
         read, act, ui = _tools(c, "read"), _tools(c, "act"), _tools(c, "ui")
         assert set(read) == {"compute_tews", "check_deterioration", "get_queue_state"}
         assert set(act) == {"record_vitals", "raise_recheck_flag", "notify_staff", "seed_demo_visit"}
+        seed = act["seed_demo_visit"]
+        assert "confirmed_colour" in seed["required"]
+        assert {s["type"] for s in seed["properties"]["confirmed_colour"]["anyOf"]} == {"string", "null"}
         assert set(ui) == {"visit_timeline", "queue_state", "demo_visit"}   # api data, no actor, not model-facing
         # E4-8: the model-facing tools have no actor field (always logged as 'agent'); act tools require one.
         for schema in read.values():

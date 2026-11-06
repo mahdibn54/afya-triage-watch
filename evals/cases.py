@@ -20,7 +20,7 @@ class CaseError(ValueError):
 class Case:
     id: str
     age_years: int
-    confirmed_colour: str
+    confirmed_colour: str | None
     readings: list[dict[str, Any]]            # [{"values": {...}, "complaint": str | None}]
     expected: dict[str, Any]                  # {"proposal": bool, "to_colour": str | None, "signs": [...], ...}
     split: str = "fixture"
@@ -46,7 +46,8 @@ def parse_case(raw: dict[str, Any], source: str = "") -> Case:
     _need(isinstance(cid, str) and 1 <= len(cid) <= 40 and all(c.isalnum() or c == "-" for c in cid), where,
           "id must be 1-40 letters, digits or '-'")
     _need(raw.get("synthetic") is True, where, 'every case must say "synthetic": true (invented data only)')
-    _need(raw.get("confirmed_colour") in COLOURS, where, f"confirmed_colour must be one of {COLOURS}")
+    _need("confirmed_colour" in raw and (raw["confirmed_colour"] is None or raw["confirmed_colour"] in COLOURS),
+          where, f"confirmed_colour must be one of {COLOURS}, or null for an unconfirmed visit")
     age = raw.get("age_years")
     _need(isinstance(age, int) and 0 <= age <= 120, where, "age_years must be an integer")
     readings = raw.get("readings")

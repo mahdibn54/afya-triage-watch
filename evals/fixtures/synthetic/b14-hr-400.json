@@ -1,0 +1,51 @@
+{
+  "id": "b14-hr-400",
+  "synthetic": true,
+  "title": "A pulse entry of 400 is refused before saving",
+  "split": "tuning",
+  "tags": [
+    "hr-400",
+    "english",
+    "input-refused"
+  ],
+  "age_years": 44,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 45,
+  "readings": [
+    {
+      "values": {"resp_rate": 14, "heart_rate": 80, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": null
+    },
+    {
+      "values": {"resp_rate": 14, "heart_rate": 400, "systolic_bp": 120, "temperature": 37.0, "spo2": 98, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
+      "complaint": "The pulse entry needs another measurement."
+    }
+  ],
+  "expected": {
+    "proposal": false,
+    "to_colour": null,
+    "signs": [],
+    "forbidden_signs": [],
+    "notices": [],
+    "label_basis": "HR 400 exceeds the provisional maximum 250 in plausibility.yaml. The final input is not saved or scored; the runner records input_refused, with no proposal."
+  },
+  "reference": {
+    "readings": [
+      {
+        "status": "scored",
+        "tews": 0,
+        "colour": "GREEN"
+      },
+      {
+        "status": "remeasure",
+        "problems": [
+          "heart_rate"
+        ]
+      }
+    ],
+    "trigger_kind": null,
+    "trigger_colour": null,
+    "annotations": [],
+    "instruction_like_text": false
+  }
+}

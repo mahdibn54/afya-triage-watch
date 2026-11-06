@@ -22,6 +22,8 @@ jobs:
         run: cd api && ruff check afya_api
       - name: pytest (mcp)
         run: cd mcp && pytest -q
+      - name: pytest (evals, including the E5-1 dataset contract)
+        run: pytest evals/tests -q
       - name: mypy (mcp, reported only until the existing errors are fixed)
         continue-on-error: true
         run: cd mcp && mypy afya_mcp

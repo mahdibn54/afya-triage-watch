@@ -40,7 +40,7 @@ each patient is a case in this format; otherwise adapt the files, not the harnes
   "split": "tuning",                      // tuning | held_out | fixture (author-seen fixtures, no held-out claim)
   "tags": ["swahili", "negation"],
   "age_years": 40,                        // adult chart only; a child gets no chart and no proposal
-  "confirmed_colour": "YELLOW",           // GREEN | YELLOW | ORANGE | RED: what the nurse confirmed at the visit
+  "confirmed_colour": "YELLOW",           // GREEN | YELLOW | ORANGE | RED, or null when not yet confirmed (required)
   "arrived_minutes_ago": 40,
   "readings": [                           // saved in order; each starts an agent run; the LAST run is scored
     {"values": {"resp_rate": 22, "heart_rate": 105, "systolic_bp": 120, "temperature": 37.2, "spo2": 97,
@@ -61,8 +61,16 @@ each patient is a case in this format; otherwise adapt the files, not the harnes
 
 `values` keys are the fields of `record_vitals` (`resp_rate`, `heart_rate`, `systolic_bp`, `temperature`, `spo2`,
 `mobility` walking|with_help|stretcher, `consciousness` alert|confused|voice|pain|unresponsive, `trauma` no|yes). A
-reading the server refuses (HR 400, temperature in F, missing value) ends the trial with `run_status: input_refused`
-and no proposal, which is the label `"proposal": false`.
+reading the server refuses (HR 400 or a Fahrenheit number in the Celsius field) ends the trial with
+`run_status: input_refused` and no proposal, which is the label `"proposal": false`. A partial reading is accepted
+when at least one valid value is present: the score lists missing inputs, sets `complete: false`, and reports a
+lower bound. Missing mobility by itself is not an input refusal.
+
+The E5-1 dataset is in [`fixtures/synthetic/`](fixtures/synthetic/README.md): 20 invented patients, 8 positive /
+12 negative and 6 tuning / 14 held out. Each case carries `reference` metadata for offline scorer/trigger checks
+and author-written complaint annotations; the live loader ignores that metadata. An explicit
+`confirmed_colour: null` seeds an Encounter without a priority, exercising a genuinely unconfirmed first reading.
+Omitting the field is an error.
 
 ## Trial log (one JSON object per line, `evals/runs/<batch>_<set>_<group>_<model>.jsonl`)
 

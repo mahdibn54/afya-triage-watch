@@ -455,15 +455,17 @@ def _plain(v: Any) -> Any:
 DEMO_SYSTEM = "urn:afya:demo"
 
 
-def seed_demo_visit(fhir: Fhir, label: str, birth_date: str, arrived_minutes_ago: int, confirmed_colour: str,
+def seed_demo_visit(fhir: Fhir, label: str, birth_date: str, arrived_minutes_ago: int, confirmed_colour: str | None,
                     now: datetime | None = None) -> dict[str, Any]:
-    """Create (or reuse) the synthetic Patient with this label and a fresh in-progress Encounter that a nurse already
-    confirmed at `confirmed_colour`. Earlier waiting Encounters of that demo patient are finished, so loading the
-    scenario again starts from a clean queue entry. Nothing here is real data: labels only, no names."""
+    """Create (or reuse) the synthetic Patient and a fresh in-progress Encounter.
+
+    `confirmed_colour` is the nurse's existing confirmation; None leaves the first visit unconfirmed. Earlier waiting
+    Encounters of this demo patient are finished so reloading starts a clean entry. Synthetic labels only, no names.
+    """
     if not re.fullmatch(r"[A-Za-z0-9-]{1,32}", label or ""):
         return {"status": "invalid", "reason": "label must be 1-32 letters, digits or '-'"}
-    if confirmed_colour not in COLOURS:
-        return {"status": "invalid", "reason": f"confirmed_colour must be one of {COLOURS}"}
+    if confirmed_colour is not None and confirmed_colour not in COLOURS:
+        return {"status": "invalid", "reason": f"confirmed_colour must be one of {COLOURS}, or null"}
     now = now or datetime.now(timezone.utc)
     patient = fhir.conditional_create(
         {"resourceType": "Patient", "identifier": [{"system": LABEL_SYSTEM, "value": label}], "birthDate": birth_date,
@@ -471,13 +473,13 @@ def seed_demo_visit(fhir: Fhir, label: str, birth_date: str, arrived_minutes_ago
     for old in fhir.search("Encounter", {"subject": f"Patient/{patient['id']}", "status": ",".join(WAITING_STATUSES)}):
         fhir.update({**old, "status": "finished"})
     key = uuid.uuid4().hex
-    enc = fhir.conditional_create(
-        {"resourceType": "Encounter", "status": "in-progress", "class": {"code": "EMER"},
-         "identifier": [{"system": DEMO_SYSTEM, "value": key}],
-         "subject": {"reference": f"Patient/{patient['id']}"},
-         "period": {"start": (now - timedelta(minutes=arrived_minutes_ago)).isoformat()},
-         "priority": {"coding": [{"system": COLOUR_SYSTEM, "code": confirmed_colour}]}},
-        f"{DEMO_SYSTEM}|{key}")
+    encounter = {"resourceType": "Encounter", "status": "in-progress", "class": {"code": "EMER"},
+                 "identifier": [{"system": DEMO_SYSTEM, "value": key}],
+                 "subject": {"reference": f"Patient/{patient['id']}"},
+                 "period": {"start": (now - timedelta(minutes=arrived_minutes_ago)).isoformat()}}
+    if confirmed_colour is not None:
+        encounter["priority"] = {"coding": [{"system": COLOUR_SYSTEM, "code": confirmed_colour}]}
+    enc = fhir.conditional_create(encounter, f"{DEMO_SYSTEM}|{key}")
     return {"status": "seeded", "patient_id": patient["id"], "visit_id": enc["id"], "patient_label": label}
 
 
