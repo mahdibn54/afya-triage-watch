@@ -35,8 +35,8 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 | Mahdi: the agent core (explained in the live review) | Brother: product, infra, data and proof |
 |---|---|
 | SATS rules and scorer | Next.js nurse UI, approval card, notices, audit viewer, sign-in switcher (E7) |
-| afya-mcp tools (E4) | docker-compose, networks, nginx gateway, clean-machine test (E2) |
-| LangGraph agent: signs, investigate loop, watch loop, fallbacks (E5-2…E5-11) | Postgres: run and verify roles, schema, triggers, checkpoints (E3-1…E3-4) |
+| afya-mcp tools (E4); compose, networks, gateway, Postgres setup (E2-1…E2-3, E3-1…E3-4, done) | WSO2 response trimming, clean-machine test (E2-4, E2-7) |
+| LangGraph agent: signs, investigate loop, watch loop, fallbacks (E5-2…E5-11) | |
 | Approve/claim/sweep logic and write endpoints (E3-5, E3-6, E6-1b, E6-3, E6-4) | Read endpoints + demo session (E6-1a, E6-2), host Ollama setup (E2-5) |
 | Eval harness, model runs, EVALS.md (E8-1, E8-3…E8-6) | 20 synthetic patients (E5-1), fixed-code/security tests (E8-2), secrets check (E8-7) |
 | Nurse interview + FIELD_NOTES (E9) | README, 300-word text, video, deck (E10-1, E10-3…E10-5), seed job (E2-6) |
@@ -106,9 +106,9 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E2-1 | [x] | docker-compose with all services and health checks | B | Day 2 | 3 h | E0-5 |
-| E2-2 | [x] | Private networks; only the UI published on 127.0.0.1:3000 | B | Day 2 | 1 h | E2-1 |
-| E2-3 | [x] | nginx gateway, GET only | B | Day 5 | 1 h | E2-2 |
+| E2-1 | [x] | docker-compose with all services and health checks | M | Day 2 | 3 h | E0-5 |
+| E2-2 | [x] | Private networks; only the UI published on 127.0.0.1:3000 | M | Day 2 | 1 h | E2-1 |
+| E2-3 | [x] | nginx gateway, GET only | M | Day 5 | 1 h | E2-2 |
 | E2-4 | [~] | WSO2 config and FHIRPath response trimming | B | Day 5 | 1 h | E2-2 |
 | E2-5 | [ ] | Host Ollama for the GPU, bound to the Docker bridge | B | Day 2 | 0.5 h | – |
 | E2-6 | [ ] | Seed job loading the 20 synthetic patients into HAPI | B | Day 4 | 1 h | E5-1 |
@@ -128,10 +128,10 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E3-1 | [x] | db-init runs the schema as `afya_owner` | B | Day 5 | 1.5 h | E2-1 |
-| E3-2 | [x] | Roles: `afya_app` least privilege | B | Day 5 | 0.5 h | E3-1 |
-| E3-3 | [x] | Audit log append-only (grants + triggers) | B | Day 5 | 0.5 h | E3-1 |
-| E3-4 | [x] | LangGraph checkpoints in schema `lg` | B | Day 5 | 0.5 h | E3-1 |
+| E3-1 | [x] | db-init runs the schema as `afya_owner` | M | Day 5 | 1.5 h | E2-1 |
+| E3-2 | [x] | Roles: `afya_app` least privilege | M | Day 5 | 0.5 h | E3-1 |
+| E3-3 | [x] | Audit log append-only (grants + triggers) | M | Day 5 | 0.5 h | E3-1 |
+| E3-4 | [x] | LangGraph checkpoints in schema `lg` | M | Day 5 | 0.5 h | E3-1 |
 | E3-5 | [x] | Approve, claim, mark-done, startup-sweep queries | M | Day 7 | 2 h | E3-1 |
 | E3-6 | [x] | Dedup key and insert | M | Day 8 | 1 h | E3-1 |
 
@@ -361,6 +361,7 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 
 | Decision |
 |---|
+| E2-1…E2-3 and E3-1…E3-4 reassigned to M: built and verified on M's side. E2-4 stays with B (routing verified by M; FHIRPath trimming still open). |
 | Architecture v4.1 accepted as final. |
 | Backlog lives only in this file; no GitHub issues. |
 | Repo public from day one; commits use mahdibenamor13@gmail.com. |
