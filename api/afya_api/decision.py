@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from afya_mcp import workflow
+from afya_mcp import rules, workflow
 
 LABELS = {"resp_rate": "respiratory rate", "heart_rate": "heart rate", "systolic_bp": "systolic blood pressure",
           "temperature": "temperature", "spo2": "SpO2", "mobility": "mobility", "consciousness": "consciousness",
@@ -57,28 +57,71 @@ def code_sentence(trigger: dict[str, Any], tews_before: int | None, tews_after: 
     return out[: workflow.MAX_RATIONALE]
 
 
+def merge_decision(dec: dict[str, Any], trigger: dict[str, Any], score: dict[str, Any], kept_signs: list[str],
+                   chart: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """E5-5: the model can add urgency, never remove it. Code has already decided the trigger and always creates the
+    proposal; from the model's decision only these additions are taken:
+      - a re-measure request (action propose_and_remeasure),
+      - a missing-value request (request_missing_value), only for an input the reading really lacks,
+      - extra triggers, only sign codes that map_signs validated in this run (allow-listed, current, literal quote);
+        they add a reason and can only raise the colour.
+    Anything else is ignored and listed in the returned notes (logged in the trace). There is no field through which
+    the model could lower the colour or cancel the proposal."""
+    notes: list[str] = []
+    action = dec.get("action") or "propose"
+    missing = None
+    if action not in workflow.AGENT_ACTIONS:
+        notes.append("unknown action ignored")
+        action = "propose"
+    if action == "request_missing_value":
+        if dec.get("missing_input") in (score.get("missing") or []):
+            missing = dec["missing_input"]
+        else:
+            notes.append("missing-value request for an input that is not missing: ignored")
+            action = "propose"
+    extra = []
+    for code in dec.get("extra_triggers") or []:
+        if isinstance(code, str) and code in kept_signs and code in chart["signs"]:
+            if code not in extra:
+                extra.append(code)
+        else:
+            notes.append("extra trigger not among the validated signs: ignored")
+    rank = rules.COLOUR_RANK.__getitem__
+    to = max([trigger["to"], *(chart["signs"][c]["colour"] for c in extra
+                               if chart["signs"][c]["colour"] in rules.URGENT_SIGN_COLOURS)], key=rank)
+    reasons = list(trigger["reasons"]) + [f"agent added trigger: warning sign {c}" for c in extra]
+    if action == "propose_and_remeasure":
+        reasons.append("agent asks for a re-measure")
+    if missing:
+        reasons.append(f"agent asks for the missing value: {missing}")
+    assert rank(to) >= rank(trigger["to"])   # never lower than the code's trigger
+    return {"action": action, "missing_input": missing, "to_colour": to, "reasons": reasons,
+            "extra_triggers": extra}, notes
+
+
 def build_payload(s: dict[str, Any], chart: dict[str, Any],
                   evidence: list[dict[str, Any]]) -> tuple[dict[str, Any], list[str]]:
     """The proposal payload (workflow.PAYLOAD_FIELDS) from the run state. Returns it with the sign codes that go
     into the dedup key (allow-listed codes only, never quote text)."""
-    sc, det, trig, signs, dec = s["score"], s["det"], s["trigger"], s["signs"], s.get("decision") or {}
+    sc, det, trig, signs = s["score"], s["det"], s["trigger"], s["signs"]
+    merged, _notes = merge_decision(s.get("decision") or {}, trig, sc, signs["kept"], chart)
     prev = det.get("previous")
     sign_codes = sorted({*signs["kept"], *(r["code"] for r in signs["rows"] if r["source"] == "reading")})
     cited = list(dict.fromkeys([*(r["before"]["obs_id"] for r in evidence), sc["observation_id"],
                                 *([prev["observation_id"]] if prev else [])]))
     payload = {
-        "to_colour": trig["to"],
+        "to_colour": merged["to_colour"],
         "current_colour": det.get("confirmed_colour") or trig.get("from"),
         "tews_before": prev["tews"] if prev else None,
         "tews_after": sc["tews"],
-        "reasons": list(trig["reasons"]),
+        "reasons": merged["reasons"],
         "evidence": evidence,
         "signs": list(signs["rows"]),
         "rationale": code_sentence(trig, prev["tews"] if prev else None, sc["tews"], evidence, signs["kept"], chart),
         "rationale_source": "code",
         "notices": list(signs.get("notices", [])),
-        "agent_action": dec.get("action") or "propose",
-        "missing_input": dec.get("missing_input"),
+        "agent_action": merged["action"],
+        "missing_input": merged["missing_input"],
         "signs_verdict": signs.get("verdict"),
         "cited_obs_ids": cited,
     }

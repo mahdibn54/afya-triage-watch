@@ -124,6 +124,18 @@ def _command_run(command_id: str) -> dict[str, Any] | None:
                             "JOIN proposals p ON p.id = c.proposal_id WHERE c.id = %s", (command_id,)).fetchone()
 
 
+async def notify(ctx: RunContext, kind: str, proposal_id: str | None = None) -> dict[str, Any]:
+    """afya-mcp act notify_staff as actor 'agent' with the run_id (fixed text; changes nothing in the queue)."""
+    args: dict[str, Any] = {"kind": kind, "actor": "agent", "visit_id": ctx.visit_id, "run_id": ctx.run_id}
+    if proposal_id:
+        args["proposal_id"] = proposal_id
+    try:
+        return await ctx.gateway.act("notify_staff", args)
+    except Exception as e:  # noqa: BLE001 - a reminder must never stop the run
+        log.warning("notify_staff %s failed (%s)", kind, type(e).__name__)
+        return {"status": "failed", "reason": type(e).__name__}
+
+
 # ---------- the graph ----------
 
 def build_graph(ctx: RunContext) -> StateGraph:
@@ -204,17 +216,20 @@ def build_graph(ctx: RunContext) -> StateGraph:
         pid = str(p["id"])
         dec = s.get("decision") or {}
         rejected = dec.get("rejected_ids") or 0
+        _merged, ignored = decision.merge_decision(dec, s["trigger"], s["score"], s["signs"]["kept"], chart)
         await steps.write(run, visit, "decision", "submit_decision",
                           f"{payload['agent_action']}: proposed {payload['to_colour']}",
                           f"proposal {'created' if created else 'already existed'} ({p['status']})"
                           + (f"; {rejected} cited id(s) rejected (no tool returned them)" if rejected else ""),
                           cited_ids=list(dict.fromkeys([*payload["cited_obs_ids"], *dec.get("cited_ids", [])])),
                           proposal_id=pid, rationale_source=payload["rationale_source"],
-                          model_decision=dec.get("model"), rejected_cited_ids=rejected)
+                          model_decision=dec.get("model"), rejected_cited_ids=rejected, ignored=ignored)
         if p["status"] != "pending":
             return {"proposal_id": pid, "stop": f"proposal is {p['status']}"}
         await steps.write(run, visit, "gate", "paused_for_nurse", "waiting for a nurse or clinician",
                           "no change to the queue", proposal_id=pid)
+        if created and payload["agent_action"] == "propose_and_remeasure":   # E5-5: the model may add a re-measure
+            await notify(ctx, "remeasure", pid)
         await on_created(s, p, created)
         return {"proposal_id": pid}
 
