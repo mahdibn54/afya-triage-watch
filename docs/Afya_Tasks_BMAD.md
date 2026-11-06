@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 55 done · 8 drafted · 23 to do · 1 blocked · 87 stories
+**Progress:** 55 done · 9 drafted · 22 to do · 1 blocked · 87 stories
 
 ---
 
@@ -267,7 +267,7 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 | E8-3 | [~] | Group B: model-dependent runs | M | Day 9 | 2 h + runs | E5-* |
 | E8-4 | [x] | Group C: rules-only baseline | M | Day 9 | 0.5 h | E8-3 |
 | E8-5 | [x] | Metrics | M | Day 9 | 1 h | E8-1 |
-| E8-6 | [ ] | Write EVALS.md | M | Day 9 | 1.5 h | E8-3 |
+| E8-6 | [~] | Write EVALS.md | M | Day 9 | 1.5 h | E8-3 |
 | E8-7 | [ ] | Secrets check on committed logs | B | Day 9 | 0.2 h | E8-1 |
 
 **E8-1** · Files: `evals/`, `Makefile` · Acceptance: runs groups A/B/C; raw JSONL per run in `evals/runs/`; rebuilds the EVALS.md tables from logs. · Notes: done. `make eval` runs group B (each model, N runs per case) and group C (rules-only, once per case, deterministic) host-side with the api's own `Agent` against the real afya-mcp, WSO2, HAPI, Postgres and Ollama, writes one JSONL row per trial to `evals/runs/` (full trace, card, tokens, latency, no headers or keys), then `make eval-tables` rebuilds the generated block of EVALS.md from the logs (offline). Case-set path is a parameter; format in `evals/README.md` so B's E5-1 files load without code changes. M's 18 invented fixture cases in `evals/cases/m_fixtures/` (labels from the scorer plus builder judgement; split `fixture`, not held out). `evals/stack_env.sh` prints container IPs for the host run. Group A (E8-2) stays B's pytest. Unit tests: `make eval-test`.
