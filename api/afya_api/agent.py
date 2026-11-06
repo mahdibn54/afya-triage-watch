@@ -217,13 +217,15 @@ def build_graph(ctx: RunContext) -> StateGraph:
         dec = s.get("decision") or {}
         rejected = dec.get("rejected_ids") or 0
         _merged, ignored = decision.merge_decision(dec, s["trigger"], s["score"], s["signs"]["kept"], chart)
+        _text, _src, replaced = decision.rationale_text(dec.get("rationale"), "")
         await steps.write(run, visit, "decision", "submit_decision",
                           f"{payload['agent_action']}: proposed {payload['to_colour']}",
                           f"proposal {'created' if created else 'already existed'} ({p['status']})"
                           + (f"; {rejected} cited id(s) rejected (no tool returned them)" if rejected else ""),
                           cited_ids=list(dict.fromkeys([*payload["cited_obs_ids"], *dec.get("cited_ids", [])])),
                           proposal_id=pid, rationale_source=payload["rationale_source"],
-                          model_decision=dec.get("model"), rejected_cited_ids=rejected, ignored=ignored)
+                          model_decision=dec.get("model"), rejected_cited_ids=rejected, ignored=ignored,
+                          rationale_replaced=replaced)
         if p["status"] != "pending":
             return {"proposal_id": pid, "stop": f"proposal is {p['status']}"}
         await steps.write(run, visit, "gate", "paused_for_nurse", "waiting for a nurse or clinician",

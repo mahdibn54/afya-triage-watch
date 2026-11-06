@@ -6,6 +6,7 @@ contribution (E5-4) is merged by `merge_decision` (E5-5: it can only add) and it
 """
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from afya_mcp import rules, workflow
@@ -57,6 +58,36 @@ def code_sentence(trigger: dict[str, Any], tews_before: int | None, tews_after: 
     return out[: workflow.MAX_RATIONALE]
 
 
+# E5-6: words that name a condition, a cause, a guess, a drug, a dose or a treatment. A rationale containing any of
+# them is not shown; the code-built sentence replaces it (logged). Word-boundary, case-insensitive.
+DENYLIST = [
+    r"seps\w*", r"septic\w*", r"pneumon\w*", r"malaria\w*", r"infect\w*", r"diagnos\w*", r"likely", r"unlikely",
+    r"suspect\w*", r"probabl\w*", r"possibl\w*", r"suggest\w*", r"consistent with", r"indicat\w*", r"give",
+    r"giv(?:ing|en)", r"administer\w*", r"mg", r"mcg", r"ml", r"dose\w*", r"dosage", r"antibiotic\w*",
+    r"paracetamol", r"acetaminophen", r"ibuprofen", r"amoxicillin", r"aspirin", r"artemether\w*", r"medication\w*",
+    r"medicine\w*", r"drugs?", r"prescri\w*", r"treat\w*", r"therap\w*", r"iv fluids?", r"covid\w*",
+    r"tuberculosis", r"tb", r"hiv", r"asthma\w*", r"copd", r"stroke", r"heart attack", r"cancer", r"dehydrat\w*",
+    r"shock", r"caus\w*", r"due to", r"because of", r"conditions?", r"disease\w*", r"syndrome\w*", r"failure",
+    r"fever", r"febrile", r"hypoxi\w*", r"tachycardi\w*", r"tachypn\w*", r"bacteri\w*", r"viral", r"virus",
+]
+_DENY = re.compile(r"\b(" + "|".join(DENYLIST) + r")\b", re.IGNORECASE)
+
+
+def rationale_text(model_text: str | None, code_text: str) -> tuple[str, str, str | None]:
+    """E5-6: (text shown, rationale_source, why the model's text was replaced or None). The model's rationale is
+    shown only if it is non-empty, at most 300 characters and free of every denylisted word; otherwise the sentence
+    built by code from the measured changes is shown instead."""
+    text = " ".join((model_text or "").split())
+    if not text:
+        return code_text, "code", "no model rationale"
+    if len(text) > workflow.MAX_RATIONALE:
+        return code_text, "code", "too long"
+    m = _DENY.search(text)
+    if m:
+        return code_text, "code", f"denylist: {m.group(1).lower()[:24]}"
+    return text, "model", None
+
+
 def merge_decision(dec: dict[str, Any], trigger: dict[str, Any], score: dict[str, Any], kept_signs: list[str],
                    chart: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     """E5-5: the model can add urgency, never remove it. Code has already decided the trigger and always creates the
@@ -106,6 +137,9 @@ def build_payload(s: dict[str, Any], chart: dict[str, Any],
     sc, det, trig, signs = s["score"], s["det"], s["trigger"], s["signs"]
     merged, _notes = merge_decision(s.get("decision") or {}, trig, sc, signs["kept"], chart)
     prev = det.get("previous")
+    rationale, source, _why = rationale_text((s.get("decision") or {}).get("rationale"),
+                                             code_sentence(trig, prev["tews"] if prev else None, sc["tews"], evidence,
+                                                           signs["kept"], chart))
     sign_codes = sorted({*signs["kept"], *(r["code"] for r in signs["rows"] if r["source"] == "reading")})
     cited = list(dict.fromkeys([*(r["before"]["obs_id"] for r in evidence), sc["observation_id"],
                                 *([prev["observation_id"]] if prev else [])]))
@@ -117,8 +151,8 @@ def build_payload(s: dict[str, Any], chart: dict[str, Any],
         "reasons": merged["reasons"],
         "evidence": evidence,
         "signs": list(signs["rows"]),
-        "rationale": code_sentence(trig, prev["tews"] if prev else None, sc["tews"], evidence, signs["kept"], chart),
-        "rationale_source": "code",
+        "rationale": rationale,
+        "rationale_source": source,
         "notices": list(signs.get("notices", [])),
         "agent_action": merged["action"],
         "missing_input": merged["missing_input"],
