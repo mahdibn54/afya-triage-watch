@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 60 done · 8 drafted · 23 to do · 0 blocked · 91 stories
+**Progress:** 60 done · 9 drafted · 22 to do · 0 blocked · 91 stories
 
 ---
 
@@ -172,7 +172,7 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E5-1 | [ ] | 20 synthetic patients (B writes, M reviews labels) | B | Day 3–4 | 3 h | E1-7 |
+| E5-1 | [~] | 20 synthetic patients (B writes, M reviews labels) | B | Day 3–4 | 3 h | E1-7 |
 | E5-2 | [x] | Event-run graph, one thread per vitals event | M | Day 6 | 3 h | E4-* |
 | E5-3 | [x] | `map_signs` (model call A) | M | Day 6 | 2 h | E1-2 |
 | E5-4 | [x] | `investigate` (model call B, read-only loop) | M | Day 7 | 3 h | E5-2 |
