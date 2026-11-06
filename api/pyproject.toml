@@ -23,6 +23,18 @@ dev = ["pytest", "ruff", "mypy"]
 [tool.ruff]
 line-length = 120
 
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["afya_api"]
+known-third-party = ["afya_mcp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "../mcp/tests"]
+markers = ["integration: needs the running Postgres (DATABASE_URL as afya_app); skipped when unreachable"]
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"

@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 38 done · 5 drafted · 43 to do · 1 blocked · 87 stories
+**Progress:** 39 done · 9 drafted · 38 to do · 1 blocked · 87 stories
 
 ---
 
@@ -203,7 +203,7 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
 | E6-1a | [ ] | Read endpoints: `/login-as`, `/me`, `/queue`, `/audit` | B | Day 5–6 | 1.5 h | E0-5 |
-| E6-1b | [~] | Write endpoints: `/vitals`, `/proposals`, approve, reject | M | Day 6–7 | 1.5 h | E0-5 |
+| E6-1b | [x] | Write endpoints: `/vitals`, `/proposals`, approve, reject | M | Day 6–7 | 1.5 h | E0-5 |
 | E6-2 | [ ] | Demo sign-in session | B | Day 5 | 1 h | E6-1a |
 | E6-3 | [~] | Approve = one transaction, then resume the graph | M | Day 7 | 1.5 h | E3-5 |
 | E6-4 | [~] | Startup sweep | M | Day 8 | 0.5 h | E3-5 |
@@ -211,6 +211,7 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 | E6-6 | [~] | Demo endpoint: load the P-014 scenario (DEMO_MODE only) | M | Day 8 | 0.5 h | E5-7 |
 
 **E6-1a / E6-1b** · Files: `api/afya_api/` · Acceptance: match `docs/api.md` exactly; JSON errors with clear messages.
+**E6-1b** · Notes: done (Day 8). Routers `routes_vitals.py` and `routes_proposals.py`, registered in `main.py`; pydantic models in `schemas.py` (B regenerates `web/src/api/types.ts` from `/openapi.json`); error body of api.md §1 in `errors.py`. `POST /vitals` calls afya-mcp act `record_vitals` with the signed-in user as actor (a manager is refused by the tool and audited), complaint stored in `afya.readings` (Q1), `run_id` = `<visit>:<bare obs id>` (Q8). `GET /proposals?status=` reads `workflow.list_proposals` (payload fields of Q4/Q13, `clinician_reminder` shown as `clinician_reminded`, Q7). Approve takes `colour`, `signs_kept`, `override_reason` (any level, reason mandatory when it differs, Q6); reject needs a reason. Also built because api.md lists them and nobody owns them: `POST /proposals/{id}/acknowledge` and `POST /notifications/{id}/acknowledge`. **Plug-in for B (E6-2):** `afya_api.deps.current_user` returns `deps.User`; it raises 501 until E6-2 replaces its body (see api.md §4); tests override it with `app.dependency_overrides`. The api never touches FHIR itself (HAPI stays private): it calls afya-mcp (`/act/mcp`, and the new read-only `/ui/mcp`). Tests: `api/tests` (real Postgres + fake FHIR, skipped without `DATABASE_URL`).
 **E6-2** · Acceptance: only when `DEMO_MODE=1`; signed session cookie (SameSite=Strict, secret from `SESSION_SECRET`); user always from the session, never the body; `auth: demo_switcher` in audit rows.
 **E6-3** · Acceptance: body = colour, signs kept, override reason; role check 403 → single-use update 409 → decision + audit + command in one transaction → resume LangGraph with the command ID.
 **E6-4** · Acceptance: on start, resumes approved commands not done (idempotent).

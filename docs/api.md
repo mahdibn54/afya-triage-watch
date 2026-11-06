@@ -61,6 +61,14 @@ At least one must be present. Limits are the provisional ones in `rules/plausibi
 
 ## 4. Auth
 
+### The `current_user` seam (for E6-2, B)
+Every protected router depends on one function, `afya_api.deps.current_user` (returns `deps.User { id, name, role }`).
+Today it raises `501` ("demo session not available yet (E6-2)"); tests replace it with
+`app.dependency_overrides[deps.current_user]`. E6-2 plugs in by replacing the body of that function (same name, same
+module): read the signed session cookie, return the `User` (role from `afya.users`), raise `HTTPException(401)` when there
+is no valid session. Routers use `user.id` as the audit actor and never read a user from a request body. The error
+handlers in `afya_api/errors.py` already turn `HTTPException` into the error body of section 1.
+
 ### POST /login-as
 Request `{ "user_id": "nurse-a" }`. Sets the session cookie. `404` when `DEMO_MODE` is off or the user is unknown.
 
@@ -193,7 +201,9 @@ Request: the inputs of section 3 (flat), plus `visit_id`, `idempotency_key` (1 t
 patient from the visit.
 Responses: `200 saved`, `200 remeasure` (an impossible value: nothing is saved or scored, the UI shows the
 re-measure notice), `422 invalid` (unknown input, bad value, no value). A retry with the same key returns the same
-`observation_id`. `run_id` identifies the agent run that follows a saved reading.
+`observation_id`. `run_id` (`<visit_id>:<bare observation id>`, Q8) identifies the agent run that follows a saved reading.
+`403` for a manager (the refusal is audited), `404` unknown visit, `503` when the data service is down. The complaint is
+stored in Postgres (`afya.readings`), NFKC-normalised, never in FHIR; a retry keeps the first text.
 
 <!-- example: POST /vitals request -->
 ```json
@@ -362,6 +372,8 @@ Notices appear in `/queue` (per patient, or top level) and in proposals. The UI 
 | `vitals_due` | the site re-check interval has passed | notification `vitals_due` |
 | `clinician_reminded` | the clinician on duty was reminded of a pending proposal | notification `clinician_reminder` |
 | `model_unavailable` | the language model is down; scoring and proposals continue | notification `model_unavailable` |
+| `fhir_unavailable` | the FHIR server could not be reached (Q12); `/queue` then has no patients and this notice at top level | queue (`get_queue_state`) |
+| `data_incomplete` | a visit lacks data the queue needs (no patient, unknown colour, no arrival time) | queue (added by M, not in B's first list) |
 
 ## 7. Audit, timeline, trace, gates
 
