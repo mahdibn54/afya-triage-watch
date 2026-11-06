@@ -12,14 +12,16 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 37 done · 5 drafted · 44 to do · 1 blocked · 87 stories
+**Progress:** 38 done · 5 drafted · 43 to do · 1 blocked · 87 stories
 
 ---
 
 ## How we work
 
 1. Pick the next story for your name on the day board (bottom of this file). Check its dependencies are `[x]`.
-2. Create a branch named after the story: `E7-3-approval-card`.
+2. **Claim it first:** `git pull`, set the story to `[~]`, commit and push, so the other person sees it is taken.
+   Never start a story owned by the other person; if it blocks you, mark yours `[!]` and say why.
+   Then create a branch named after the story: `E7-3-approval-card`.
 3. Do the work, then meet the story's **Acceptance** bullets and the Definition of Done.
 4. In the same PR, set the story's status to `[x]` here and add anything useful to its **Notes**.
 5. The other person reviews; merge only when CI is green.
@@ -65,15 +67,15 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 | E0-4 | [ ] | Ask Clinton: exact submission time, format, brother listed as team member | M | Day 1 | 0.2 h | – |
 | E0-5 | [~] | Agree the API contract | M+B | Day 1 | 1 h | – |
 | E0-6 | [~] | CI on every push | B | Day 2 | 1 h | E0-1 |
-| E0-7 | [ ] | Invite brother as collaborator (`dhekerbenamor@gmail.com`) | M | Day 1 | 0.1 h | E0-1 |
+| E0-7 | [x] | Invite brother as collaborator (`dhekerbenamor@gmail.com`) | M | Day 1 | 0.1 h | E0-1 |
 
 **E0-1** · Files: `LICENSE`, `README.md`, `.gitignore`, `.env.example` · Acceptance: repo public; `.env` ignored. · Notes: done in commit `1645177`. Commits use mahdibenamor13@gmail.com.
 **E0-2** · Files: `rules/charts/NOTICE.md`, licence line in `LICENSE` and `README.md` · Acceptance: chart folder explicitly outside MIT, EMSSA attributed, no manual text copied.
-**E0-3** · Acceptance: email sent; reply (or none) recorded here. Until permission, the chart folder stays "non-commercial research only".
-**E0-4** · Acceptance: answers recorded here: deadline timestamp + timezone, required deliverables, team listing.
+**E0-3** · Acceptance: email sent; reply (or none) recorded here. Until permission, the chart folder stays "non-commercial research only". · Notes: deferred by M for now.
+**E0-4** · Acceptance: answers recorded here: deadline timestamp + timezone, required deliverables, team listing. · Notes: deferred by M for now.
 **E0-5** · Files: `docs/api.md` · Acceptance: both agree; brother can build the UI against fake JSON matching it. · Notes: draft written Day 1. Rewritten by B against the code: conventions (IDs, times, error body, quote offsets), per-endpoint fields with 19 example JSON blocks (the UI's fixtures, P-014 numbers from `test_rules.py`), "backend today" status per endpoint, added `/demo/users`, `/proposals/{id}/acknowledge`, `/notifications/{id}/acknowledge`. Verified: every example recomputed with the real scorer, `evaluate_trigger`, `check_plausible` and `get_queue_state` (196 checks pass; this caught one wrong example, `no_chart` without a confirmed colour); audit payloads and gate times checked against the live Postgres through `workflow.py`; WSO2 tool names read from the live server. Also checked against `docs/architecture-v4.1.pdf` (sections 3–10, Appendix A and B): complaint limit, quote offsets on the original text, colour override (section 7), `submit_decision` actions and the sign verdict added to proposals. **Waiting for M:** open questions Q1–Q13 in `docs/api.md` section 9 (complaint storage, colour override and reject, proposal payload fields, raw values for evidence, trace tool names, FHIR-down notice).
 **E0-6** · Files: `.github/workflows/ci.yml` · Acceptance: on push and PR runs `ruff`, `mypy`, `pytest` (mcp + api) and `npm run build` (web); red CI blocks merge. · Notes: `.github/workflows/ci.yml` added by B: ruff (mcp, api), pytest (mcp), web typecheck, lint, `next build`, fixtures-match-`docs/api.md` check and the Playwright P-014 test (E7-11) on the fake API. mypy runs but does not fail the build yet: 52 existing errors in `mcp/afya_mcp` (M's modules). Left: M fixes or accepts the mypy errors, then branch protection so a red CI blocks merge (repo owner setting).
-**E0-7** · Acceptance: invitation accepted. · Notes: needs GitHub's email verification (sudo mode) by Mahdi first. GitHub personal repos have no "maintainer" role: collaborator = push, merge, manage issues/labels.
+**E0-7** · Acceptance: invitation accepted. · Notes: done: B has push access and commits to main.
 
 ---
 
@@ -85,8 +87,8 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 | E1-2 | [x] | Sign allow-list (2 RED, 12 ORANGE, 5 YELLOW) with own glosses | M | Day 1 | 0.5 h | E1-1 |
 | E1-3 | [x] | Chart selection by age/height; "no chart" otherwise | M | Day 2 | 1 h | E1-1 |
 | E1-4 | [x] | Pure scorer `score(values, chart)` | M | Day 1 | 1.5 h | E1-1 |
-| E1-5 ✅ | [x] | Plausibility limits in YAML (provisional) | M | Day 1 | 0.5 h | – |
-| E1-6 ✅ | [x] | Trigger rule in code | M | Day 1 | 1 h | E1-4 |
+| E1-5 | [x] | Plausibility limits in YAML (provisional) | M | Day 1 | 0.5 h | – |
+| E1-6 | [x] | Trigger rule in code | M | Day 1 | 1 h | E1-4 |
 | E1-7 | [x] | Fixture tests (11 patients from architecture §11) | M | Day 1 | 1 h | E1-4 |
 | E1-8 | [x] | Band-edge tests from an independent reading of the chart | M | Day 1 | 1 h | E1-4 |
 
@@ -146,10 +148,10 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E4-1 ✅ | [x] | Server with two mounts: `/read/mcp` and `/act/mcp` | M | Day 5 | 1 h | – |
+| E4-1 | [x] | Server with two mounts: `/read/mcp` and `/act/mcp` | M | Day 5 | 1 h | – |
 | E4-2 | [x] | `record_vitals` | M | Day 5 | 2 h | E3-1 |
-| E4-3 ✅ | [x] | `compute_tews` | M | Day 2 | 1 h | E1-4 |
-| E4-4 ✅ | [x] | `check_deterioration` | M | Day 2 | 1.5 h | E4-3 |
+| E4-3 | [x] | `compute_tews` | M | Day 2 | 1 h | E1-4 |
+| E4-4 | [x] | `check_deterioration` | M | Day 2 | 1.5 h | E4-3 |
 | E4-5 | [x] | `get_queue_state` | M | Day 6 | 1.5 h | E3-1 |
 | E4-6 | [x] | `raise_recheck_flag` via the executor registry | M | Day 7 | 2.5 h | E3-5 |
 | E4-7 | [x] | `notify_staff` | M | Day 8 | 1 h | E3-1 |
