@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 42 done · 7 drafted · 37 to do · 1 blocked · 87 stories
+**Progress:** 42 done · 6 drafted · 37 to do · 2 blocked · 87 stories
 
 ---
 
@@ -180,7 +180,7 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 | E5-6 | [ ] | Rationale filter | M | Day 7 | 1 h | E5-4 |
 | E5-7 | [ ] | Watch loop and immediate RED/ORANGE notifications | M | Day 8 | 2 h | E4-7 |
 | E5-8 | [ ] | Supersession and "not reviewed" | M | Day 8 | 1 h | E5-2 |
-| E5-9 | [~] | Model settings and limits | M | Day 6 | 1 h | E2-5 |
+| E5-9 | [!] | Model settings and limits | M | Day 6 | 1 h | E2-5 |
 | E5-10 | [ ] | Model-down fallback | M | Day 8 | 0.5 h | E5-2 |
 | E5-11 | [ ] | OpenRouter client (guarded) | M | Day 9 | 1 h | E5-9 |
 
@@ -192,7 +192,7 @@ Remaining estimate: **Mahdi ≈ 53 h** (light on Day 3–4 because of vaccines) 
 **E5-6** · Acceptance: prompt forbids conditions, causes, drugs, doses, treatments; denylist check (sepsis, pneumonia, malaria, infection, diagnos*, likely, suspect, give, administer, mg, antibiotic, paracetamol…); failing text replaced by a code-built sentence and logged.
 **E5-7** · Acceptance: RED/ORANGE proposals notify at creation; loop every `WATCH_INTERVAL_SECONDS` (60; 30 in demo): vitals-due reminders, unread ORANGE after 5 min and RED after 1 min → `notify_staff`; nothing in the queue changes.
 **E5-8** · Acceptance: newer vitals mark the old proposal `superseded`; if never reviewed it stays visible as "not reviewed" until a nurse acknowledges it.
-**E5-9** · Acceptance: on Day 5 benchmark `qwen3:8b` (GPU) vs `qwen3:30b-a3b` (MoE, 3B active, CPU + 30 GB RAM) on the 6 tuning patients: sign accuracy, tool-call validity, seconds per run; pick the default by these numbers and record them in Notes. Settings for the chosen model: `think:false`, `num_ctx` 8192, `num_predict` 384, temperature 0 (signs) / 0.2 (investigate), top_p 0.8, top_k 20, seed logged; 60 s per call, 240 s per run; one retry on invalid JSON; timeout → rules only; circuit breaker (2 failures → skip model 5 min); warm-up call at start.
+**E5-9** · Acceptance: on Day 5 benchmark `qwen3:8b` (GPU) vs `qwen3:30b-a3b` (MoE, 3B active, CPU + 30 GB RAM) on the 6 tuning patients: sign accuracy, tool-call validity, seconds per run; pick the default by these numbers and record them in Notes. Settings for the chosen model: `think:false`, `num_ctx` 8192, `num_predict` 384, temperature 0 (signs) / 0.2 (investigate), top_p 0.8, top_k 20, seed logged; 60 s per call, 240 s per run; one retry on invalid JSON; timeout → rules only; circuit breaker (2 failures → skip model 5 min); warm-up call at start. · Notes: **`[!]` only for the host binding; the code is done.** `api/afya_api/model.py`: `OllamaBackend` (POST `/api/chat`, `think: false` always sent, `keep_alive` 30m, digest from `/api/tags`), `ModelSettings` (num_ctx 8192, num_predict 384, temperature 0 for map_signs / 0.2 for investigate, top_p 0.8, top_k 20, seed from `MODEL_SEED`, default 42), `Model` (60 s per call, capped by the 240 s run deadline; `run_budget`/timeout → `ModelUnavailable`, so the agent goes to rules only; one retry on invalid JSON with the error text included; `CircuitBreaker`: 2 failures in a row → model skipped 5 min, then one trial call), warm-up call started in the api lifespan (never blocks startup, not counted by the breaker). `MODEL_ENABLED=0` = rules only. Every call's tag, digest, seed, settings, token counts and durations go into the run's `agent_step` rows. Tests: `api/tests/test_model.py` (pure unit tests, fake clock and transports; they run without Postgres: the api conftest now skips only the tests that use the database). **Host model (Day 8):** `qwen3:8b` and `qwen3:4b-instruct` pulled (`qwen3:30b-a3b` not pulled on purpose, so the 8b vs 30b-a3b benchmark of the acceptance is not done; default stays `qwen3:8b`). Measured on the RTX 3050 6 GB with num_ctx 8192: `qwen3:8b` cold load 164 s (first load from disk; 9 s afterwards), warm 13.6 tokens/s out, about 330 tokens/s prompt, split 18 % CPU / 82 % GPU (6.6 GB with the 8k context); `qwen3:4b-instruct` 41 tokens/s out, 300 tokens/s prompt, 100 % GPU (4.2 GB). Seconds per run: see the live P-014 run in E5-2. **Blocked part (needs sudo, which the agent does not have; E2-5 is B's story):** Ollama listens on `127.0.0.1:11434` only, so the api container gets "connection refused" on `host.docker.internal:11434` and runs rules only. One command for Mahdi: `sudo mkdir -p /etc/systemd/system/ollama.service.d && printf '[Service]\nEnvironment="OLLAMA_HOST=172.17.0.1:11434"\n' | sudo tee /etc/systemd/system/ollama.service.d/override.conf && sudo systemctl daemon-reload && sudo systemctl restart ollama` (then host-side tools must use `OLLAMA_HOST=172.17.0.1:11434`). Host-side tests use `127.0.0.1` meanwhile.
 **E5-10** · Acceptance: with the model off, score, trigger and proposal still work; card shows "no model" and the raw complaint.
 **E5-11** · Acceptance: `ALLOW_REMOTE_MODEL=false` by default; refuses input not from `evals/fixtures/synthetic/`; provider pinned; records billed `usage.cost`; key only in `.env`.
 

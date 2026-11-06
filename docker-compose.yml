@@ -135,6 +135,8 @@ services:
       WSO2_MCP_URL: http://wso2-fhir-mcp:8000/mcp
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       MODEL: ${MODEL:-qwen3:8b}
+      MODEL_SEED: ${MODEL_SEED:-42}         # logged with every model call (E5-9)
+      MODEL_ENABLED: ${MODEL_ENABLED:-1}    # 0 = rules only (the agent still scores, triggers and proposes)
       ALLOW_REMOTE_MODEL: ${ALLOW_REMOTE_MODEL:-false}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       DEMO_MODE: ${DEMO_MODE:-1}

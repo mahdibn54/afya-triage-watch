@@ -6,20 +6,23 @@ import contextlib
 from fastapi import FastAPI
 
 from . import routes_demo, routes_proposals, routes_ui, routes_vitals
-from .deps import get_gateway
+from .deps import get_gateway, get_model
 from .errors import install_error_handlers
 from .executor import sweep_on_startup
 
 
 @contextlib.asynccontextmanager
 async def lifespan(_app: FastAPI):
-    task = asyncio.create_task(sweep_on_startup(get_gateway()))   # E6-4: resume approved commands that are not done
+    tasks = [asyncio.create_task(sweep_on_startup(get_gateway())),   # E6-4: resume approved commands that are not done
+             asyncio.create_task(get_model().warm_up())]           # E5-9: warm-up call at start (never blocks startup)
     try:
         yield
     finally:
-        task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await task
+        for task in tasks:
+            task.cancel()
+        for task in tasks:
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
 
 
 app = FastAPI(title="Afya Triage Watch API", version="0.1.0", lifespan=lifespan)

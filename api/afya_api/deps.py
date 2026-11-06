@@ -11,6 +11,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel
 
 from .mcp_client import Gateway, McpGateway
+from .model import Model, model_from_env
 
 Role = Literal["nurse", "clinician", "manager"]
 
@@ -49,6 +50,17 @@ def get_gateway() -> Gateway:
     if _gateway is None:
         _gateway = McpGateway()
     return _gateway
+
+
+_model: Model | None = None
+
+
+def get_model() -> Model:
+    """The guarded language model (E5-9), one per process so the circuit breaker is shared by all runs."""
+    global _model
+    if _model is None:
+        _model = model_from_env()
+    return _model
 
 
 def demo_mode() -> bool:

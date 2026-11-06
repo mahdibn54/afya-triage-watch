@@ -18,6 +18,7 @@ from fastapi.testclient import TestClient
 from afya_api import deps
 from afya_api.main import app
 from afya_api.mcp_client import ToolRefused
+from afya_api.model import Model, ModelSettings, OllamaBackend
 
 
 def _reachable() -> bool:
@@ -31,8 +32,15 @@ def _reachable() -> bool:
         return False
 
 
-if not _reachable():
-    pytest.skip("DATABASE_URL not set or Postgres not reachable", allow_module_level=True)
+DB = _reachable()
+
+
+@pytest.fixture
+def _db() -> None:
+    """Tests that touch Postgres depend on this: they are skipped when it is not reachable. Pure unit tests (model
+    client, sign validation, wording filter) run everywhere."""
+    if not DB:
+        pytest.skip("DATABASE_URL not set or Postgres not reachable")
 
 USERS = {"nurse-a": ("Nurse A.", "nurse"), "clin-m": ("Dr. M", "clinician"), "mgr-k": ("Dir. K", "manager")}
 REG, LIMITS, SITE = rules.load_registry(), rules.load_plausibility(), rules.load_site()
@@ -78,7 +86,7 @@ class InProcessGateway:
 
 
 @pytest.fixture
-def fhir() -> FakeFhir:
+def fhir(_db) -> FakeFhir:
     f = FakeFhir()
     f._ids = itertools.count(uuid.uuid4().int % 10**12)   # readings.obs_id is global in Postgres, like HAPI ids
     f.put({"resourceType": "Patient", "id": "p1", "birthDate": "1986-03-02",
@@ -104,6 +112,7 @@ def client(gateway, monkeypatch):
     async def no_sweep(*_a, **_k):   # the sweep has its own tests; here it would touch other tests' leftover commands
         return []
     monkeypatch.setattr("afya_api.main.sweep_on_startup", no_sweep, raising=False)
+    monkeypatch.setattr("afya_api.main.get_model", lambda: Model(OllamaBackend(ModelSettings()), enabled=False))
     app.dependency_overrides[deps.get_gateway] = lambda: gateway
     with TestClient(app) as c:   # runs the lifespan too: the startup sweep must not break the app
         yield c
@@ -120,7 +129,7 @@ def as_user(client):
 
 
 @pytest.fixture
-def conn():
+def conn(_db):
     with db.connect() as c:
         yield c
 
