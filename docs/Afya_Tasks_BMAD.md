@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 66 done · 8 drafted · 21 to do · 0 blocked · 95 stories
+**Progress:** 66 done · 9 drafted · 20 to do · 0 blocked · 95 stories
 
 ---
 
@@ -377,7 +377,7 @@ Audit context: [competition-audit.md](competition-audit.md).
 | E13-1 | [ ] | Upgrade own MCP client/server integration to the current protocol | M | TBD | TBD | E12-3 |
 | E13-2 | [ ] | Implement current MCP server discovery | M | TBD | TBD | E13-1 |
 | E13-3 | [ ] | Implement standardized MCP OAuth authorization flow | M | TBD | TBD | E13-1 |
-| E13-4 | [ ] | Official MCP conformance tests and versioned reports | M | TBD | TBD | E13-1, E13-2, E13-3 |
+| E13-4 | [~] | Official MCP conformance tests and versioned reports | M | TBD | TBD | E13-1, E13-2, E13-3 |
 
 **E13-1** · Acceptance: verify and record the current official protocol revision and a compatible SDK; review the
 existing `mcp>=1.9,<2` constraint and local assistant guidance if a dependency migration is necessary; update own
