@@ -20,6 +20,35 @@ as historical audit evidence and are superseded for the harness by this follow-u
 
 ## AAIF alignment and MCP protocol-version follow-up
 
+### Assigned implementation follow-up: Mahdi
+
+Dheker explicitly assigned the following work to **Mahdi (M)**. All four items are planned, not implemented or
+verified complete. The source of truth for ownership, dependencies and status is **E13-1 through E13-4** in the
+[existing project backlog](Afya_Tasks_BMAD.md). This instruction authorizes the scope addition; it does not claim
+that the competition mandates the newest protocol or that AAIF has certified the application.
+
+| Backlog story | Assigned work | Plain-English purpose |
+|---|---|---|
+| E13-1 | Upgrade the MCP client/server integration to the current protocol | Update how services communicate, using a compatible SDK and preserving the borrowed WSO2 connection. Recheck the published current revision when implementation begins. |
+| E13-2 | Implement current MCP server discovery | Let clients ask who the server is, which protocol versions it supports and which capabilities it offers. `tools/list` remains the tool catalogue; discovery does not grant access to patient data. |
+| E13-3 | Implement standardized MCP authorization | Replace reliance on the shared service secret with the selected standard OAuth 2.1 flow, discovery metadata, scoped tokens and server-side validation. Choose the appropriate user/service identity arrangement; tool access must never bypass nurse confirmation. |
+| E13-4 | Run official MCP conformance testing | Use the MCP project's test framework to check protocol messages and behavior against explicit revisions. Record actual pass/fail reports, tool version, tested revision and code commit. This complements application/security/browser tests and is not clinical validation or automatic AAIF certification. |
+
+Conformance testing sends protocol requests to servers, or tests clients against controlled servers, then examines
+responses for specification compliance. It covers areas such as discovery/version handling, tool schemas/calls,
+transport/errors and applicable authorization behavior. Establish the existing-protocol baseline before migration
+where feasible, then test the selected current revision after migration. Do not treat skipped or baselined failing
+checks as proof of passing conformance. Source: [official MCP conformance framework](https://github.com/modelcontextprotocol/conformance/blob/main/README.md).
+
+Migration and authorization are separate changes. Our current API explicitly calls `initialize`; the newer
+protocol uses per-request metadata and mandatory server discovery. SDK, client adapter, server configuration,
+dependency constraints and tests need review. LangGraph checkpoints and fixed clinical rules remain separate
+from protocol sessions. Standard authorization adds permission discovery, an identity service and expiring,
+appropriately scoped tokens; clinician approval of a consequential action remains a separate application gate.
+Sources: [protocol changes](https://modelcontextprotocol.io/specification/2026-07-28/changelog),
+[discovery](https://modelcontextprotocol.io/specification/2026-07-28/server/discover),
+[authorization](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization).
+
 Checked against source revision `b7aa6d7` and the official sources below. AAIF hosts open protocols and projects;
 its project portfolio is not evidence that an application must use every hosted project. The challenge explicitly
 allows LangGraph. No separate AAIF entrant rulebook or requirement to use Goose/A2A was found in the inspected
@@ -49,8 +78,8 @@ Code: [server.py](../mcp/afya_mcp/server.py), [mcp_client.py](../api/afya_api/mc
 Conclusion: the implemented agent/MCP architecture fits the published competition stack and AAIF's open ecosystem.
 It is a functioning older-protocol MCP implementation, not verified full current-specification conformance.
 The inspected competition brief does not mandate the newest protocol revision or AAIF certification, so this gap
-alone does not establish competition ineligibility. Any protocol migration or generic-client OAuth interoperability
-work needs an explicit scope decision within the existing backlog; no runtime code was changed by this review.
+alone does not establish competition ineligibility. Dheker subsequently authorized the four Mahdi-owned E13 stories
+above; no runtime code was changed by this documentation update.
 
 **Conclusion: most core mechanisms are implemented, but complete technical compliance is not yet established.**
 The outstanding issues are current model-on execution evidence and audit completeness under logging failure.

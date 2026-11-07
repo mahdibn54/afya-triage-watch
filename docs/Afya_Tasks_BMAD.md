@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 66 done · 8 drafted · 17 to do · 0 blocked · 91 stories
+**Progress:** 66 done · 8 drafted · 21 to do · 0 blocked · 95 stories
 
 ---
 
@@ -365,6 +365,52 @@ handed to B in the run report.
 
 ---
 
+## E13 · MCP standards follow-up (explicitly assigned to Mahdi)
+
+**Scope decision:** Dheker explicitly authorized these four additions after the AAIF/MCP audit and assigned all
+implementation to **Mahdi (M)**. They are not started. Scheduling and estimates remain to be agreed; this section
+does not change earlier completion evidence or claim that the challenge requires the newest protocol revision.
+Audit context: [competition-audit.md](competition-audit.md).
+
+| ID | Status | Story | Owner | Day | Est. | Depends |
+|---|---|---|---|---|---|---|
+| E13-1 | [ ] | Upgrade own MCP client/server integration to the current protocol | M | TBD | TBD | E12-3 |
+| E13-2 | [ ] | Implement current MCP server discovery | M | TBD | TBD | E13-1 |
+| E13-3 | [ ] | Implement standardized MCP OAuth authorization flow | M | TBD | TBD | E13-1 |
+| E13-4 | [ ] | Official MCP conformance tests and versioned reports | M | TBD | TBD | E13-1, E13-2, E13-3 |
+
+**E13-1** · Acceptance: verify and record the current official protocol revision and a compatible SDK; review the
+existing `mcp>=1.9,<2` constraint and local assistant guidance if a dependency migration is necessary; update own
+server configuration and API client request/version handling; preserve interoperability with the pinned borrowed
+WSO2 server through an explicit supported-version path. Keep fixed scoring, read-only model tools, Postgres
+checkpoints, named clinician confirmation, idempotent execution and append-only audit behavior. Pass existing
+application, real-stack and desktop/mobile workflow checks; inspect screenshots and record the tested commit.
+Notes: assigned by Dheker; implementation pending.
+
+**E13-2** · Acceptance: implement `server/discover` as required by the selected protocol, returning accurate supported
+versions, identity and capabilities; test valid requests, unsupported-version errors and appropriate access controls.
+Keep `tools/list` separate and do not expose patient data in discovery metadata. Notes: assigned by Dheker;
+implementation pending.
+
+**E13-3** · Acceptance: select an established authorization/identity provider and document the user-delegated and/or
+service identity flow appropriate to the actual callers; implement the selected MCP OAuth 2.1 authorization profile,
+protected-resource/authorization-server discovery, appropriate scoped tokens and intended-audience/expiry validation.
+Use the required PKCE and resource binding for applicable browser authorization flows; keep tokens out of URLs/logs
+and never forward own-server credentials to WSO2. Test missing, invalid, expired, wrong-audience and insufficient-scope
+tokens, plus successful authorized calls. Clinician session role checks and confirmation remain separate and required
+before clinical writes. Update configuration/run docs; preserve the isolated model-off test path. Notes: assigned by
+Dheker; exact provider/flow not selected and implementation pending.
+
+**E13-4** · Acceptance: establish a baseline on the currently supported protocol before migration where feasible;
+then run the official MCP conformance framework against own server/client behavior for the selected target revision
+and applicable authorization role. Pin/record test-tool version, protocol requirement set, exact source commit,
+commands and pass/fail/skipped results; disclose unsupported features and any expected failures without presenting
+them as passes. Keep reports reproducible and free of secrets. Integrate appropriate checks into CI; retain the
+existing application/security tests and desktop/mobile approval screenshots. Do not claim clinical validation or
+automatic AAIF certification. Notes: assigned by Dheker; official conformance testing has not been run.
+
+---
+
 ## Day-by-day board
 
 | Day | Mahdi | Brother |
@@ -401,6 +447,7 @@ Technical competition audit of `28215e1`: [competition-audit.md](competition-aud
 
 | Decision |
 |---|
+| **E13 assignment (Dheker):** Mahdi owns current MCP protocol migration, discovery, standardized authorization and official conformance testing (E13-1 through E13-4). Explicitly authorized additions to the frozen backlog; all four are to do. Verify the current spec/SDK at implementation time, preserve WSO2 compatibility and clinical gates, and keep protocol conformance distinct from application tests and AAIF certification. No implementation performed by the documentation assignment. |
 | **AAIF/MCP standards review:** [competition-audit.md](competition-audit.md) distinguishes competition stack fit from full protocol conformance. Current installed SDK negotiates `2025-11-25`; official MCP documentation identifies `2026-07-28` as current, and its required discovery request is unsupported in our targeted ASGI check. Static internal bearer auth is not the standardized OAuth discovery/delegation profile. No separate AAIF requirement to replace LangGraph with Goose/A2A was found. No protocol migration, new feature or runtime change authorized by this audit; any follow-up stays subject to the frozen backlog and an explicit scope decision. |
 | **E8-2 harness repair (B):** test clients use the configured server bearer token through Compose, and audit fixtures explicitly declare human `auth`. Tests adapt to the current security contract; production auth, schema constraints and audit-mutation refusal remain unchanged. Local checked-in harness passes 25 real-service + 3 isolation cases and both desktop/mobile approval flows without overrides. |
 | **E2-6 seed semantics (B):** explicit demo-only loader imports each E5-1 case's first reading as the waiting-room baseline. Later readings and expected evaluation labels stay in the fixtures; seeding is not a model evaluation. Versioned conditional identifiers preserve clinical decisions and visits across retries; closed seeded visits are not reopened. E5-1 review remains M-owned and pending. |
