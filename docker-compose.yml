@@ -138,8 +138,11 @@ services:
       RULES_DIR: /rules                              # site.yaml: clinician reminder limits for /proposals
       AFYA_MCP_TOKEN: ${AFYA_MCP_TOKEN:?set AFYA_MCP_TOKEN in .env}   # bearer token for afya-mcp (E12-3)
       WSO2_MCP_URL: http://wso2-fhir-mcp:8000/mcp                      # on the "borrowed" network
-      # E5-11: open-weights Qwen3 through OpenRouter (default) or a local Ollama (MODEL_PROVIDER=ollama).
-      MODEL_PROVIDER: ${MODEL_PROVIDER:-openrouter}
+      # E5-11: open-weights model on Ollama Cloud (default), OpenRouter, or a local Ollama (MODEL_PROVIDER=ollama).
+      MODEL_PROVIDER: ${MODEL_PROVIDER:-ollama_cloud}
+      OLLAMA_CLOUD_MODEL: ${OLLAMA_CLOUD_MODEL:-gpt-oss:120b}   # a name from GET https://ollama.com/api/tags
+      OLLAMA_CLOUD_BASE_URL: ${OLLAMA_CLOUD_BASE_URL:-https://ollama.com}
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}                       # api only; empty = rules only (model_unavailable)
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-qwen/qwen3-30b-a3b-instruct-2507}
       OPENROUTER_PROVIDER: ${OPENROUTER_PROVIDER:-nebius/fp8}   # pinned, no fallback to another provider
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}               # empty = rules only (model_unavailable notice)

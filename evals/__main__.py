@@ -18,7 +18,8 @@ def main(argv: list[str] | None = None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run", help="run groups B (models) and C (rules-only) live and write JSONL to --out")
     r.add_argument("--cases", required=True, help="a case file or a directory of case files")
-    r.add_argument("--models", default="qwen3:8b,qwen3:4b-instruct", help="comma-separated Ollama tags")
+    r.add_argument("--models", default="qwen3:8b,qwen3:4b-instruct",
+                   help="comma-separated: Ollama tags, OpenRouter ids (with a slash) or ollama_cloud:<name>")
     r.add_argument("--runs", type=int, default=5, help="runs per case per model (group B)")
     r.add_argument("--rules-only-runs", type=int, default=1, help="runs per case for group C (0 = skip)")
     r.add_argument("--out", default=str(ROOT / "evals" / "runs"))

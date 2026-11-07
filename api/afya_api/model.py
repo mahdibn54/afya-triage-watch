@@ -1,15 +1,24 @@
 """E5-9 / E5-11: the language model client, its settings and its limits (architecture section 8).
 
-Two transports (`MODEL_PROVIDER`):
-- `openrouter` (default): an OPEN-WEIGHTS Qwen3 model through OpenRouter's chat completions API, with the provider
+Three transports (`MODEL_PROVIDER`):
+- `openrouter`: an OPEN-WEIGHTS Qwen3 model through OpenRouter's chat completions API, with the provider
   pinned (`provider.order`, `allow_fallbacks: false`, `require_parameters: true`) and the billed `usage.cost` read
   from every answer. It is a remote service, so it is used ONLY when `DATA_CLASSIFICATION=synthetic` (the default of
   this prototype, which holds synthetic patients only). Any other value, or no `OPENROUTER_API_KEY`, refuses the call:
   the agent goes on with the fixed rules and the card says `model_unavailable`. A real deployment runs the same
   open-weights model hosted in-country (`MODEL_PROVIDER=ollama` or another local server).
-- `ollama`: Ollama's /api/chat with `think: false` set explicitly (qwen3 would otherwise think).
+- `ollama_cloud` (default, Mahdi's decision): Ollama's own hosted API (https://ollama.com/api,
+  `Authorization: Bearer $OLLAMA_API_KEY`), the same native /api/chat as a local Ollama, with an open-weights
+  model chosen by the name `GET /api/tags` returns (default `gpt-oss:120b`). Remote, so the same synthetic-data
+  guard as OpenRouter applies; no key also refuses the call. Ollama documents that its cloud does not support
+  structured outputs, so by default the JSON schema goes into the prompt (and the answer is still validated by the
+  caller, with one retry); `OLLAMA_CLOUD_FORMAT=1` sends `format` instead.
+  At most `OLLAMA_CLOUD_CONCURRENCY` (default 1) calls at a time; HTTP 429 ends as `rate_limited` and 402 as
+  `usage_limit` (the plan's limit), both counted by the breaker so the agent backs off and runs on the rules.
+- `ollama`: Ollama's /api/chat with `think: false` set explicitly (qwen3 would otherwise think). Exempt from the
+  synthetic-data guard only while `OLLAMA_BASE_URL` is a local or private (bridge) address; any other host is remote.
 
-Both get the same sampling settings and a seed that is logged with each call (the seed varies per run, derived from
+All get the same sampling settings and a seed that is logged with each call (the seed varies per run, derived from
 the run id, so repeated runs are independent samples yet reproducible; `MODEL_SEED_PER_RUN=0` keeps it fixed).
 Limits: 60 s per call, 240 s per run (the caller passes the run's deadline), one retry on invalid JSON with the error
 included, HTTP 429/5xx retried with backoff inside the call's time, and a circuit breaker that skips the model for
@@ -23,9 +32,11 @@ part of the settings, a log line, the trace or an error message.
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
 import logging
 import os
+import re
 import time
 import zlib
 from collections.abc import Awaitable, Callable
@@ -37,12 +48,16 @@ import httpx
 log = logging.getLogger("afya_api.model")
 
 PURPOSES = ("map_signs", "investigate", "warm_up")
-PROVIDERS = ("openrouter", "ollama")
+PROVIDERS = ("openrouter", "ollama", "ollama_cloud")
 # E5-11: chosen from https://openrouter.ai/api/v1/models (Decisions log): Qwen3-30B-A3B-Instruct-2507, Apache-2.0
 # open weights, non-thinking, tools + structured outputs + seed + top_k on the pinned provider.
 OPENROUTER_MODEL = "qwen/qwen3-30b-a3b-instruct-2507"
 OPENROUTER_PROVIDER = "nebius/fp8"
 OLLAMA_MODEL = "qwen3:8b"
+# Ollama Cloud: endpoint and auth from docs.ollama.com/cloud and /api/authentication; model names from GET /api/tags.
+# gpt-oss:120b is Apache-2.0 open weights with tool calling; no Qwen3 is in the cloud list (Decisions log).
+OLLAMA_CLOUD_URL = "https://ollama.com"
+OLLAMA_CLOUD_MODEL = "gpt-oss:120b"
 SYNTHETIC = "synthetic"
 
 
@@ -53,6 +68,10 @@ class ModelSettings:
     model: str = OLLAMA_MODEL
     openrouter_url: str = "https://openrouter.ai/api/v1"
     openrouter_provider: str = OPENROUTER_PROVIDER
+    ollama_cloud_url: str = OLLAMA_CLOUD_URL
+    cloud_format: bool = False      # Ollama Cloud: send `format` (documented as unsupported) instead of the prompt
+    cloud_concurrency: int = 1
+    think: bool | str = False       # Ollama `think`: false, or a level such as "low" for gpt-oss (cannot switch off)
     data_classification: str = SYNTHETIC
     num_ctx: int = 8192
     num_predict: int = 384
@@ -74,16 +93,28 @@ class ModelSettings:
     @classmethod
     def from_env(cls) -> ModelSettings:
         env = os.environ.get
-        provider = env("MODEL_PROVIDER", "openrouter").strip().lower()
+        provider = env("MODEL_PROVIDER", "ollama_cloud").strip().lower()
         if provider not in PROVIDERS:
             raise ValueError(f"MODEL_PROVIDER must be one of {PROVIDERS}")
-        model = env("OPENROUTER_MODEL", OPENROUTER_MODEL) if provider == "openrouter" else env("MODEL", OLLAMA_MODEL)
+        model = {"openrouter": lambda: env("OPENROUTER_MODEL", OPENROUTER_MODEL),
+                 "ollama_cloud": lambda: env("OLLAMA_CLOUD_MODEL", OLLAMA_CLOUD_MODEL)}.get(
+                     provider, lambda: env("MODEL", OLLAMA_MODEL))()
         keep: str | int = env("MODEL_KEEP_ALIVE", "30m")
         if isinstance(keep, str) and keep.lstrip("-").isdigit():
             keep = int(keep)          # Ollama: a number is seconds, -1 keeps the model loaded
+        # gpt-oss cannot switch thinking off; "low" keeps its reasoning short. Its reasoning tokens count against
+        # num_predict, so the cloud default leaves more room (both overridable).
+        think_default = "low" if provider == "ollama_cloud" and model.startswith("gpt-oss") else "false"
+        think_raw = env("MODEL_THINK", think_default).strip().lower()
+        think: bool | str = {"false": False, "true": True}.get(think_raw, think_raw)
+        predict_default = 1024 if provider == "ollama_cloud" else cls.num_predict
         return cls(provider=provider, base_url=env("OLLAMA_BASE_URL", cls.base_url), model=model,
                    openrouter_url=env("OPENROUTER_BASE_URL", cls.openrouter_url),
                    openrouter_provider=env("OPENROUTER_PROVIDER", OPENROUTER_PROVIDER),
+                   ollama_cloud_url=env("OLLAMA_CLOUD_BASE_URL", OLLAMA_CLOUD_URL).rstrip("/"),
+                   cloud_format=env("OLLAMA_CLOUD_FORMAT", "0") == "1",
+                   cloud_concurrency=max(1, int(env("OLLAMA_CLOUD_CONCURRENCY", "1"))), think=think,
+                   num_predict=int(env("MODEL_NUM_PREDICT", str(predict_default))),
                    data_classification=env("DATA_CLASSIFICATION", SYNTHETIC).strip().lower(),
                    seed=int(env("MODEL_SEED", str(cls.seed))), seed_per_run=env("MODEL_SEED_PER_RUN", "1") != "0",
                    keep_alive=keep,
@@ -118,7 +149,8 @@ class Reply:
 
 class ModelUnavailable(Exception):
     """The model was not used: reason is one of circuit_open, run_budget, timeout, warming_up, unreachable,
-    http_error, invalid_response, invalid_output, disabled, data_not_synthetic, no_api_key."""
+    http_error, rate_limited, usage_limit, invalid_response, invalid_output, disabled, data_not_synthetic,
+    no_api_key."""
 
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
@@ -153,54 +185,128 @@ async def _post_with_retry(client: httpx.AsyncClient, path: str, body: dict[str,
     raise AssertionError("unreachable")
 
 
+def is_local_url(url: str) -> bool:
+    """True for loopback, private (RFC 1918, Docker bridge) and link-local addresses and the names a compose stack
+    uses for the host or a sibling container; anything else is a remote service."""
+    host = (httpx.URL(url).host or "").lower()
+    if host in ("localhost", "host.docker.internal", "ollama") or host.endswith(".localhost"):
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return ip.is_loopback or ip.is_private or ip.is_link_local
+
+
+_FENCE = re.compile(r"^\s*```(?:json)?\s*(.*?)\s*```\s*$", re.S)
+
+
 class OllamaBackend:
-    """Ollama /api/chat, non-streaming. `think: false` is always sent (architecture section 8)."""
+    """Ollama native /api/chat, non-streaming, `think` sent explicitly (false; a level for gpt-oss). One class for
+    the local server (`ollama`) and Ollama's hosted API (`ollama_cloud`, Bearer key, synthetic-data guard)."""
 
     def __init__(self, settings: ModelSettings, transport: httpx.AsyncBaseTransport | None = None,
-                 clock: Callable[[], float] = time.monotonic) -> None:
+                 clock: Callable[[], float] = time.monotonic, api_key: str | None = None) -> None:
         self.s, self.transport, self.clock = settings, transport, clock   # transport: tests (httpx.MockTransport)
+        self.cloud = settings.provider == "ollama_cloud"
+        self.url = settings.ollama_cloud_url if self.cloud else settings.base_url
+        self.remote = self.cloud or not is_local_url(self.url)
+        key = api_key if api_key is not None else os.environ.get("OLLAMA_API_KEY", "")
+        self._key = key.strip() if self.cloud else ""   # the key goes to ollama.com only, never to a local server
         self._digest: str | None = None
         self._digest_failed_at: float | None = None
+        self._slots: asyncio.Semaphore | None = None
+
+    def __repr__(self) -> str:   # never show the key
+        return f"OllamaBackend(provider={self.s.provider!r}, model={self.s.model!r}, remote={self.remote})"
 
     def refusal(self) -> str | None:
-        return None   # local: no data leaves the machine
+        """Why this server may not be called now (None = it may). A local/bridge server: no data leaves the
+        machine, always allowed. Ollama Cloud or any other remote host: synthetic data only; the cloud needs a key."""
+        if not self.remote:
+            return None
+        if self.s.data_classification != SYNTHETIC:
+            return "data_not_synthetic"
+        if self.cloud and not self._key:
+            return "no_api_key"
+        return None
 
     def info(self) -> dict[str, Any]:
-        return {"provider": "ollama", "keep_alive": self.s.keep_alive}
+        if self.cloud:
+            return {"provider": "ollama_cloud", "data_classification": self.s.data_classification}
+        out: dict[str, Any] = {"provider": "ollama", "keep_alive": self.s.keep_alive}
+        if self.remote:
+            out["data_classification"] = self.s.data_classification
+        return out
 
-    async def chat(self, messages: list[dict[str, Any]], *, options: dict[str, Any],
-                   tools: list[dict[str, Any]] | None = None, format: dict[str, Any] | None = None) -> Reply:
-        body: dict[str, Any] = {"model": self.s.model, "messages": messages, "stream": False, "think": False,
-                                "keep_alive": self.s.keep_alive, "options": options}
+    def _headers(self) -> dict[str, str] | None:
+        return {"Authorization": f"Bearer {self._key}"} if self._key else None
+
+    def body(self, messages: list[dict[str, Any]], options: dict[str, Any], tools: list[dict[str, Any]] | None,
+             format: dict[str, Any] | None) -> dict[str, Any]:
+        body: dict[str, Any] = {"model": self.s.model, "messages": messages, "stream": False, "think": self.s.think,
+                                "options": options}
+        if not self.cloud:
+            body["keep_alive"] = self.s.keep_alive   # a hosted model is not ours to keep loaded
         if tools:
             body["tools"] = tools
         if format is not None:
-            body["format"] = format
+            if self.cloud and not self.s.cloud_format:
+                # Ollama Cloud does not support structured outputs (docs.ollama.com/capabilities/structured-outputs):
+                # the schema goes into the prompt, as those docs advise; the caller still validates the answer.
+                body["messages"] = [*messages, {"role": "system", "content":
+                                                "Answer with one JSON object only, no other text, that matches this "
+                                                "JSON schema exactly:\n" + json.dumps(format, separators=(",", ":"))}]
+            else:
+                body["format"] = format
+        return body
+
+    async def chat(self, messages: list[dict[str, Any]], *, options: dict[str, Any],
+                   tools: list[dict[str, Any]] | None = None, format: dict[str, Any] | None = None) -> Reply:
+        why = self.refusal()
+        if why:
+            raise ModelUnavailable(why)
+        body = self.body(messages, options, tools, format)
+        if self.cloud:
+            if self._slots is None:
+                self._slots = asyncio.Semaphore(self.s.cloud_concurrency)
+            async with self._slots:      # the plan allows few concurrent requests: queue here, not at the provider
+                return await self._send(body, format is not None)
+        return await self._send(body, False)
+
+    async def _send(self, body: dict[str, Any], unfence: bool) -> Reply:
         start = time.perf_counter()
-        async with httpx.AsyncClient(base_url=self.s.base_url, timeout=None, transport=self.transport) as client:
-            r = await _post_with_retry(client, "/api/chat", body, self.s)
+        async with httpx.AsyncClient(base_url=self.url, timeout=None, transport=self.transport) as client:
+            r = await _post_with_retry(client, "/api/chat", body, self.s, headers=self._headers())
         d = r.json()
+        if not isinstance(d, dict) or d.get("error"):
+            raise ValueError("provider error")         # never echo the provider's text (could quote the request)
         msg = d.get("message") or {}
         calls = []
         for c in msg.get("tool_calls") or []:
             fn = c.get("function") or {}
             calls.append({"name": str(fn.get("name", "")), "args": _args(fn.get("arguments"))})
+        content = msg.get("content") or ""
+        if unfence and self.cloud:
+            m = _FENCE.match(content)
+            content = m.group(1) if m else content
         ns = 1e6
-        return Reply(content=msg.get("content") or "", tool_calls=calls, tokens_in=d.get("prompt_eval_count"),
+        return Reply(content=content, tool_calls=calls, tokens_in=d.get("prompt_eval_count"),
                      tokens_out=d.get("eval_count"), latency_ms=round((time.perf_counter() - start) * 1000, 1),
                      load_ms=round(d["load_duration"] / ns, 1) if d.get("load_duration") else None,
                      eval_ms=round(d["eval_duration"] / ns, 1) if d.get("eval_duration") else None,
-                     model=d.get("model", self.s.model), cost_usd=0.0)
+                     model=d.get("model", self.s.model), cost_usd=None if self.cloud else 0.0,
+                     provider="ollama_cloud" if self.cloud else None)
 
     async def digest(self) -> str | None:
-        """The model's digest from /api/tags (logged with every call). Cached; while Ollama is unreachable the
+        """The model's digest from /api/tags (logged with every call). Cached; while the server is unreachable the
         failure is cached for 60 s too, so a down server does not cost a 5 s wait on every step."""
         if self._digest is None:
             if self._digest_failed_at is not None and self.clock() - self._digest_failed_at < 60:
                 return None
             try:
-                async with httpx.AsyncClient(base_url=self.s.base_url, timeout=5, transport=self.transport) as client:
-                    tags = (await client.get("/api/tags")).json().get("models", [])
+                async with httpx.AsyncClient(base_url=self.url, timeout=5, transport=self.transport) as client:
+                    tags = (await client.get("/api/tags", headers=self._headers())).json().get("models", [])
                 self._digest = next((m.get("digest") for m in tags if m.get("name") == self.s.model
                                      or m.get("model") == self.s.model), None)
             except Exception:  # noqa: BLE001 - the digest is information only
@@ -311,6 +417,11 @@ def backend_for(settings: ModelSettings, transport: httpx.AsyncBaseTransport | N
     return OllamaBackend(settings, transport)
 
 
+def status_reason(e: httpx.HTTPStatusError) -> str:
+    """429: rate or concurrency limit; 402: the plan's usage limit is spent; anything else: http_error."""
+    return {429: "rate_limited", 402: "usage_limit"}.get(e.response.status_code, "http_error")
+
+
 class CircuitBreaker:
     """Skip the model for `cooldown` seconds after `limit` failures in a row. One success resets the count. When the
     cooldown is over, exactly ONE trial call goes through (half-open); the others are still refused until it ends:
@@ -404,7 +515,7 @@ class Model:
         """Model tag, digest and settings, logged with each call (architecture section 8, 'logged per call')."""
         info = getattr(self.backend, "info", None)
         return {"tag": self.s.model, "digest": await self.backend.digest(),
-                "seed": self.s.seed if seed is None else seed, "think": False, "num_ctx": self.s.num_ctx,
+                "seed": self.s.seed if seed is None else seed, "think": self.s.think, "num_ctx": self.s.num_ctx,
                 "num_predict": self.s.num_predict, "top_p": self.s.top_p, "top_k": self.s.top_k,
                 "keep_alive": self.s.keep_alive, **(info() if info else {})}
 
@@ -443,8 +554,8 @@ class Model:
                 self.breaker.release()
                 raise ModelUnavailable("warming_up") from None   # queued behind the model load: not counted
             raise await self._fail("timeout") from None
-        except httpx.HTTPStatusError:
-            raise await self._fail("http_error") from None
+        except httpx.HTTPStatusError as e:
+            raise await self._fail(status_reason(e)) from None
         except (httpx.HTTPError, OSError):
             raise await self._fail("unreachable") from None
         except ModelUnavailable as e:            # the backend's own guard (refusal): not counted
@@ -508,6 +619,8 @@ class Model:
         except Exception as e:  # noqa: BLE001
             log.warning("model warm-up failed (%s); the agent continues with the fixed rules until it answers",
                         type(e).__name__)
+            if isinstance(e, httpx.HTTPStatusError) and status_reason(e) != "http_error":
+                self.last = status_reason(e)    # a provider limit: shown in /healthz, the eval runner stops on it
             self.warmed = False
             return False
         finally:

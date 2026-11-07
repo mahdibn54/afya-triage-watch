@@ -20,7 +20,7 @@ from typing import Any
 import httpx
 from afya_api.agent import Agent
 from afya_api.demo_scenario import birth_date
-from afya_api.model import Model, ModelSettings, backend_for
+from afya_api.model import OLLAMA_CLOUD_URL, Model, ModelSettings, backend_for
 from afya_mcp import db, workflow
 
 from .cases import Case
@@ -29,6 +29,38 @@ from .host_gateway import HostGateway
 RULES_ONLY = "rules-only"
 SCHEMA = 1
 ACT_AFTER_APPROVAL = ("raise_recheck_flag", "command_done", "proposal_approved")
+CLOUD = "ollama_cloud:"
+# The provider's plan limit was reached: the run stops, and the trial that hit it is not written as a result.
+LIMIT_REASONS = ("rate_limited", "usage_limit")
+
+
+def model_settings(tag: str, group: str, ollama_url: str) -> ModelSettings:
+    """`ollama_cloud:<name>` is an Ollama Cloud model (name as GET https://ollama.com/api/tags lists it), a tag with a
+    slash an OpenRouter id (E5-11), anything else a local Ollama tag. The keys are read from the environment by the
+    backends; for Ollama Cloud, OLLAMA_API_KEY is taken from the repo's .env when it is not exported."""
+    if tag.startswith(CLOUD):
+        _key_from_dotenv("OLLAMA_API_KEY")
+        name = tag[len(CLOUD):]
+        return ModelSettings(provider="ollama_cloud", model=RULES_ONLY if group == "C" else name,
+                             ollama_cloud_url=os.environ.get("OLLAMA_CLOUD_BASE_URL", OLLAMA_CLOUD_URL).rstrip("/"),
+                             think="low" if name.startswith("gpt-oss") else False, num_predict=1024)
+    return ModelSettings(provider="openrouter" if "/" in tag else "ollama", base_url=ollama_url,
+                         model=RULES_ONLY if group == "C" else tag)
+
+
+def _key_from_dotenv(name: str) -> None:
+    """Copy one key from the repo's .env into this process's environment (never printed or logged)."""
+    if os.environ.get(name):
+        return
+    env = Path(__file__).resolve().parent.parent / ".env"
+    try:
+        for line in env.read_text(encoding="utf-8").splitlines():
+            k, sep, v = line.partition("=")
+            if sep and k.strip() == name and v.strip():
+                os.environ[name] = v.strip().strip("'\"")
+                return
+    except OSError:
+        return
 
 
 def _commit() -> str:
@@ -209,25 +241,40 @@ async def run_all(cases: list[Case], models: list[str], runs: int, rules_only_ru
     written: list[Path] = []
     plan = [(RULES_ONLY, "C", rules_only_runs)] if rules_only_runs else []
     plan += [(m, "B", runs) for m in models]
+    stopped = False
     for tag, group, n in plan:
-        # a tag with a slash is an OpenRouter model id (E5-11), anything else an Ollama tag
-        settings = ModelSettings(provider="openrouter" if "/" in tag else "ollama", base_url=ollama_url,
-                                 model=RULES_ONLY if group == "C" else tag)
+        if stopped:
+            break
+        settings = model_settings(tag, group, ollama_url)
         if group == "B":
             warm = Model(backend_for(settings), settings)
             t = time.perf_counter()
             ok = await warm.warm_up()
             log(f"warm-up {tag}: {'ok' if ok else 'FAILED'} in {time.perf_counter() - t:.1f}s")
+            if warm.last in LIMIT_REASONS:
+                log(f"STOPPED: {tag}: provider limit reached ({warm.last}) before the first trial; nothing written")
+                break
         path = out_dir / f"{batch}_{safe(set_name)}_{group}_{safe(tag)}.jsonl"
+        # trials run one after another (never concurrently): Ollama Cloud plans allow few concurrent requests
         with path.open("w", encoding="utf-8") as f:
             for i in range(1, n + 1):
                 for case in cases:
                     tr = await run_trial(case, tag, group, i, settings, set_name, gw, batch, commit, cleanup)
+                    if tr.get("model_unavailable") in LIMIT_REASONS:
+                        log(f"STOPPED: {tr['trial_id']}: provider limit reached ({tr['model_unavailable']}); this "
+                            "trial is not written, the trials before it are")
+                        stopped = True
+                        break
                     f.write(json.dumps(tr, ensure_ascii=False, sort_keys=True) + "\n")
                     f.flush()
                     p = tr["proposal"]
                     log(f"{tr['trial_id']:<48} proposal={'-' if not p else p['to_colour']:<7} "
                         f"want={'-' if not case.expected['proposal'] else case.expected['to_colour']:<7} "
                         f"wall={tr.get('wall_ms') or 0:>8.0f}ms err={tr['error']}")
-        written.append(path)
+                if stopped:
+                    break
+        if path.stat().st_size:
+            written.append(path)
+        else:
+            path.unlink()
     return written

@@ -29,7 +29,8 @@ model; a local model needs 16 GB or more.
 | `PG_SUPERUSER_PASSWORD`, `AFYA_OWNER_PASSWORD`, `AFYA_APP_PASSWORD` | database passwords, URL-safe: `openssl rand -hex 24` |
 | `SESSION_SECRET` | long random string that signs the session cookie |
 | `AFYA_MCP_TOKEN` | bearer token the api sends to our MCP server, which refuses every call without it (`openssl rand -hex 24`) |
-| `OPENROUTER_API_KEY` | optional; empty means rules only (see next section) |
+| `OLLAMA_API_KEY` | Ollama Cloud key (default provider); empty means rules only (see next section) |
+| `OPENROUTER_API_KEY` | only with `MODEL_PROVIDER=openrouter`; empty means rules only |
 | `DATA_CLASSIFICATION` | `synthetic` (default, the only value that allows the hosted model) |
 
 `.env` is git-ignored and holds the only copies of these secrets. Never commit it.
@@ -39,11 +40,27 @@ model; a local model needs 16 GB or more.
 The model only maps warning signs from the nurse's free text and investigates with read-only tools; scores, colours and
 triggers are fixed code, so the whole product works without a model (proposals then carry a "no model" notice).
 
-- **Default: OpenRouter**, open-weights Qwen3-30B-A3B-Instruct-2507 (`qwen/qwen3-30b-a3b-instruct-2507`), provider
-  pinned to `nebius/fp8` with no fallback. Create a key at openrouter.ai, **set a spending limit on the key there**, and
-  put it in `.env` as `OPENROUTER_API_KEY`. The billed cost of each call is logged in the agent trace.
-- **Synthetic-data guard.** The hosted model is called only while `DATA_CLASSIFICATION=synthetic`, enforced in code. Any
-  other value (or no key) refuses it and the agent continues on the fixed rules with the `model_unavailable` notice.
+| `MODEL_PROVIDER` | Where the model runs | Key | Notes |
+|---|---|---|---|
+| `ollama_cloud` (default) | Ollama's hosted API, `https://ollama.com/api` (native `/api/chat`) | `OLLAMA_API_KEY` | open-weights `gpt-oss:120b` by default (`OLLAMA_CLOUD_MODEL`, a name from `GET https://ollama.com/api/tags`). Account limits apply, see below. |
+| `openrouter` | OpenRouter, provider pinned to `nebius/fp8`, no fallback | `OPENROUTER_API_KEY` | open-weights Qwen3-30B-A3B-Instruct-2507; billed cost of each call logged in the trace |
+| `ollama` | your own Ollama (local or bridge address) | none | `MODEL=qwen3:8b`, see "Optional: local Ollama" |
+
+- **Ollama Cloud setup.** Create a key at https://ollama.com/settings/keys and put it in `.env` as `OLLAMA_API_KEY`
+  (it goes to the api container only and is sent only to ollama.com). List the models your account can use with
+  `curl -s -H "Authorization: Bearer $OLLAMA_API_KEY" https://ollama.com/api/tags` and set `OLLAMA_CLOUD_MODEL` to one
+  with tool calling. Ollama documents that its cloud does not support structured outputs, so the JSON schema goes
+  into the prompt and the answer is checked by code (one retry, then rules only); `OLLAMA_CLOUD_FORMAT=1` sends
+  `format` instead if that changes. For `gpt-oss` models thinking cannot be switched off, so `think` is `low`
+  (`MODEL_THINK`) and the token limit per answer is 1024 (`MODEL_NUM_PREDICT`).
+- **Ollama Cloud limits (caveat).** Plans, prices and limits change: check https://ollama.com/pricing and your usage
+  at https://ollama.com/settings/usage. An account limit is answered with HTTP 429 or 402: the agent treats it as
+  "model unavailable" (`rate_limited` / `usage_limit`), backs off with the circuit breaker and keeps proposing from
+  the fixed rules with the `model_unavailable` notice. The api sends one cloud call at a time
+  (`OLLAMA_CLOUD_CONCURRENCY`). The eval runner (`ollama_cloud:<name>` as the model) runs trials one after another
+  and stops at the first limit without writing that trial as a result.
+- **Synthetic-data guard.** A hosted model (Ollama Cloud, OpenRouter, or an Ollama on a non-local address) is called
+  only while `DATA_CLASSIFICATION=synthetic`, enforced in code. Any other value (or no key) refuses it and the agent continues on the fixed rules with the `model_unavailable` notice.
   This prototype holds synthetic patients only; a real deployment would run the same open-weights model hosted
   in-country.
 - **Optional: local Ollama.** Set `MODEL_PROVIDER=ollama`, `MODEL=qwen3:8b` and `OLLAMA_BASE_URL=http://host.docker.internal:11434`,
@@ -59,7 +76,7 @@ eval "$(sh evals/stack_env.sh)"          # exports TEST_DATABASE_URL (the separa
 (cd mcp && pytest) && (cd api && pytest) && pytest evals/tests     # database tests skip when TEST_DATABASE_URL is unreachable
 ruff check mcp api evals
 make eval-test                           # statistics and metrics of the eval harness only
-make eval MODELS=qwen/qwen3-30b-a3b-instruct-2507   # live eval run (needs the OpenRouter key; the default MODELS are local Ollama tags), then rebuilds the tables in EVALS.md; see evals/README.md
+make eval MODELS=ollama_cloud:gpt-oss:120b   # live eval run (Ollama Cloud key; OpenRouter ids or local Ollama tags also work), then rebuilds the tables in EVALS.md; see evals/README.md
 scripts/smoke.sh                         # against the running stack; must end with SMOKE OK
 ```
 

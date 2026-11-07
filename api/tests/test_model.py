@@ -256,9 +256,10 @@ def test_429_and_5xx_are_retried_with_backoff_then_counted_once():
     assert e.value.reason == "http_error" and always.breaker.failures == 1     # 3 attempts, one failure
 
 
-def test_settings_default_to_openrouter_and_the_key_is_never_in_settings(monkeypatch):
-    for k in ("MODEL_PROVIDER", "OPENROUTER_MODEL", "DATA_CLASSIFICATION", "MODEL"):
+def test_openrouter_settings_and_the_key_is_never_in_settings(monkeypatch):
+    for k in ("OPENROUTER_MODEL", "DATA_CLASSIFICATION", "MODEL"):
         monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("MODEL_PROVIDER", "openrouter")
     monkeypatch.setenv("OPENROUTER_API_KEY", KEY)
     s = ModelSettings.from_env()
     assert (s.provider, s.model, s.openrouter_provider, s.data_classification) == (
@@ -275,3 +276,161 @@ def test_seed_varies_per_run_and_is_reproducible():
     s = ModelSettings(seed=42, seed_per_run=True)
     assert s.run_seed("v1:o1") == s.run_seed("v1:o1") != s.run_seed("v1:o2")
     assert ModelSettings(seed=42).run_seed("v1:o1") == 42
+
+
+# ---------- E5-11: Ollama Cloud (native /api/chat on ollama.com, Bearer key, synthetic-data guard) ----------
+
+OKEY = "ollama-test-not-a-real-key"
+OC = ModelSettings(provider="ollama_cloud", model="gpt-oss:120b", ollama_cloud_url="http://cloud.test", think="low",
+                   num_predict=1024, backoff_s=0.0)
+
+
+def oc_answer(content="", tool_calls=None):
+    msg = {"role": "assistant", "content": content, "thinking": "short reasoning"}
+    if tool_calls:
+        msg["tool_calls"] = tool_calls
+    return {"model": "gpt-oss:120b", "message": msg, "done": True, "prompt_eval_count": 700, "eval_count": 60}
+
+
+def test_ollama_cloud_sends_the_key_and_puts_the_schema_in_the_prompt():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["auth"], seen["url"] = request.headers.get("authorization"), str(request.url)
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json=oc_answer('```json\n{"verdict": "none", "signs": []}\n```'))
+
+    backend = OllamaBackend(OC, transport=httpx.MockTransport(handler), api_key=OKEY)
+    schema = {"type": "object", "properties": {"verdict": {"type": "string"}}}
+    reply = run(backend.chat([{"role": "user", "content": "x"}], options=OC.options("map_signs", seed=7), tools=None,
+                             format=schema))
+    assert seen["url"] == "http://cloud.test/api/chat" and seen["auth"] == f"Bearer {OKEY}"
+    assert seen["model"] == "gpt-oss:120b" and seen["think"] == "low" and seen["stream"] is False
+    assert "format" not in seen and "keep_alive" not in seen     # cloud: no structured outputs, nothing to keep loaded
+    assert seen["messages"][-1]["role"] == "system" and json.dumps(schema, separators=(",", ":")) in \
+        seen["messages"][-1]["content"]
+    assert seen["options"]["seed"] == 7 and seen["options"]["num_predict"] == 1024
+    assert json.loads(reply.content) == {"verdict": "none", "signs": []}       # code fence removed
+    assert (reply.tokens_in, reply.tokens_out, reply.provider, reply.cost_usd) == (700, 60, "ollama_cloud", None)
+    assert OKEY not in repr(backend)
+    sent = OllamaBackend(ModelSettings(provider="ollama_cloud", cloud_format=True, ollama_cloud_url="http://c.test"),
+                         api_key=OKEY).body([], OC.options("map_signs"), None, schema)
+    assert sent["format"] == schema                                            # OLLAMA_CLOUD_FORMAT=1
+
+
+def test_ollama_cloud_tool_calls_use_the_native_shape():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json=oc_answer(tool_calls=[{"function": {"name": "fhir_search",
+                                                                            "arguments": {"count": 3}}}]))
+
+    tools = [{"type": "function", "function": {"name": "fhir_search", "parameters": {"type": "object"}}}]
+    reply = run(OllamaBackend(OC, transport=httpx.MockTransport(handler), api_key=OKEY).chat(
+        [{"role": "user", "content": "x"}], options=OC.options("investigate"), tools=tools, format=None))
+    assert seen["tools"] == tools and reply.tool_calls == [{"name": "fhir_search", "args": {"count": 3}}]
+
+
+def test_ollama_cloud_is_refused_without_synthetic_data_or_key():
+    calls = []
+    transport = httpx.MockTransport(lambda r: calls.append(r) or httpx.Response(200, json=oc_answer("{}")))
+    real = ModelSettings(provider="ollama_cloud", ollama_cloud_url="http://cloud.test", data_classification="real")
+    m = Model(OllamaBackend(real, transport=transport, api_key=OKEY), real)
+    with pytest.raises(ModelUnavailable) as e:
+        run(m.call([{"role": "user", "content": "x"}], "map_signs"))
+    assert e.value.reason == "data_not_synthetic" and m.breaker.failures == 0
+    assert run(m.warm_up()) is False
+    with pytest.raises(ModelUnavailable):      # the backend refuses on its own too
+        run(OllamaBackend(real, transport=transport, api_key=OKEY).chat([], options=real.options("warm_up")))
+    nokey = Model(OllamaBackend(OC, transport=transport, api_key=""), OC)
+    with pytest.raises(ModelUnavailable) as e:
+        run(nokey.call([], "map_signs"))
+    assert e.value.reason == "no_api_key" and nokey.breaker.failures == 0 and calls == []
+
+
+def test_local_ollama_is_exempt_only_on_a_local_or_bridge_address():
+    for url in ("http://host.docker.internal:11434", "http://172.17.0.1:11434", "http://127.0.0.1:11434",
+                "http://localhost:11434", "http://ollama:11434", "http://192.168.1.20:11434"):
+        b = OllamaBackend(ModelSettings(base_url=url, data_classification="real"))
+        assert b.refusal() is None and not b.remote, url
+    far = OllamaBackend(ModelSettings(base_url="https://gpu.example.org", data_classification="real"))
+    assert far.remote and far.refusal() == "data_not_synthetic"
+    assert OllamaBackend(ModelSettings(base_url="https://gpu.example.org")).refusal() is None   # synthetic: allowed
+
+
+def test_local_ollama_never_gets_the_cloud_key(monkeypatch):
+    monkeypatch.setenv("OLLAMA_API_KEY", OKEY)
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["auth"] = request.headers.get("authorization")
+        return httpx.Response(200, json=oc_answer("ok"))
+
+    run(OllamaBackend(ModelSettings(base_url="http://ollama.test"), transport=httpx.MockTransport(handler)).chat(
+        [], options=ModelSettings().options("warm_up")))
+    assert seen["auth"] is None
+
+
+def test_ollama_cloud_limits_are_model_unavailable_and_open_the_breaker():
+    m = Model(OllamaBackend(OC, transport=httpx.MockTransport(lambda r: httpx.Response(429, json={"error": "x"})),
+                            api_key=OKEY), OC)
+    with pytest.raises(ModelUnavailable) as e:
+        run(m.call([], "map_signs"))
+    assert e.value.reason == "rate_limited" and m.breaker.failures == 1
+    spent = Model(OllamaBackend(OC, transport=httpx.MockTransport(lambda r: httpx.Response(402, json={"error": "x"})),
+                                api_key=OKEY), OC)
+    with pytest.raises(ModelUnavailable) as e:
+        run(spent.call([], "map_signs"))
+    assert e.value.reason == "usage_limit"
+    with pytest.raises(ModelUnavailable) as e:
+        run(spent.call([], "map_signs"))
+    assert spent.breaker.state == "open"
+    with pytest.raises(ModelUnavailable) as e:
+        run(spent.call([], "map_signs"))
+    assert e.value.reason == "circuit_open"
+    err = Model(OllamaBackend(OC, transport=httpx.MockTransport(lambda r: httpx.Response(200, json={"error": "x"})),
+                              api_key=OKEY), OC)
+    with pytest.raises(ModelUnavailable) as e:
+        run(err.call([], "map_signs"))
+    assert e.value.reason == "invalid_response"
+
+
+def test_ollama_cloud_calls_are_queued_one_at_a_time():
+    active, peak = [0], [0]
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        active[0] += 1
+        peak[0] = max(peak[0], active[0])
+        await asyncio.sleep(0.01)
+        active[0] -= 1
+        return httpx.Response(200, json=oc_answer("ok"))
+
+    backend = OllamaBackend(OC, transport=httpx.MockTransport(handler), api_key=OKEY)
+
+    async def both():
+        await asyncio.gather(*(backend.chat([], options=OC.options("investigate")) for _ in range(3)))
+    run(both())
+    assert peak[0] == 1
+
+
+def test_ollama_cloud_settings_from_env_never_hold_the_key(monkeypatch):
+    for k in ("MODEL_PROVIDER", "OLLAMA_CLOUD_MODEL", "OLLAMA_CLOUD_BASE_URL", "MODEL_THINK", "MODEL_NUM_PREDICT",
+              "OLLAMA_CLOUD_FORMAT", "DATA_CLASSIFICATION"):
+        monkeypatch.delenv(k, raising=False)            # the default provider is Ollama Cloud
+    monkeypatch.setenv("OLLAMA_API_KEY", OKEY)
+    s = ModelSettings.from_env()
+    assert (s.provider, s.model, s.ollama_cloud_url, s.think, s.num_predict, s.cloud_format) == (
+        "ollama_cloud", "gpt-oss:120b", "https://ollama.com", "low", 1024, False)
+    m = Model(backend_for(s), s)
+    assert m.status()["provider"] == "ollama_cloud" and m.status()["refused"] is None
+    assert OKEY not in repr(s) and OKEY not in repr(m.backend) and OKEY not in json.dumps(m.status())
+    monkeypatch.setenv("OLLAMA_CLOUD_MODEL", "qwen3-next:80b")
+    monkeypatch.setenv("MODEL_THINK", "false")
+    s = ModelSettings.from_env()
+    assert (s.model, s.think) == ("qwen3-next:80b", False)
+
+
+def test_a_limit_during_warm_up_is_recorded_for_healthz_and_the_eval_runner():
+    m = Model(OllamaBackend(OC, transport=httpx.MockTransport(lambda r: httpx.Response(402)), api_key=OKEY), OC)
+    assert run(m.warm_up()) is False and m.last == "usage_limit" and m.breaker.failures == 0
