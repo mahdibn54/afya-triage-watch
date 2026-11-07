@@ -4,6 +4,8 @@
 /ui/mcp: read-only data for the screens (visit_timeline, demo_visit).
 /read/mcp: the model-facing read-only tools (compute_tews, check_deterioration, get_queue_state), called by the agent
 with the run_id so afya-mcp's audit row lands in the run's trace.
+E12-3: afya-mcp needs `Authorization: Bearer $AFYA_MCP_TOKEN` on every mount; the token is never sent to WSO2 and
+never logged.
 wso2: the borrowed WSO2 FHIR MCP server (read-only behind the GET-only gateway); the agent only ever calls `search`
 and `read` on it (investigate.py wraps them).
 """
@@ -51,11 +53,17 @@ class McpGateway:
                      "read": os.environ.get("AFYA_MCP_READ_URL", act.replace("/act/mcp", "/read/mcp")),
                      "wso2": os.environ.get("WSO2_MCP_URL", "http://wso2-fhir-mcp:8000/mcp")}
 
+    def headers(self, mount: str) -> dict[str, str]:
+        """Request headers for a mount: the afya-mcp bearer token, never sent to the borrowed WSO2 server."""
+        token = os.environ.get("AFYA_MCP_TOKEN", "")
+        return {"Authorization": f"Bearer {token}"} if mount != "wso2" and token else {}
+
     async def _call(self, mount: str, tool: str, args: dict[str, Any]) -> dict[str, Any]:
         url = self.urls[mount].rstrip("/")   # no trailing slash: "/act/mcp/" would be a 307 redirect
         try:
             with anyio.fail_after(30):
-                async with streamablehttp_client(url) as (r, w, _), ClientSession(r, w) as session:
+                async with streamablehttp_client(url, headers=self.headers(mount)) as (r, w, _), \
+                        ClientSession(r, w) as session:
                     await session.initialize()
                     res = await session.call_tool(tool, args)
         except (OSError, TimeoutError, ExceptionGroup) as e:

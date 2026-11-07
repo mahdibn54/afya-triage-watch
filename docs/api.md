@@ -15,10 +15,11 @@ FastAPI on `api:8080`. The Next.js app calls `/api/...` and its proxy strips the
 | Colours | `RED` `ORANGE` `YELLOW` `GREEN`. The UI also shows a label and a shape (■ ▲ ● ○), never colour alone. |
 | Roles | `nurse`, `clinician`, `manager`. A manager reads only. `agent` and `system` exist in the database but never sign in. |
 | Auth | Everything except `/healthz`, `/login-as` and `/demo/users` needs the session cookie: `401` otherwise. |
-| Errors | Always `{ "error": { "code": string, "message": string } }`. Codes: `unauthorized` 401, `forbidden` 403, `not_found` 404, `conflict` 409, `invalid` 422 (adds `problems[]`), `unavailable` 503. FastAPI's own validation errors are mapped to `invalid`. |
+| Errors | Always `{ "error": { "code": string, "message": string } }`. Codes: `unauthorized` 401, `forbidden` 403, `not_found` 404, `conflict` 409, `invalid` 422 (adds `problems[]`), `unavailable` 503. FastAPI's own validation errors are mapped to `invalid`. The same body for an unknown path (404 `not_found`) and a wrong method (405 `invalid`, with `Allow`). Any unexpected failure (database down, a bug) is `503 unavailable` with a generic message and no details; the cause is logged server-side only. |
 | Text | Quotes, complaints and rationale are plain text. Never `dangerouslySetInnerHTML`. |
 | Offsets | `quote_span` is `{ start, end }`, half-open, counted in Unicode code points of the **original** `complaint` the card shows (not the NFKC, case-folded copy the sign check uses). The UI slices with `Array.from(complaint).slice(start, end).join("")`. |
 | Examples | The JSON blocks below are examples. The UI's types are generated from the API's `/openapi.json` (`web/src/api/types.ts`, E7-10). |
+| OpenAPI | `/openapi.json` and `/docs` exist only when `DEMO_MODE=1` (`404` otherwise); generate the UI's types from a demo-mode api. |
 
 ## 2. Endpoints
 
@@ -40,8 +41,8 @@ FastAPI on `api:8080`. The Next.js app calls `/api/...` and its proxy strips the
 | GET | `/visits/{id}/timeline` | signed in | partial: `compute_tews` per reading; raw values come from FHIR (Q5) |
 | GET | `/runs/{run_id}/trace` | signed in | to build (E6-5) from `audit_log` |
 | GET | `/proposals/{id}/gates` | signed in | to build (E6-5); the data exists |
-| POST | `/demo/scenario` | `DEMO_MODE=1` only | to build (E6-6) |
-| POST | `/demo/scenario/next` | `DEMO_MODE=1` only | to build (E6-6) |
+| POST | `/demo/scenario` | nurse, clinician, `DEMO_MODE=1` only | to build (E6-6) |
+| POST | `/demo/scenario/next` | nurse, clinician, `DEMO_MODE=1` only | to build (E6-6) |
 
 ## 3. Vital-sign inputs
 
@@ -522,7 +523,7 @@ marked done and `audited` the time of its audit row; both are written in one tra
 ## 8. Demo (DEMO_MODE=1 only, `404` otherwise)
 
 ### POST /demo/scenario
-Request `{ "name": "p014" }` (the body is optional). Loads the P-014 scenario (first reading YELLOW). Returns the visit. The data is synthetic and defined in `api/afya_api/demo_scenario.py` (a label, no name; Patient identifier `urn:afya:label`). Loading again finishes the previous demo visit and starts a new one. Needs a signed-in user. The agent (E5) is what turns the second reading into a proposal; until E5 exists no proposal appears.
+Request `{ "name": "p014" }` (the body is optional). Loads the P-014 scenario (first reading YELLOW). Returns the visit. The data is synthetic and defined in `api/afya_api/demo_scenario.py` (a label, no name; Patient identifier `urn:afya:label`). Loading again finishes the previous demo visit and starts a new one. Needs a signed-in nurse or clinician: `403` for a manager (audited as `demo_scenario_refused`). Each click writes a `demo_scenario` audit row with the signed-in user as actor (`payload.action` `load` or `next`, the scenario, the reading); the readings themselves are seeded data, audited as `system`. The agent (E5) is what turns the second reading into a proposal; until E5 exists no proposal appears.
 
 <!-- example: POST /demo/scenario response -->
 ```json

@@ -451,8 +451,9 @@ def claim_command(conn: psycopg.Connection[DictRow], command_id: str, actor: str
 def resume_command(conn: psycopg.Connection[DictRow], command_id: str, actor: str = "system",
                    run_id: str | None = None) -> dict[str, Any] | None:
     """After a crash: claimed, not done, not abandoned, attempts < 5. A nurse-approved flag is still written when newer
-    vitals arrived meanwhile (documented in Appendix A); the new reading gets its own run. Audited as
-    `command_resumed` in the same transaction."""
+    vitals arrived meanwhile (documented in Appendix A); the new reading gets its own run. `expires_at` is not checked
+    either: it only bounds the claim, and a claimed command may have half-written its Flag, so it is finished rather
+    than left half-done (E12-3 security audit, kept by design). Audited as `command_resumed` in the same transaction."""
     with conn.transaction():
         c = conn.execute(
             "UPDATE commands SET attempts = attempts + 1 WHERE id = %s AND claimed_at IS NOT NULL AND done_at IS NULL "

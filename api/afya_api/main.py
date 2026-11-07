@@ -4,10 +4,12 @@ import asyncio
 import contextlib
 
 from fastapi import FastAPI
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from . import routes_demo, routes_proposals, routes_read, routes_session, routes_ui, routes_vitals, steps
-from .deps import get_agent, get_gateway, get_model
-from .errors import install_error_handlers
+from .deps import demo_mode, get_agent, get_gateway, get_model
+from .errors import ApiError, install_error_handlers
 from .executor import sweep_on_startup
 from .watch import watch_loop
 
@@ -34,8 +36,25 @@ async def lifespan(_app: FastAPI):
                 await task
 
 
-app = FastAPI(title="Afya Triage Watch API", version="0.1.0", lifespan=lifespan)
+# E12-3: /docs and /openapi.json only when DEMO_MODE=1 (checked per request; 404 otherwise). The UI's types are
+# generated from /openapi.json in demo mode (docs/api.md section 1).
+app = FastAPI(title="Afya Triage Watch API", version="0.1.0", lifespan=lifespan,
+              docs_url=None, redoc_url=None, openapi_url=None)
 install_error_handlers(app)
+
+
+@app.get("/openapi.json", include_in_schema=False)
+def openapi() -> JSONResponse:
+    if not demo_mode():
+        raise ApiError(404, "not found")
+    return JSONResponse(app.openapi())
+
+
+@app.get("/docs", include_in_schema=False)
+def docs() -> HTMLResponse:
+    if not demo_mode():
+        raise ApiError(404, "not found")
+    return get_swagger_ui_html(openapi_url="/openapi.json", title=f"{app.title} - docs")
 
 
 @app.get("/healthz")

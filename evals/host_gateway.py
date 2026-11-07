@@ -1,7 +1,8 @@
 """Host-side gateway: the api's McpGateway, reaching the compose containers from the host.
 
 The containers are not published on host ports, so the URLs are container IPs and the `Host` header carries the
-service name afya-mcp / the WSO2 server expect (their DNS-rebinding check). `evals/stack_env.sh` prints them. Nothing
+service name afya-mcp / the WSO2 server expect (their DNS-rebinding check). afya-mcp also needs the bearer token
+AFYA_MCP_TOKEN (E12-3; McpGateway.headers adds it, never for WSO2). `evals/stack_env.sh` prints them. Nothing
 here logs a header, a URL with credentials, or a secret."""
 from __future__ import annotations
 
@@ -24,8 +25,9 @@ class HostGateway(McpGateway):
 
     async def _call(self, mount: str, tool: str, args: dict[str, Any]) -> dict[str, Any]:
         url = self.urls[mount].rstrip("/")
+        headers = {**self.headers(mount), "Host": self.hosts[mount]}
         with anyio.fail_after(30):
-            async with streamablehttp_client(url, headers={"Host": self.hosts[mount]}) as (r, w, _), \
+            async with streamablehttp_client(url, headers=headers) as (r, w, _), \
                     ClientSession(r, w) as session:
                 await session.initialize()
                 res = await session.call_tool(tool, args)

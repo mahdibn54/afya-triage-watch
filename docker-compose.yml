@@ -104,7 +104,8 @@ services:
       FHIR_MCP_HOST: 0.0.0.0
       FHIR_MCP_PORT: "8000"
       FHIR_SERVER_DISABLE_AUTHORIZATION: "True"   # private network only; see README
-    networks: [fhir_ro, mcp]
+    # E12-3: its own network with the api only. It is not on "mcp", so it cannot reach afya-mcp's mounts.
+    networks: [fhir_ro, borrowed]
 
   # ---------- our code ----------
   # Our MCP server: /read/mcp (model-facing tools) and /act/mcp (executor only).
@@ -117,6 +118,8 @@ services:
       FHIR_BASE_URL: http://hapi:8080/fhir   # internal, write-capable URL
       RULES_DIR: /rules
       DEMO_MODE: ${DEMO_MODE:-1}   # seed_demo_visit refuses unless 1
+      # E12-3: every mount but /healthz needs "Authorization: Bearer <this>" (the api sends it)
+      AFYA_MCP_TOKEN: ${AFYA_MCP_TOKEN:?set AFYA_MCP_TOKEN in .env}
     volumes:
       - ./rules:/rules:ro
     networks: [fhir_rw, mcp, app]
@@ -133,7 +136,8 @@ services:
       AFYA_MCP_ACT_URL: http://afya-mcp:9000/act/mcp
       AFYA_MCP_UI_URL: http://afya-mcp:9000/ui/mcp   # read-only data for the screens (timeline, demo)
       RULES_DIR: /rules                              # site.yaml: clinician reminder limits for /proposals
-      WSO2_MCP_URL: http://wso2-fhir-mcp:8000/mcp
+      AFYA_MCP_TOKEN: ${AFYA_MCP_TOKEN:?set AFYA_MCP_TOKEN in .env}   # bearer token for afya-mcp (E12-3)
+      WSO2_MCP_URL: http://wso2-fhir-mcp:8000/mcp                      # on the "borrowed" network
       # E5-11: open-weights Qwen3 through OpenRouter (default) or a local Ollama (MODEL_PROVIDER=ollama).
       MODEL_PROVIDER: ${MODEL_PROVIDER:-openrouter}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-qwen/qwen3-30b-a3b-instruct-2507}
@@ -152,7 +156,7 @@ services:
       - ./rules:/rules:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    networks: [app, mcp, web]
+    networks: [app, mcp, borrowed, web]
 
   # Nurse UI (Next.js production build, web/Dockerfile).
   web:
@@ -176,7 +180,8 @@ services:
 
 networks:
   app: { internal: true }       # postgres, db-init, lg-init, afya-mcp, api
-  mcp: { internal: true }       # api <-> afya-mcp, wso2-fhir-mcp
+  mcp: { internal: true }       # api <-> afya-mcp (bearer token, E12-3)
+  borrowed: { internal: true }  # api <-> wso2-fhir-mcp only (E12-3: WSO2 runs with authorization disabled)
   fhir_ro: { internal: true }   # wso2-fhir-mcp <-> gateway  (WSO2 cannot resolve "hapi")
   fhir_rw: { internal: true }   # gateway, afya-mcp <-> hapi
   web: {}                       # web <-> api, plus outbound for api (host Ollama, OpenRouter)

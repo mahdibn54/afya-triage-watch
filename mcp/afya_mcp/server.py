@@ -7,10 +7,14 @@ Three mounts on one port (9000):
   /ui/mcp    read-only data for the api's screens (visit_timeline, queue_state, demo_visit); the model's client
              never connects here either, and it is not audited (it changes nothing).
 Every call is audited (audit.py, E4-8).
+E12-3: every mount needs `Authorization: Bearer $AFYA_MCP_TOKEN` (the api and the host-side eval gateway send it);
+only /healthz is open. Without AFYA_MCP_TOKEN every mount answers 401 (fail closed). The Host check below is not
+authentication: any client can set Host itself.
 """
 from __future__ import annotations
 
 import contextlib
+import hmac
 import os
 from functools import lru_cache
 from typing import Any
@@ -209,6 +213,29 @@ async def demo_visit(label: str) -> dict:
     return await _run(lambda: services.demo_visit(_fhir(), label))
 
 
+class BearerToken:
+    """Pure ASGI middleware (it does not buffer the MCP streams): every path but /healthz needs the bearer token."""
+
+    OPEN = ("/healthz",)
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: dict, receive: Any, send: Any) -> None:
+        if scope["type"] != "http" or scope.get("path") in self.OPEN:
+            return await self.app(scope, receive, send)
+        expected = os.environ.get("AFYA_MCP_TOKEN", "")
+        given = b""
+        for name, value in scope.get("headers", []):
+            if name == b"authorization":
+                given = value
+                break
+        if expected and hmac.compare_digest(given, b"Bearer " + expected.encode()):
+            return await self.app(scope, receive, send)
+        resp = PlainTextResponse("unauthorized", status_code=401, headers={"WWW-Authenticate": "Bearer"})
+        await resp(scope, receive, send)
+
+
 async def health(_request):
     return PlainTextResponse("ok")
 
@@ -231,3 +258,4 @@ app = Starlette(
     ],
     lifespan=lifespan,
 )
+app.add_middleware(BearerToken)
