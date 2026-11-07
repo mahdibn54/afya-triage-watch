@@ -197,6 +197,15 @@ def test_tool_order_good_trace_and_violations():
     assert any("more than one" in x for x in metrics.tool_order_violations(trial(trace=two)))
 
 
+
+def test_intent_rows_count_as_their_tool():
+    # E12-2: afya-mcp writes `<tool>_started` before an act tool; a reminder after the pause is allowed, a write
+    # intent before approval is still a write.
+    reminder = [*GOOD, step("notify_staff_started"), step("notify_staff")]
+    assert metrics.tool_order_violations(trial(trace=reminder)) == []
+    write = [*GOOD[:7], step("raise_recheck_flag_started"), *GOOD[7:]]
+    assert any("write tool" in x for x in metrics.tool_order_violations(trial(trace=write)))
+
 def test_disagreement_between_runs():
     a1 = trial(case="a", proposal=card("ORANGE"), i=1)
     a2 = trial(case="a", proposal=card("ORANGE"), i=2)

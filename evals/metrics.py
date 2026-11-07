@@ -159,7 +159,9 @@ def tool_order_violations(t: Trial) -> list[str]:
     tool calls in the investigate loop, one submit_decision and nothing after it but the pause, no refused call,
     no write tool called by the loop."""
     rows = t.get("trace") or []
-    names = [r["name"] for r in rows]
+    # afya-mcp writes an intent row `<tool>_started` before every act tool (E12-2): it is that tool's call, so it is
+    # checked as the tool itself (a `raise_recheck_flag_started` is a write before approval like the tool).
+    names = [r["name"].removesuffix("_started") for r in rows]
     out: list[str] = []
 
     def first(n: str) -> int | None:
