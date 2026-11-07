@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 69 done · 9 drafted · 17 to do · 0 blocked · 95 stories
+**Progress:** 70 done · 8 drafted · 17 to do · 0 blocked · 95 stories
 
 ---
 
@@ -377,7 +377,7 @@ Audit context: [competition-audit.md](competition-audit.md).
 | E13-1 | [x] | Upgrade own MCP client/server integration to the current protocol | M | TBD | TBD | E12-3 |
 | E13-2 | [x] | Implement current MCP server discovery | M | TBD | TBD | E13-1 |
 | E13-3 | [x] | Implement standardized MCP OAuth authorization flow | M | TBD | TBD | E13-1 |
-| E13-4 | [~] | Official MCP conformance tests and versioned reports | M | TBD | TBD | E13-1, E13-2, E13-3 |
+| E13-4 | [x] | Official MCP conformance tests and versioned reports | M | TBD | TBD | E13-1, E13-2, E13-3 |
 
 **E13-1** · Acceptance: verify and record the current official protocol revision and a compatible SDK; review the
 existing `mcp>=1.9,<2` constraint and local assistant guidance if a dependency migration is necessary; update own
@@ -498,16 +498,29 @@ and applicable authorization role. Pin/record test-tool version, protocol requir
 commands and pass/fail/skipped results; disclose unsupported features and any expected failures without presenting
 them as passes. Keep reports reproducible and free of secrets. Integrate appropriate checks into CI; retain the
 existing application/security tests and desktop/mobile approval screenshots. Do not claim clinical validation or
-automatic AAIF certification. Notes: **baseline done, story stays in progress.** Tool: `@modelcontextprotocol/conformance` 0.1.16
-(stable; [repo](https://github.com/modelcontextprotocol/conformance); its stable release only covers 2025-06-18 and 2025-11-25; the `alpha`
-tag 0.2.0-alpha.12 adds 2026-07-28). Baseline run before any E13 code change, suite `all`, source commit `46866cf`, `mcp` 1.30.0, protocol
-2025-11-25: 7 pass, 1 warn, 24 fail of 32 scenarios on each mount, report in [docs/conformance/baseline-2025-11-25.md](conformance/baseline-2025-11-25.md).
-Most failures are the tool's reference fixtures (test tools, prompts, resources, logging, sampling, elicitation) that a three-tool clinical server
-does not offer; two passes are vacuous (unknown tool answered with an error); one real finding (valid loopback Origin refused with 403) was fixed in
-E13-1. Helpers: `scripts/conformance_app.py` (adds a throwaway bearer token, the tool cannot send headers) and `scripts/conformance_report.py`
-(markdown from the output directory). Informational runs after migration (legacy path: 9 pass; 2026-07-28 with the alpha tool: 94 checks
-passed, 32 failed, fixture or not testable) are in [docs/conformance/after-migration-sdk-2.3.0.md](conformance/after-migration-sdk-2.3.0.md). Still to do:
-final run on 2026-07-28 with the then-current pinned tool, applicable authorization scenarios after E13-3, CI integration (Dheker owns `.github/`).
+automatic AAIF certification. Notes: done. Final report: [docs/conformance/final-2026-07-28.md](conformance/final-2026-07-28.md); expected failures (the tool's
+`--expected-failures` YAML, per scenario or per check, each with its reason): [docs/conformance/expected-failures.yaml](conformance/expected-failures.yaml).
+**Tool:** `@modelcontextprotocol/conformance` **0.2.0-alpha.12**, pinned exactly and plainly an alpha: the stable `latest` (0.1.16;
+[repo](https://github.com/modelcontextprotocol/conformance)) only covers 2025-06-18 and 2025-11-25, nothing stable covers 2026-07-28 yet. Source commit
+`f44482ba17df816d3176962a11cdf36aec9bda00` (npm gitHead). Requirement set `--requirements 2026-07-28` (frozen; server leg 37 required + 13 not scored,
+client leg 32 required + 7 not scored). Commands are in the report. **Baseline (before migration, kept):** tool 0.1.16, suite `all`, source commit `46866cf`,
+`mcp` 1.30.0, protocol 2025-11-25: 7 pass, 1 warn, 24 fail of 32 scenarios per mount ([baseline-2025-11-25.md](conformance/baseline-2025-11-25.md));
+informational run after migration in [after-migration-sdk-2.3.0.md](conformance/after-migration-sdk-2.3.0.md). **Final results (2026-07-28, E13-4 tree):**
+server `/read`, `/act`, `/ui` identical, each 50 scenarios: 13 pass, 2 warn, 35 fail (112 checks success, 56 failure, 2 warning, 7 skipped); api client stack
+39 scenarios: 8 pass, 31 fail. Four passes are vacuous (unknown fixture tool answered with an error) and are labelled so in the report. **Triage:** every
+failure is a reference fixture afya-mcp deliberately does not have (test tools, resources, prompts, input-required flows), an optional feature not offered
+(completions, Tasks extension), or not applicable (the api is a `client_credentials` service client: no authorization-code, PKCE, CIMD, step-up, DPoP, no client
+capabilities for input-required). **One real defect fixed:** the whitespace-header check (`Mcp-Name` padded with spaces was refused 400) failed because mcp 2.3.0
+compares the raw header; `TrimMcpHeaders` in `mcp/afya_mcp/server.py` strips RFC 9110 whitespace from `Mcp-*` headers, test in `mcp/tests/test_discovery.py`.
+**Flagged, not defects of ours:** the missing-capability check (`server-stateless`, 2 checks) needs the fixture tool `test_missing_capability`, no afya-mcp tool needs a client
+capability, so it stays a documented expected failure, not a pass; the SDK advertises empty `prompts` and `resources` capabilities (no public switch, lists are empty,
+recorded as a known limit); mcp 2.3.0 answers an unknown prompt with -32603 instead of -32602. **Authorization:** the tool has no scenario for an OAuth resource server (its
+`auth/*` scenarios are client-side, `conformance authorization` tests an authorization server and its grant is authorization code), so afya-mcp's resource-server behaviour
+is evidenced by `mcp/tests/test_auth.py` and the smoke script, not by this tool; on the client side `auth/client-credentials-basic` (extension) and `auth/pre-registration`
+pass with the api's real provider. Helpers: `scripts/conformance_app.py` (offline throwaway issuer, `AFYA_CONFORMANCE_AUTH=off` for the auth probe),
+`scripts/conformance_client.py` (client under test, new), `scripts/conformance_report.py` (markdown tables, server or client runs). **Not claimed:** AAIF certification,
+"fully conformant", clinical validation. Tests: mcp 319 (+1), api 204, evals 64 passed; ruff clean on mcp, api, evals; `scripts/smoke.sh` SMOKE OK after rebuilding afya-mcp.
+**CI (Dheker owns `.github/`):** ready-to-paste job in [docs/conformance/ci-job.yaml](conformance/ci-job.yaml), also in the Decisions log row "E13-4 CI hand-off".
 
 ---
 
@@ -548,6 +561,7 @@ Technical competition audit of `28215e1`: [competition-audit.md](competition-aud
 | Decision |
 |---|
 | **E13-3 MCP authorization (M):** OAuth 2.1 `client_credentials` for service callers (api, eval harness) against Authelia 4.39.28 (Apache-2.0, pinned by digest; Hydra rejected: no RFC 8707). One protected resource per afya-mcp mount with its own scope (`afya:read`, `afya:act`, `afya:ui`); the model-facing path only ever holds a read token; nurse confirmation stays a separate gate. `AFYA_MCP_TOKEN` removed. **For Dheker (Group A, CI):** in `evals/stack/compose.yml` service `group-a`, replace `AFYA_MCP_TOKEN` by `AFYA_AUTH_ISSUER: https://auth.afya.internal:9091`, `AFYA_AUTH_CA_FILE: /auth-ca/ca.crt`, `AFYA_MCP_CLIENT_ID: afya-api`, `AFYA_MCP_CLIENT_SECRET: ${AFYA_MCP_CLIENT_SECRET:?set AFYA_MCP_CLIENT_SECRET in .env}`, add network `auth` and volume `authca:/auth-ca:ro`; in `.github/workflows/ci.yml` generate `AFYA_MCP_CLIENT_SECRET` (e.g. `openssl rand -hex 32`) instead of `AFYA_MCP_TOKEN`; `evals/stack/README.md` wording. Known limit: afya-mcp stays plain HTTP on the internal network (TLS follow-up). |
+| **E13-4 CI hand-off (M to Dheker):** add the job in [docs/conformance/ci-job.yaml](conformance/ci-job.yaml) (copy it under `jobs:` in `.github/workflows/ci.yml`; Python 3.12 + Node 22, `pip install -e "mcp[dev]" -e "api[dev]"`, starts `scripts/conformance_app.py` on port 9100, runs `npx -y @modelcontextprotocol/conformance@0.2.0-alpha.12 server` for `/read`, `/act`, `/ui` and `client --command "python scripts/conformance_client.py"`, all with `--requirements 2026-07-28 --expected-failures docs/conformance/expected-failures.yaml`, uploads `conformance-out`). Green only for the documented, justified failures: an unlisted failure or a stale entry turns it red. No secrets and no stack needed. The tool is an alpha; when a stable release covers 2026-07-28, change the version in the three places. Real auth checks stay where they are (mcp tests, smoke). |
 | **E13 assignment (Dheker):** Mahdi owns current MCP protocol migration, discovery, standardized authorization and official conformance testing (E13-1 through E13-4). Explicitly authorized additions to the frozen backlog; all four are to do. Verify the current spec/SDK at implementation time, preserve WSO2 compatibility and clinical gates, and keep protocol conformance distinct from application tests and AAIF certification. No implementation performed by the documentation assignment. |
 | **AAIF/MCP standards review:** [competition-audit.md](competition-audit.md) distinguishes competition stack fit from full protocol conformance. Current installed SDK negotiates `2025-11-25`; official MCP documentation identifies `2026-07-28` as current, and its required discovery request is unsupported in our targeted ASGI check. Static internal bearer auth is not the standardized OAuth discovery/delegation profile. No separate AAIF requirement to replace LangGraph with Goose/A2A was found. No protocol migration, new feature or runtime change authorized by this audit; any follow-up stays subject to the frozen backlog and an explicit scope decision. |
 | **E8-2 harness repair (B):** test clients use the configured server bearer token through Compose, and audit fixtures explicitly declare human `auth`. Tests adapt to the current security contract; production auth, schema constraints and audit-mutation refusal remain unchanged. Local checked-in harness passes 25 real-service + 3 isolation cases and both desktop/mobile approval flows without overrides. |

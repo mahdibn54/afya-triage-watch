@@ -1,0 +1,102 @@
+# Expected failures of the official MCP conformance tool (@modelcontextprotocol/conformance 0.2.0-alpha.12) against
+# afya-mcp (/read, /act, /ui; identical on all three) and against the api's MCP client, requirement set 2026-07-28.
+# Every entry is a documented, justified failure: see docs/conformance/final-2026-07-28.md for the triage. None of
+# these is a pass. Exit-code rule of the tool: an unlisted failure fails the run (regression); a listed scenario that now
+# passes fails the run too (stale entry, remove it). Reasons: FIXTURE = the tool's reference server offers a tool,
+# prompt or resource that afya-mcp deliberately does not have; NOT-OFFERED = optional feature afya-mcp does not
+# implement; SDK = behaviour of mcp 2.3.0; NA = does not apply to this implementation.
+
+server:
+  # FIXTURE: tools that exist only on the tool's reference server (test_simple_image, test_audio, ...)
+  - tools-call-image
+  - tools-call-audio
+  - tools-call-embedded-resource
+  - tools-call-mixed-content
+  - tools-call-with-progress
+  - json-schema-2020-12
+  # FIXTURE: test://static-text, test://static-binary, test://template/{id}/data (afya-mcp offers no resources)
+  - resources-read-text
+  - resources-read-binary
+  - resources-templates-read
+  # FIXTURE + SDK: test prompts do not exist (afya-mcp offers no prompts); an unknown prompt name is answered with
+  # -32603 "Internal server error" by mcp 2.3.0 instead of -32602
+  - prompts-get-simple
+  - prompts-get-with-args
+  - prompts-get-embedded-resource
+  - prompts-get-with-image
+  # NOT-OFFERED: no completions capability (read-only clinical tools, no argument completion)
+  - completion-complete
+  # FIXTURE: input-required (multi round trip) flows need the tool's test_input_required_* tools; afya-mcp tools never
+  # ask the client for input (no elicitation, sampling or roots)
+  - input-required-result-basic-elicitation
+  - input-required-result-basic-sampling
+  - input-required-result-basic-list-roots
+  - input-required-result-request-state
+  - input-required-result-multiple-input-requests
+  - input-required-result-multi-round
+  - input-required-result-non-tool-request
+  - input-required-result-result-type
+  - input-required-result-tampered-state
+  - input-required-result-capability-check
+  # FIXTURE (warnings only, the tool scores these as passes): both checks call the fixture tool
+  # test_input_required_result_elicitation, which does not exist, and judge the "Unknown tool" answer
+  - input-required-result-missing-input-response:sep-2322-missing-response-rerequests
+  - input-required-result-validate-input:sep-2322-error-on-protocol-error
+  # NOT-TESTABLE: no tool carries an x-mcp-header annotation, so none of these custom-header checks can be exercised
+  - http-custom-header-server-validation
+  # FIXTURE: server-stateless needs the diagnostic tool test_missing_capability, which afya-mcp does not list. No afya-mcp
+  # tool needs a client capability, so the rule (-32021 for an undeclared capability) has nothing to guard.
+  - server-stateless:sep-2575-server-rejects-undeclared-capability
+  - server-stateless:sep-2575-missing-capability-http-400
+  # NOT-OFFERED: Tasks extension (io.modelcontextprotocol/tasks); optional, not scored by the tool; afya-mcp tools are
+  # synchronous and short
+  - tasks-lifecycle
+  - tasks-capability-negotiation
+  - tasks-wire-fields
+  - tasks-request-state-removal
+  - tasks-mrtr-input
+  - tasks-request-headers
+  - tasks-dispatch-and-envelope
+  - tasks-required-task-error
+  - tasks-mrtr-composition
+
+client:
+  # NA: the api's callers are services; it implements OAuth 2.1 client_credentials with client_secret_basic and a
+  # pre-registered client only (auth/client-credentials-basic and auth/pre-registration pass). It has no authorization
+  # code flow, PKCE, CIMD or dynamic registration, no step-up or offline_access, and no issuer-parameter handling.
+  - auth/metadata-default
+  - auth/metadata-var1
+  - auth/metadata-var2
+  - auth/metadata-var3
+  - auth/basic-cimd
+  - auth/scope-from-www-authenticate
+  - auth/scope-from-scopes-supported
+  - auth/scope-omitted-when-undefined
+  - auth/scope-step-up
+  - auth/scope-retry-limit
+  - auth/token-endpoint-auth-basic
+  - auth/token-endpoint-auth-post
+  - auth/token-endpoint-auth-none
+  - auth/resource-mismatch
+  - auth/offline-access-scope
+  - auth/offline-access-not-supported
+  - auth/authorization-server-migration
+  - auth/iss-supported
+  - auth/iss-not-advertised
+  - auth/iss-supported-missing
+  - auth/iss-wrong-issuer
+  - auth/iss-unexpected
+  - auth/iss-normalized
+  - auth/metadata-issuer-mismatch
+  # NA (extensions, not scored): private_key_jwt, enterprise-managed authorization, DPoP, workload identity
+  - auth/client-credentials-jwt
+  - auth/enterprise-managed-authorization
+  - auth/dpop
+  - auth/dpop-nonce
+  - auth/wif-jwt-bearer
+  # NA: the api declares no client capabilities (no elicitation, sampling or roots), so it cannot answer input_required
+  # results; the SDK client refuses them ("Elicitation not supported")
+  - sep-2322-client-request-state
+  # SDK: mcp 2.3.0 drops JSON Schema keywords ($schema, $defs, allOf, if/then/else, $anchor) when it parses tools/list;
+  # not scored (added after the revision shipped); the api never reads tool schemas (fixed tool names and arguments)
+  - json-schema-2020-12-preservation

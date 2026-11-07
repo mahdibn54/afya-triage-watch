@@ -1,6 +1,6 @@
 """Turn the output directory of `conformance server -o <dir>` into a dated-free markdown table (E13-4).
 
-Usage: python scripts/conformance_report.py <output-dir> [<output-dir> ...]
+Usage: python scripts/conformance_report.py <output-dir> [<output-dir> ...]   (server or client runs)
 Only scenario names, statuses and the tool's error text are kept; run timestamps in the directory names are dropped.
 """
 from __future__ import annotations
@@ -13,11 +13,10 @@ from pathlib import Path
 
 def scenarios(out: Path) -> dict[str, list[dict]]:
     result: dict[str, list[dict]] = {}
-    for d in sorted(out.iterdir()):
-        checks = d / "checks.json"
-        if checks.is_file():
-            name = re.sub(r"^server-|-\d{4}-\d\d-\d\dT.*$", "", d.name)
-            result[name] = json.loads(checks.read_text())
+    for checks in sorted(out.rglob("checks.json")):   # client runs nest the auth scenarios under auth/
+        d = checks.parent
+        name = re.sub(r"^server-|-\d{4}-\d\d-\d\dT.*$", "", d.name)
+        result[f"{d.parent.name}/{name}" if d.parent != out else name] = json.loads(checks.read_text())
     return result
 
 

@@ -120,3 +120,16 @@ def test_tools_list_is_unchanged_and_separate_from_discovery(client, mount):
     assert {t["name"]: t["inputSchema"] for t in legacy["result"]["tools"]} == \
         {t["name"]: t["inputSchema"] for t in modern}
 
+
+
+def test_whitespace_around_mcp_header_values_is_accepted(client):
+    """E13-4: RFC 9110 optional whitespace around `Mcp-Method` / `Mcp-Name` values must not change the outcome."""
+    body, headers = rpc("tools/call", params={"name": "no_such_tool", "arguments": {}})
+    auth_h = bearer(mint("read"))
+    padded = {**headers, "Mcp-Method": "  tools/call  ", "Mcp-Name": "\tno_such_tool  ", **auth_h}
+    r = client.post("/read/mcp", json=body, headers=padded)
+    assert r.status_code == 200, r.text
+    assert decode(r)["result"]["isError"] is True  # reached the tool layer (unknown tool), not a header refusal
+    wrong = {**headers, "Mcp-Name": "  another_tool  ", **auth_h}
+    r = client.post("/read/mcp", json=body, headers=wrong)
+    assert r.status_code == 400 and decode(r)["error"]["code"] == -32020

@@ -53,6 +53,8 @@ command) in front of every write: an access token never replaces it.
 Known limit: afya-mcp itself stays plain HTTP on the internal `mcp` network (no published port), while OAuth 2.1 asks for
 TLS wherever bearer tokens travel; tokens are short-lived and bound to one mount. TLS on afya-mcp is the next step.
 
+Protocol conformance (E13-4): the official MCP conformance tool (pinned alpha, requirement set 2026-07-28) was run against all three mounts and the api's client; results, the triage of every failure and the expected-failures list are in [docs/conformance/final-2026-07-28.md](conformance/final-2026-07-28.md). It is not AAIF certification and not a clinical validation.
+
 Postgres holds proposals, single-use commands, readings with the complaint, agent checkpoints and the audit log. FHIR (HAPI)
 holds the clinical record: one reading is one Observation; the confirmed colour is `Encounter.priority`.
 

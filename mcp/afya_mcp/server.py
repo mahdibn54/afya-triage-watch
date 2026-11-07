@@ -260,10 +260,27 @@ async def lifespan(_app):
         yield
 
 
+class TrimMcpHeaders:
+    """E13-4: strip optional whitespace around the value of every `Mcp-*` request header (RFC 9110 section 5.5).
+
+    The official conformance tool (sep-2243-server-accepts-whitespace-header-value) sends `Mcp-Name: "  compute_tews  "`
+    and requires acceptance; mcp 2.3.0 compares the raw value with the body and answers 400 (-32020). Trimming is
+    spec-exact and only affects whitespace: a different value is still refused by the SDK's own comparison."""
+
+    def __init__(self, inner: Any) -> None:
+        self.inner = inner
+
+    async def __call__(self, scope: dict, receive: Any, send: Any) -> None:
+        if scope["type"] == "http":
+            headers = [(k, v.strip(b" \t") if k.startswith(b"mcp-") else v) for k, v in scope["headers"]]
+            scope = {**scope, "headers": headers}
+        await self.inner(scope, receive, send)
+
+
 def _mount(name: str, server: MCPServer) -> Mount:
     """E13-3: the mount's MCP app behind the OAuth resource-server checks for its own audience and scope."""
-    return Mount(f"/{name}", app=auth.Protected(
-        server.streamable_http_app(stateless_http=True, transport_security=_security()), name))
+    return Mount(f"/{name}", app=auth.Protected(TrimMcpHeaders(
+        server.streamable_http_app(stateless_http=True, transport_security=_security())), name))
 
 
 app = Starlette(

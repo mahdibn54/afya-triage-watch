@@ -55,7 +55,7 @@ also starts the authorization server, Authelia (`auth`, about 60 MB RAM), on an 
 CA; a one-shot `auth-init` creates the CA, keys and internal secrets in the `authdata` volume and registers the api's
 client with a hash of `AFYA_MCP_CLIENT_SECRET`. Nothing else to configure. The api gets one short-lived token per MCP
 mount with only that mount's scope (`afya:read`, `afya:act`, `afya:ui`). Rotate all of it with
-`docker compose down && docker volume rm afya_authdata afya_authca`. Design and limits: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+`docker compose down && docker volume rm afya_authdata afya_authca`. Design and limits: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Protocol conformance (official MCP conformance tool, alpha, protocol 2026-07-28, with documented expected failures; not AAIF certification, not clinical validation): [`docs/conformance/final-2026-07-28.md`](docs/conformance/final-2026-07-28.md).
 
 ### Model provider
 
