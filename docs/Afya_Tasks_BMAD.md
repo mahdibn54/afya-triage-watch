@@ -395,6 +395,7 @@ handed to B in the run report.
 
 | Decision |
 |---|
+| docs/review-for-mahdi.md removed by M: items 1–4 and 6 fixed (E12-1, E12-2). Left for B: E0-6 — update the mypy count (afya_mcp 0 errors, afya_api 12, all LangGraph typing) and decide whether mypy fails CI; E2-5 — M agrees B closes it (binding done in E5-9; qwen3:30b-a3b not pulled; default provider is now OpenRouter). |
 | E2-1…E2-3 and E3-1…E3-4 reassigned to M: built and verified on M's side. E2-4 stays with B (routing verified by M; FHIRPath trimming still open). |
 | Architecture v4.1 accepted as final. |
 | Backlog lives only in this file; no GitHub issues. |
