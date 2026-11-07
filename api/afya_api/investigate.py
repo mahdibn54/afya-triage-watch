@@ -72,8 +72,8 @@ others stayed, or there is only one earlier reading to compare with) or the re-c
 The facts hold the trigger and the current reading's score only, NOT any measured value or earlier score. \
 You have at most 4 read-only tool calls; call the ones you need together in one turn, never repeat a call.
 Tools:
-- fhir_search: the readings of this visit with their measured values and times (the FHIR record). The ONLY source \
-of the measured values your rationale quotes, and of the trend (one reading or several).
+- fhir_search: the readings of this visit, oldest first, with their measured values and times (the FHIR record). \
+The ONLY source of the measured values your rationale quotes (earlier value to current value), and of the trend.
 - check_deterioration: the previous reading's score and colour, and which inputs moved into a higher or lower \
 score band, with record ids. No measured values.
 - get_queue_state: minutes waited against the target and whether a re-check is overdue (helps decide a re-measure).
@@ -215,6 +215,9 @@ def read_only_tools(ctx: Any, run_id: str, visit_id: str, obs_id: str, seen: set
         resources = [e.get("resource", {}) for e in bundle.get("entry", [])]
         rows = [x for x in (labelled(trim_observation(r)) for r in resources
                            if (r.get("encounter") or {}).get("reference") == f"Encounter/{visit_id}") if x]
+        # E12-5: the newest N are fetched, then shown OLDEST first with the current reading marked, so "before to
+        # after" reads in the list's order (a live run read the newest-first list backwards).
+        rows = [{**x, "is_current": x["id"] == current} for x in reversed(rows)]
         await write_step(run_id, visit_id, "tool", "search", f"type=Observation, encounter=Encounter/{visit_id}",
                          f"{len(rows)} readings", server="borrowed", cited_ids=[r["id"] for r in rows])
         return done({"readings": rows})
@@ -270,8 +273,9 @@ def read_only_tools(ctx: Any, run_id: str, visit_id: str, obs_id: str, seen: set
     t = StructuredTool.from_function
     return [
         t(coroutine=fhir_search, name="fhir_search", args_schema=CountArgs,
-          description="Borrowed FHIR server, read-only. The readings of this visit, newest first: record id, time, "
-                      "values (input, code, value, unit). Use it to see the earlier values behind a colour rise or "
+          description="Borrowed FHIR server, read-only. The latest readings of this visit, OLDEST first (the last "
+                      "one, is_current true, is the current reading): record id, time, values (input, code, value, "
+                      "unit). Use it to see the earlier values behind a colour rise or "
                       "reported worsening and whether the change is a trend or one reading. Not useful when the "
                       "facts say there is no previous reading."),
         t(coroutine=fhir_read, name="fhir_read", args_schema=ObsArgs,

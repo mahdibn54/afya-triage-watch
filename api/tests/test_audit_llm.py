@@ -49,6 +49,18 @@ def test_numbers_and_ids_must_come_from_the_run():
     assert rationale_text("Heart rate 112.", CODE, RationaleFacts())[1] == "code"
 
 
+def test_values_written_later_to_earlier_are_refused():
+    """E12-5: the order check (earlier -> later pairs of values, scores and record ids)."""
+    f = rationale_facts({"tews": 6}, {"tews": 3}, [105, 112, 37.2, 38.6], ids=["Observation/11", "Observation/12"],
+                        order=[(105, 112), (37.2, 38.6), (3, 6), ("Observation/11", "Observation/12")])
+    ok = "Heart rate 105 to 112 (Observation/11 to Observation/12): score 3 to 6."
+    assert rationale_text(ok, CODE, f) == (ok, "model", None)
+    for bad in ("Heart rate 112 to 105.", "Temperature 38.6 → 37.2.", "Score 6 to 3, YELLOW to ORANGE.",
+                "Heart rate rose (Observation/12 to Observation/11)."):
+        assert rationale_text(bad, CODE, f)[2] == "values in the wrong order", bad
+    assert rationale_text("Heart rate 105 to 112.", CODE, f)[1] == "model"
+
+
 def test_in_the_graph_a_wrong_number_is_replaced(client, as_user, visit, backend):
     backend.script("investigate", decision("propose", rationale="SpO2 fell to 80 and the score is 6."))
     vitals(client, visit)

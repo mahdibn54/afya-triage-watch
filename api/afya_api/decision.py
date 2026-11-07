@@ -109,6 +109,8 @@ _ZERO_WIDTH = dict.fromkeys(map(ord, "\u00ad\u180e\u200b\u200c\u200d\u200e\u200f
                                    "\u202e\u2060\u2061\u2062\u2063\u2064\u2066\u2067\u2068\u2069\ufeff"), None)
 _ID = re.compile(r"\b(observation|encounter)/([a-z0-9.-]{1,64})", re.IGNORECASE)
 _NUMBER = re.compile(r"(?<![\w.])\d+(?:[.,]\d+)?(?![\w])")
+_PAIR = re.compile(r"((?:observation|encounter)/[a-z0-9.-]{1,64}|(?<![\w.])\d+(?:[.,]\d+)?)\s*(?:to|->|→|-)\s*"
+                   r"((?:observation|encounter)/[a-z0-9.-]{1,64}|\d+(?:[.,]\d+)?(?![\w]))")
 _PUNCT = re.compile(r"[\s.,;:()\[\]/%°+\-'\"<>=→←↑↓–—]+")
 
 
@@ -128,10 +130,17 @@ class RationaleFacts:
     numbers: frozenset[str] = frozenset()
     ids: frozenset[str] = frozenset()
     words: frozenset[str] = frozenset()
+    order: frozenset[tuple[str, str]] = frozenset()   # E12-5: (earlier, later) values, scores and record ids
 
 
-def rationale_facts(*sources: Any, ids: list[str] | None = None, chart: dict[str, Any] | None = None
-                    ) -> RationaleFacts:
+def _token(v: Any) -> str:
+    """A number or a record id as the order check compares them."""
+    text = clean_text(str(v))
+    return text if _ID.fullmatch(text) else _number(text.replace(",", "."))
+
+
+def rationale_facts(*sources: Any, ids: list[str] | None = None, chart: dict[str, Any] | None = None,
+                    order: list[tuple[Any, Any]] | None = None) -> RationaleFacts:
     """Collect every number and record id in `sources` (score, deterioration check, evidence rows, readings, trigger),
     plus `ids` (record ids the investigate tools returned) and the chart's sign codes and gloss words."""
     numbers: set[str] = set()
@@ -159,7 +168,13 @@ def rationale_facts(*sources: Any, ids: list[str] | None = None, chart: dict[str
     for code, sign in ((chart or {}).get("signs") or {}).items():
         words.add(code.casefold())
         words.update(w for w in _PUNCT.split(clean_text(sign.get("gloss", ""))) if w)
-    return RationaleFacts(frozenset(numbers), frozenset(found), frozenset(words))
+    pairs = set()
+    for a, b in order or []:
+        try:
+            pairs.add((_token(a), _token(b)))
+        except ValueError:
+            continue
+    return RationaleFacts(frozenset(numbers), frozenset(found), frozenset(words), frozenset(pairs))
 
 
 def rationale_text(model_text: str | None, code_text: str,
@@ -181,6 +196,12 @@ def rationale_text(model_text: str | None, code_text: str,
     for kind, rid in _ID.findall(text):
         if f"{kind}/{rid}" not in facts.ids:
             return code_text, "code", "record id not in this run's evidence"
+    for a, b in _PAIR.findall(text):
+        # E12-5: "<later> to <earlier>" reads as the opposite change on the card (seen live: the model read the
+        # newest-first readings backwards). A pair whose reverse is a known earlier -> later pair is refused.
+        pair = (_token(a), _token(b))
+        if pair[::-1] in facts.order and pair not in facts.order:
+            return code_text, "code", "values in the wrong order"
     rest = _ID.sub(" ", text)
     for n in _NUMBER.findall(rest):
         if _number(n.replace(",", ".")) not in facts.numbers:
@@ -248,7 +269,25 @@ def facts_for(s: dict[str, Any], chart: dict[str, Any], evidence: list[dict[str,
     (all their values) and the record ids its investigate tools returned."""
     dec = s.get("decision") or {}
     return rationale_facts(s.get("score"), s.get("det"), s.get("trigger"), evidence, readings or [],
-                           ids=list(dec.get("seen_ids") or []), chart=chart)
+                           ids=list(dec.get("seen_ids") or []), chart=chart, order=earlier_later(s, readings or []))
+
+
+def earlier_later(s: dict[str, Any], readings: list[dict[str, Any]]) -> list[tuple[Any, Any]]:
+    """E12-5: the (earlier, later) pairs a rationale may write as "a to b": each input's value in the previous and
+    the current reading, the two scores and the two record ids."""
+    prev = (s.get("det") or {}).get("previous")
+    cur = (s.get("score") or {}).get("observation_id")
+    if not prev or not cur:
+        return []
+    by = {r.get("obs_id"): r for r in readings}
+    before, after = by.get(prev["observation_id"]), by.get(cur)
+    out: list[tuple[Any, Any]] = [(prev["observation_id"], cur), (prev.get("tews"), (s.get("score") or {}).get("tews"))]
+    if before and after:
+        for name, a in (after.get("values") or {}).items():
+            b = (before.get("values") or {}).get(name)
+            if b is not None and isinstance(a.get("value"), (int, float)) and isinstance(b.get("value"), (int, float)):
+                out.append((b["value"], a["value"]))
+    return [(x, y) for x, y in out if x is not None and y is not None and x != y]
 
 
 def build_payload(s: dict[str, Any], chart: dict[str, Any], evidence: list[dict[str, Any]],

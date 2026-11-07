@@ -59,9 +59,10 @@ def test_loop_with_a_borrowed_search_then_a_decision_rejecting_unseen_ids(client
     assert sent[0]["options"]["temperature"] == 0.2
     tool_msg = next(m for m in sent[1]["messages"] if m["role"] == "tool")
     rows = json.loads(tool_msg["content"])["readings"]
-    assert set(rows[0]) == {"id", "time", "values"} and all(set(v) == {"input", "code", "value", "unit"}
-                                                              for v in rows[0]["values"])
-    assert {"input": "heart rate", "code": "8867-4", "value": 105, "unit": "/min"} in rows[-1]["values"]
+    assert set(rows[0]) == {"id", "time", "values", "is_current"} and all(
+        set(v) == {"input", "code", "value", "unit"} for v in rows[0]["values"])
+    assert {"input": "heart rate", "code": "8867-4", "value": 105, "unit": "/min"} in rows[0]["values"]   # oldest first
+    assert [r["is_current"] for r in rows] == [False, True]
 
 
 def test_forged_write_tool_call_is_refused(client, as_user, visit, backend, gateway, fhir):
@@ -149,7 +150,7 @@ def test_model_chosen_own_and_borrowed_reads_then_a_cited_decision(client, as_us
         changes = next(r["changes"] for r in tool_rows if "changes" in r)
         assert {c["input"] for c in changes} >= {"heart rate"}      # labelled, never heart_rate
         assert all(set(c) == {"input", "score_band", "before", "after"} for c in changes)   # no point numbers
-        new, old = readings[0]["id"], readings[1]["id"]
+        old, new = readings[0]["id"], readings[-1]["id"]
         return decision("propose_and_remeasure", rationale=f"Heart rate 105 to 112 ({old} to {new}): score 3 to 6, "
                         "YELLOW to ORANGE.", cited_ids=[old, new])
     turn1 = Reply("", tool_calls=[{"name": "fhir_search", "args": {"count": 5}},
@@ -203,3 +204,20 @@ def test_two_text_answers_end_the_loop_with_the_code_proposal(client, as_user, v
     assert len([x for x in backend.seen if x["purpose"] == "investigate"]) == 2
     p = card(client, visit)
     assert (p["agent_action"], p["rationale_source"], p["status"]) == ("propose", "code", "pending")
+
+
+def test_a_rationale_with_values_in_the_wrong_order_is_replaced(client, as_user, visit, backend):
+    """E12-5: seen live: "heart rate 112 to 105" for a rise from 105 to 112 passed the number check."""
+    def backwards(messages, tools):
+        f = facts(messages)
+        return decision("propose", rationale=f"Heart rate 112 to 105 ({f['reading']['id']} to "
+                        f"{f['previous_reading']['id']}): score 6, YELLOW to ORANGE.")
+    backend.script("investigate", backwards)
+    out = two_readings(client, visit, heart_rate=112, temperature=38.6)
+    p = card(client, visit)
+    assert p["rationale_source"] == "code" and "112 to 105" not in p["rationale"]
+    from afya_mcp import db
+    with db.connect() as c:
+        row = c.execute("SELECT payload FROM audit_log WHERE run_id = %s AND kind = 'agent_step' "
+                        "AND payload->>'name' = 'submit_decision'", (out["run_id"],)).fetchone()
+    assert row["payload"]["rationale_replaced"] == "values in the wrong order"
