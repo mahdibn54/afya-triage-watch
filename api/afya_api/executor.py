@@ -42,7 +42,12 @@ async def run_command(gateway: Gateway, command_id: str, actor: str, run_id: str
     try:
         out = await gateway.act("raise_recheck_flag", args)
     except Exception as e:  # noqa: BLE001
-        log.warning("command %s not executed now (%s); the startup sweep will retry", command_id, type(e).__name__)
+        why = str(getattr(e, "text", "") or type(e).__name__)[:160]   # afya-mcp's short error text, no record text
+        hint = ("the visit or reading is not in the FHIR server (a reset?): it cannot succeed"
+                if "NotFound" in why else "may be a passing outage")
+        log.warning("command %s not executed now (%s; %s). Each startup sweep retries it until %d attempts are used, "
+                    "then it is abandoned with a command_abandoned audit row", command_id, why, hint,
+                    workflow.MAX_ATTEMPTS)
         return {"status": "failed", "command_id": command_id, "reason": type(e).__name__}
     if out.get("status") not in ("done", "already_done"):
         log.warning("command %s: %s (%s)", command_id, out.get("status"), out.get("reason"))

@@ -84,3 +84,11 @@ Six gates, shown in the UI: proposed, paused, confirmed (role check; managers re
 The app database role cannot UPDATE or DELETE `audit_log` (column-level INSERT and SELECT only), and has UPDATE only on
 named status columns of proposals and commands. A database administrator can still rewrite the log (no hash chain: parking lot).
 Every action carries the user, role and run id.
+
+The audit trail fails closed (E12-6). Our tools (`read`, `ui`, `act`) return a result only after its audit row (inputs,
+output, latency, timestamp) is written; act tools also write an intent row first and do nothing without it. The one
+exception is `queue_state`, the boards' polling. Each agent step is an `agent_step` row; if one cannot be written after
+three attempts the run stops (no proposal, no code-built fallback from an unlogged step) and the nurses get the
+`agent_failed` notice. A borrowed WSO2 read stores the exact projected result the model received (ids, codes, values,
+units, times; capped, plus a hash of the full result and of the raw payload, never free text). The complaint text is
+never logged (its length only).

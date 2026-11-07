@@ -230,6 +230,8 @@ def build_graph(ctx: RunContext) -> StateGraph:
         chart = ctx.chart(s["score"]["chart_id"])
         try:
             out = await sg.map_signs(ctx, run, visit, s.get("complaint"), s["score"], chart)
+        except steps.TraceFailed:
+            raise   # E12-6: an unlogged step stops the run
         except Exception as e:  # noqa: BLE001 - B2: anything unexpected = model unavailable; the rules go on
             log.warning("map_signs failed in run %s (%s): rules only", run, type(e).__name__)
             await steps.write(run, visit, "model", "map_signs", "-", "model unavailable (invalid_response): rules only",
@@ -264,6 +266,8 @@ def build_graph(ctx: RunContext) -> StateGraph:
                  "trigger": s["trigger"], "sign_codes": s["signs"]["kept"]}
         try:
             return {"decision": await inv.investigate(ctx, run, facts)}
+        except steps.TraceFailed:
+            raise   # E12-6: no code-built fallback from an unlogged step
         except Exception as e:  # noqa: BLE001 - B2: the code-built proposal stands, with the "no model" notice
             log.warning("investigate failed in run %s (%s): rules only", run, type(e).__name__)
             await steps.write(run, visit, "model", "investigate", "-",
@@ -413,7 +417,8 @@ class Agent:
             async with self.graph(ctx) as g:
                 snap = await g.aget_state(self.config(run_id))
                 old_at = snap.values.get("reading_at") if snap.values else None
-                if old_at and old_at != await reading_at(self.gateway, vid, oid):
+                now_at = await reading_at(self.gateway, vid, oid) if old_at else None
+                if old_at and now_at is not None and old_at != now_at:   # (unreadable now: not "stale")
                     # N7: same ids, different reading (the FHIR server was reset, Postgres was not): a new run
                     await g.checkpointer.adelete_thread(run_id)   # type: ignore[union-attr]
                     await steps.write(run_id, vid, "gate", "stale_thread", f"reading at {old_at}",
@@ -433,7 +438,10 @@ class Agent:
                     "run_id": run_id, "resumed": resumed, **{k: out.get(k) for k in ("stop", "proposal_id", "trigger")}}
         except Exception as e:  # noqa: BLE001
             log.exception("run %s failed", run_id)
-            await steps.write(run_id, vid, "gate", "run_failed", "-", f"run stopped: {type(e).__name__}")
+            try:
+                await steps.write(run_id, vid, "gate", "run_failed", "-", f"run stopped: {type(e).__name__}")
+            except steps.TraceFailed:   # E12-6: the stop itself could not be traced; the notice below still goes out
+                log.error("run %s stopped (%s) and its stop could not be traced", run_id, type(e).__name__)
             await self._run_failed(run_id, vid)
             return {"status": "failed", "run_id": run_id, "reason": type(e).__name__}
         finally:

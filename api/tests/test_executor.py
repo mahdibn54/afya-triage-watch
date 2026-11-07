@@ -48,3 +48,21 @@ def test_resume_after_approval_is_idempotent_and_never_raises(gateway, visit, fh
     assert (first["status"], second["status"]) == ("done", "already_done")
     assert gateway.calls[0][1]["actor"] == "clin-m"      # the approving user, looked up from the proposal
     assert asyncio.run(resume_after_approval(str(uuid.uuid4()), gateway=gateway))["status"] == "not_found"
+
+
+def test_a_command_whose_visit_is_gone_logs_the_cause_not_just_toolfailed(caplog):
+    """E12-6 (E12-2 follow-up): the startup log names the cause (FHIR 404 after a reset) and the abandon rule."""
+    import asyncio
+    import logging
+
+    from afya_api.executor import run_command
+    from afya_api.mcp_client import ToolFailed
+
+    class Gw:
+        async def act(self, tool, args):
+            raise ToolFailed("FhirNotFound: GET Encounter/v1: HTTP 404")
+
+    with caplog.at_level(logging.WARNING, logger="afya_api.executor"):
+        out = asyncio.run(run_command(Gw(), "c1", "nurse-a"))
+    assert out["status"] == "failed"
+    assert "FhirNotFound" in caplog.text and "cannot succeed" in caplog.text and "abandoned" in caplog.text

@@ -86,11 +86,36 @@ def test_act_tool_does_not_run_without_an_audit_log():
     assert ran == []
 
 
-def test_read_tool_still_answers_when_the_audit_insert_fails_but_logs_it(caplog):
+@pytest.mark.parametrize("mode", [audit.READ, audit.UI])
+def test_read_and_ui_tools_return_nothing_when_the_audit_insert_fails(mode, caplog):
+    """E12-6: fail closed. The result is computed but withheld; the failure is logged."""
     a = FakeAuditor(fail=True)
-    with caplog.at_level(logging.ERROR, logger="afya_mcp.audit"):
-        assert audit.call(a, "compute_tews", audit.READ, {}, lambda: {"status": "scored"}) == {"status": "scored"}
-    assert "not written" in caplog.text
+    with caplog.at_level(logging.ERROR, logger="afya_mcp.audit"), pytest.raises(audit.AuditFailed):
+        audit.call(a, "compute_tews", mode, {}, lambda: {"status": "scored"})
+    assert "withheld" in caplog.text
+
+
+@pytest.mark.parametrize("mode", [audit.READ, audit.UI])
+def test_read_and_ui_tools_do_not_run_without_an_audit_log(mode):
+    ran = []
+    with pytest.raises(audit.AuditFailed):
+        audit.call(None, "compute_tews", mode, {}, lambda: ran.append(1))
+    assert ran == []
+
+
+def test_ui_call_is_logged_as_system():
+    a = FakeAuditor()
+    audit.call(a, "visit_timeline", audit.UI, {"visit_id": "Encounter/v1"}, lambda: {"status": "ok"})
+    assert a.rows[0]["actor"] == "system" and a.rows[0]["auth"] == "service"
+    assert a.rows[0]["payload"]["output"] == {"status": "ok"} and a.rows[0]["visit_id"] == "v1"
+
+
+def test_audit_rows_carry_no_secrets():
+    a = FakeAuditor()
+    audit.call(a, "compute_tews", audit.READ, {"observation_id": "Observation/1"}, lambda: {"status": "scored"})
+    text = json.dumps(a.rows).lower()
+    for word in ("bearer", "token", "secret", "password", "authorization"):
+        assert word not in text
 
 
 def test_payloads_are_trimmed():
@@ -146,3 +171,28 @@ def test_when_only_the_final_row_fails_the_result_stands_and_the_intent_row_is_t
                          actor="nurse-a", intent=True)
     assert out == {"status": "saved"} and [r["kind"] for r in a.rows] == ["record_vitals_started"]
     assert "record_vitals_started row is the record" in caplog.text
+
+
+@pytest.mark.parametrize("tool, args", [
+    ("compute_tews", {"observation_id": "Observation/1"}),
+    ("get_queue_state", {}),
+    ("visit_timeline", {"visit_id": "v1"}),
+    ("demo_visit", {"label": "P-014"}),
+    ("notify_staff", {"kind": "vitals_due", "actor": "system", "visit_id": "v1"}),
+])
+def test_every_mount_refuses_when_the_audit_log_is_down(monkeypatch, tool, args):
+    """E12-6: read, ui and act fail closed via the real server wiring (act: nothing runs; others: result withheld)."""
+    import asyncio
+
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    from afya_mcp import server
+
+    monkeypatch.setattr(server, "_auditor", lambda: FakeAuditor(fail=True))
+    def no_fhir():
+        raise RuntimeError("no FHIR in this test")   # a read body may run, but its error must not leak out either
+
+    monkeypatch.setattr(server, "_fhir", no_fhir)
+    with pytest.raises(ToolError) as exc:
+        asyncio.run(getattr(server, tool)(**args))
+    assert "AuditFailed" in str(exc.value)

@@ -222,3 +222,41 @@ def test_a_rationale_with_values_in_the_wrong_order_is_replaced(client, as_user,
         row = c.execute("SELECT payload FROM audit_log WHERE run_id = %s AND kind = 'agent_step' "
                         "AND payload->>'name' = 'submit_decision'", (out["run_id"],)).fetchone()
     assert row["payload"]["rationale_replaced"] == "values in the wrong order"
+
+
+def test_borrowed_search_records_the_exact_result_the_model_saw_with_hashes(client, as_user, visit, backend, conn):
+    """E12-6: the agent_step row of a borrowed read holds the projected result (no free text) and its hashes."""
+    import hashlib
+
+    backend.script("investigate", tool_call("fhir_search", count=3), decision("propose_and_remeasure"))
+    out = two_readings(client, visit)
+    row = conn.execute("SELECT payload FROM audit_log WHERE run_id = %s AND kind = 'agent_step' "
+                       "AND payload->>'name' = 'search'", (out["run_id"],)).fetchone()["payload"]
+    sent = next(x for x in backend.seen if x["purpose"] == "investigate" and any(m["role"] == "tool"
+                                                                                   for m in x["messages"]))
+    seen_by_model = json.loads(next(m for m in sent["messages"] if m["role"] == "tool")["content"])
+    assert row["result"] == seen_by_model                      # exactly what the model received
+    full = json.dumps(seen_by_model, sort_keys=True, separators=(",", ":"))
+    assert row["result_sha256"] == hashlib.sha256(full.encode()).hexdigest() and len(row["raw_sha256"]) == 64
+    assert "result_truncated" not in row
+    assert not ({"text", "note", "valueString", "identifier", "subject"} & set(json.dumps(row["result"]).split('"')))
+
+
+def test_an_unlogged_borrowed_read_stops_the_run_with_no_proposal(client, as_user, visit, backend, conn, monkeypatch):
+    from afya_api import steps
+
+    real = steps._write
+
+    def broken(run_id, visit_id, payload):
+        if payload["name"] == "search":
+            raise OSError("db down")
+        return real(run_id, visit_id, payload)
+    monkeypatch.setattr(steps, "_write", broken)
+    monkeypatch.setattr(steps, "RETRY_DELAY", 0)
+    backend.script("investigate", tool_call("fhir_search", count=3), decision("propose_and_remeasure"))
+    vitals(client, visit, **STABLE_YELLOW)
+    out = vitals(client, visit).json()
+    assert conn.execute("SELECT count(*) AS n FROM proposals WHERE visit_id = %s AND obs_id = %s",
+                        (visit, out["run_id"].split(":")[1])).fetchone()["n"] == 0
+    assert "agent_failed" in [x["kind"] for x in conn.execute("SELECT kind FROM notifications WHERE visit_id = %s",
+                                                              (visit,))]

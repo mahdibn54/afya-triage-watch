@@ -35,6 +35,7 @@ from typing_extensions import TypedDict
 from .decision import LABELS
 from .fhir_projection import LOINC_ALLOW, PANEL, UCUM, UNIT_ALLOW
 from .model import ModelUnavailable
+from .steps import TraceFailed, result_record
 from .steps import write as write_step
 
 MAX_CALLS = 4               # read-only tool calls per run
@@ -220,7 +221,8 @@ def read_only_tools(ctx: Any, run_id: str, visit_id: str, obs_id: str, seen: set
         # after" reads in the list's order (a live run read the newest-first list backwards).
         rows = [{**x, "is_current": x["id"] == current} for x in reversed(rows)]
         await write_step(run_id, visit_id, "tool", "search", f"type=Observation, encounter=Encounter/{visit_id}",
-                         f"{len(rows)} readings", server="borrowed", cited_ids=[r["id"] for r in rows])
+                         f"{len(rows)} readings", server="borrowed", cited_ids=[r["id"] for r in rows],
+                         **result_record({"readings": rows}, bundle))
         return done({"readings": rows})
 
     async def fhir_read(observation_id: str) -> str:
@@ -240,7 +242,7 @@ def read_only_tools(ctx: Any, run_id: str, visit_id: str, obs_id: str, seen: set
         row = labelled(trim_observation(r))
         await write_step(run_id, visit_id, "tool", "read", f"Observation/{oid}",
                          "1 reading" if row else "not a reading", server="borrowed",
-                         cited_ids=[row["id"]] if row else [])
+                         cited_ids=[row["id"]] if row else [], **result_record({"reading": row}, r))
         return done({"reading": row})
 
     async def get_queue_state() -> str:
@@ -416,6 +418,8 @@ async def investigate(ctx: Any, run_id: str, facts: dict[str, Any]) -> dict[str,
                                    {"recursion_limit": RECURSION_LIMIT})
     except GraphRecursionError:
         final = {"messages": start, "stop": "recursion_limit"}
+    except TraceFailed:
+        raise   # E12-6: an unlogged step stops the run; no code-built fallback from here
     except Exception as e:  # noqa: BLE001 - B2: a tool or the loop broke: the code-built proposal stands
         await write_step(run_id, visit_id, "model", "investigate", "-",
                          "model unavailable (invalid_response): rules only", unavailable="invalid_response",

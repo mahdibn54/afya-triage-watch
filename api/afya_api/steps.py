@@ -10,6 +10,8 @@ Each step of a run is one audit_log row with the run's run_id, so GET /runs/{run
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import logging
 from typing import Any
 
@@ -18,8 +20,14 @@ from psycopg.types.json import Jsonb
 
 log = logging.getLogger("afya_api.steps")
 
+class TraceFailed(RuntimeError):
+    """A trace row could not be durably written: the run must stop (never caught and continued past)."""
+
+
 STEP_KINDS = ("tool", "model", "decision", "gate")
 MAX_SUMMARY = 160
+ATTEMPTS, RETRY_DELAY = 3, 0.2
+MAX_RESULT_BYTES = 4000
 GAPS = 0   # agent_step rows that could not be written since start (N6)
 
 
@@ -38,20 +46,39 @@ async def write(run_id: str, visit_id: str | None, step_kind: str, name: str, ar
                 result_summary: str = "-", *, server: str | None = None, latency_ms: float | None = None,
                 tokens_in: int | None = None, tokens_out: int | None = None, cost_usd: float | None = None,
                 cited_ids: list[str] | None = None, **extra: Any) -> None:
-    """Write one agent_step row. A failure to audit is retried once, then logged loudly and counted (N6: the count
-    is in /healthz as `trace_gaps`, so a gap in a trace is visible), but never stops the run: the proposal (the
-    safety-relevant output) must still be created, and it has its own audit trail in the proposals table."""
+    """Write one agent_step row. E12-6, fail closed: a write that fails is retried (3 attempts), counted (N6: the
+    count is in /healthz as `trace_gaps`) and then raises TraceFailed. Nothing downstream of an unlogged step may
+    run: callers must not catch it (the run stops, Agent.run_event traces the stop if it can and tells the nurses
+    with the `agent_failed` notice). No proposal is created from an unlogged step."""
     assert step_kind in STEP_KINDS, step_kind
     payload = {"step_kind": step_kind, "server": server, "name": name, "args_summary": _short(args_summary),
                "result_summary": _short(result_summary), "latency_ms": latency_ms, "tokens_in": tokens_in,
                "tokens_out": tokens_out, "cost_usd": cost_usd, "cited_ids": list(cited_ids or []), **extra}
     global GAPS
-    for attempt in range(2):
+    for attempt in range(ATTEMPTS):
         try:
             await asyncio.to_thread(_write, run_id, visit_id, payload)
             return
         except Exception:  # noqa: BLE001
-            if attempt == 0:
-                await asyncio.sleep(0.2)
+            if attempt < ATTEMPTS - 1:
+                await asyncio.sleep(RETRY_DELAY * (attempt + 1))
     GAPS += 1
-    log.error("agent_step %s of run %s not audited (trace gap %d)", name, run_id, GAPS)
+    log.error("agent_step %s of run %s not audited (trace gap %d): the run stops", name, run_id, GAPS)
+    raise TraceFailed(f"agent_step {name} could not be written")
+
+
+def result_record(result: Any, raw: Any = None) -> dict[str, Any]:
+    """E12-6: what a borrowed read gave the model, for the trace. `result` is the already projected result (ids,
+    codes, values, units, times; never text). Stored whole when it fits MAX_RESULT_BYTES, else cut with
+    `result_truncated`; `result_sha256` hashes the full projected result and `raw_sha256` the full payload the
+    server returned (a hash only: the raw payload may hold free text and is never stored)."""
+    full = json.dumps(result, sort_keys=True, separators=(",", ":"), default=str)
+    out: dict[str, Any] = {"result_sha256": hashlib.sha256(full.encode()).hexdigest(), "result_bytes": len(full)}
+    if raw is not None:
+        out["raw_sha256"] = hashlib.sha256(
+            json.dumps(raw, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest()
+    if len(full) <= MAX_RESULT_BYTES:
+        out["result"] = result
+    else:
+        out["result"], out["result_truncated"] = full[:MAX_RESULT_BYTES], True
+    return out

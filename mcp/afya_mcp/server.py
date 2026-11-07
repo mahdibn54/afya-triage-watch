@@ -231,7 +231,8 @@ async def seed_demo_visit(label: str, birth_date: str, arrived_minutes_ago: int,
 @ui.tool()
 async def visit_timeline(visit_id: str) -> dict:
     """Read-only, for the api: the readings of one visit, oldest first, with raw values and points per input."""
-    return await _run(lambda: services.visit_timeline(_fhir(), _registry(), visit_id))
+    return await _audited("visit_timeline", audit.UI, {"visit_id": visit_id},
+                          lambda: services.visit_timeline(_fhir(), _registry(), visit_id))
 
 
 @ui.tool()
@@ -244,7 +245,8 @@ async def queue_state() -> dict:
 @ui.tool()
 async def demo_visit(label: str) -> dict:
     """Read-only, for the api: the waiting visit of the demo patient with this label and its number of readings."""
-    return await _run(lambda: services.demo_visit(_fhir(), label))
+    return await _audited("demo_visit", audit.UI, {"label": label},
+                          lambda: services.demo_visit(_fhir(), label))
 
 
 async def health(_request):

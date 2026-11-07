@@ -15,8 +15,11 @@ row fails afterwards, the effect stands, the intent row is the record, the failu
 returned (an error would make the nurse retry something that already happened). raise_recheck_flag needs no intent
 row: mark done and its audit row are one transaction.
 
-Audit failures are never silent: for an act tool the call fails (AuditFailed); for a read tool the error is logged
-and the result is still returned (a read changes nothing).
+E12-6, fail closed: an own tool never returns a result whose audit row (inputs, output, timestamp) was not written.
+Read and ui tools (mode `ui`, actor 'system': visit_timeline, demo_visit) raise AuditFailed instead of returning the
+result, and also when no audit store is configured. Act tools: AuditFailed as above (intent rows aside, where the
+effect already stands and the intent row is the record). The ui tool queue_state (the boards' polling) is the one
+unaudited own tool: it carries the same data as the audited get_queue_state and would flood the log.
 """
 from __future__ import annotations
 
@@ -34,7 +37,7 @@ from .fhir import FhirRejected, ref_id
 
 log = logging.getLogger("afya_mcp.audit")
 
-READ, ACT = "read", "act"
+READ, ACT, UI = "read", "act", "ui"
 ACT_ROLES = ("nurse", "clinician", "agent", "system")
 HUMAN_ROLES = ("nurse", "clinician", "manager")
 MAX_STR = 120
@@ -87,7 +90,13 @@ def call(auditor: Auditor | None, kind: str, mode: str, inputs: dict[str, Any], 
             _refuse(auditor, kind, actor, role, inputs, run_id)
             raise ActorRefused(f"actor {_short(str(actor), 64)!r} may not run {kind}")
         auth = "demo_switcher" if role in HUMAN_ROLES else "service"
+    elif mode == UI:
+        if auditor is None:
+            raise AuditFailed("audit log unavailable (no DATABASE_URL): tools do not return results without it")
+        actor, auth = "system", "service"
     else:
+        if auditor is None:
+            raise AuditFailed("audit log unavailable (no DATABASE_URL): tools do not return results without it")
         actor, auth = "agent", "service"
 
     visit_before = _visit_of(inputs, None)
@@ -111,17 +120,15 @@ def call(auditor: Auditor | None, kind: str, mode: str, inputs: dict[str, Any], 
                "output": None if error else trim(result), "error": error_text(error) if error else None}
     payload = _cap(payload)
     visit_id = _visit_of(inputs, result)
-    if auditor is None:
-        log.error("audit log unavailable: %s call not audited", kind)
-    else:
-        try:
-            auditor.write(kind, actor, auth, visit_id, run_id, payload)
-        except Exception as e:
-            if mode == ACT and intent:
-                log.exception("audit row for %s not written; the %s_started row is the record", kind, kind)
-            elif mode == ACT:
-                raise AuditFailed(f"{kind}: audit row not written ({type(e).__name__})") from (error or e)
-            log.exception("audit row for read tool %s not written", kind)
+    assert auditor is not None
+    try:
+        auditor.write(kind, actor, auth, visit_id, run_id, payload)
+    except Exception as e:
+        if mode == ACT and intent:
+            log.exception("audit row for %s not written; the %s_started row is the record", kind, kind)
+        else:
+            log.exception("audit row for %s not written; result withheld", kind)
+            raise AuditFailed(f"{kind}: audit row not written ({type(e).__name__})") from (error or e)
     if error is not None:
         raise error
     return result

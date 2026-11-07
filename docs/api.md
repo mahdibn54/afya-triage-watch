@@ -63,7 +63,8 @@ the fixed rules.
 `model.ready` is true when the model may be called, its circuit breaker is `closed` and the last call (or the warm-up)
 worked. `refused` is `null` or why a call would not be made (`no_api_key`, `data_not_synthetic`: the remote provider is
 used only while `DATA_CLASSIFICATION=synthetic`). `breaker` is `closed`, `open` or `half_open`. `trace_gaps` counts agent
-trace rows that could not be written since start (0 is healthy).
+trace rows that could not be written since start (0 is healthy). Since E12-6 a gap is not silent and does not let the
+run go on: the run stops without a proposal and the nurses get the `agent_failed` notice.
 
 ### POST /logout
 

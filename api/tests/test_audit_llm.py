@@ -240,18 +240,72 @@ def test_a_quote_inside_full_width_instruction_text_is_dropped():
     assert kept == [] and drops == [{"code": "SOB_ACUTE", "reason": "instruction_like"}]
 
 
-# ---------- N6: a trace row that cannot be written is retried, then counted ----------
+# ---------- N6 / E12-6: a trace row that cannot be written is retried, then the run stops (fail closed) ----------
 
-def test_failed_trace_write_is_retried_then_counted(monkeypatch):
+def test_failed_trace_write_is_retried_then_raises_and_is_counted(monkeypatch):
+    import pytest
+
     tries = []
 
     def broken(*a):
         tries.append(1)
         raise OSError("db down")
     monkeypatch.setattr(steps, "_write", broken)
+    monkeypatch.setattr(steps, "RETRY_DELAY", 0)
     before = steps.GAPS
-    asyncio.run(steps.write("v:o", "v", "gate", "x"))
-    assert len(tries) == 2 and steps.GAPS == before + 1
+    with pytest.raises(steps.TraceFailed):
+        asyncio.run(steps.write("v:o", "v", "gate", "x"))
+    assert len(tries) == steps.ATTEMPTS == 3 and steps.GAPS == before + 1
+
+
+def test_a_step_that_cannot_be_logged_stops_the_run_with_no_proposal_and_a_notice(client, as_user, visit, conn,
+                                                                                  monkeypatch):
+    real = steps._write
+
+    def broken_at_trigger(run_id, visit_id, payload):
+        if payload["name"] == "trigger":
+            raise OSError("db down")
+        return real(run_id, visit_id, payload)
+    monkeypatch.setattr(steps, "_write", broken_at_trigger)
+    monkeypatch.setattr(steps, "RETRY_DELAY", 0)
+    r = vitals(client, visit)
+    assert r.status_code == 200
+    run_id = r.json()["run_id"]
+    assert conn.execute("SELECT count(*) AS n FROM proposals WHERE visit_id = %s", (visit,)).fetchone()["n"] == 0
+    assert "agent_failed" in [x["kind"] for x in conn.execute(
+        "SELECT kind FROM notifications WHERE visit_id = %s", (visit,))]
+    names = [x["payload"].get("name") for x in conn.execute(
+        "SELECT payload FROM audit_log WHERE run_id = %s AND kind = 'agent_step' ORDER BY id", (run_id,))]
+    assert "trigger" not in names and "submit_decision" not in names and names[-1] == "run_failed"
+
+
+def test_a_failed_model_path_fallback_is_itself_logged_or_the_run_stops(client, as_user, visit, conn, monkeypatch):
+    """The code-built 'rules only' fallback writes its own step; if that cannot be written, the run stops."""
+    real = steps._write
+
+    def broken(run_id, visit_id, payload):
+        if payload["name"] == "map_signs":
+            raise OSError("db down")
+        return real(run_id, visit_id, payload)
+    monkeypatch.setattr(steps, "_write", broken)
+    monkeypatch.setattr(steps, "RETRY_DELAY", 0)
+    vitals(client, visit, complaint="short of breath")
+    assert conn.execute("SELECT count(*) AS n FROM proposals WHERE visit_id = %s", (visit,)).fetchone()["n"] == 0
+
+
+def test_result_record_caps_the_payload_and_hashes_the_full_result():
+    import hashlib
+    import json
+
+    small = steps.result_record({"reading": {"id": "Observation/1", "values": []}}, {"raw": "x"})
+    assert small["result"] == {"reading": {"id": "Observation/1", "values": []}} and "result_truncated" not in small
+    big_result = {"readings": [{"id": f"Observation/{i}", "values": [{"code": "8867-4", "value": i}] * 5}
+                               for i in range(200)]}
+    big = steps.result_record(big_result, {"raw": "y" * 50000})
+    full = json.dumps(big_result, sort_keys=True, separators=(",", ":"), default=str)
+    assert big["result_truncated"] is True and len(big["result"]) == steps.MAX_RESULT_BYTES
+    assert big["result_sha256"] == hashlib.sha256(full.encode()).hexdigest() and big["result_bytes"] == len(full)
+    assert "y" * 50 not in json.dumps(big) and len(big["raw_sha256"]) == 64   # raw payload: hash only
 
 
 # ---------- N5: one failing notification does not abort the watch pass ----------
