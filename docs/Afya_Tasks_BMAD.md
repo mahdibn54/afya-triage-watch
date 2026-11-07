@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 66 done · 8 drafted · 17 to do · 0 blocked · 91 stories
+**Progress:** 65 done · 9 drafted · 17 to do · 0 blocked · 91 stories
 
 ---
 
@@ -267,7 +267,7 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
 | E8-1 | [x] | Eval harness `make eval` | M | Day 5 | 3 h | E5-2 |
-| E8-2 | [x] | Group A: fixed-code and security tests (run once) | B | Day 8 | 3 h | E2-3, E3-* |
+| E8-2 | [~] | Group A: fixed-code and security tests (run once) | B | Day 8 | 3 h | E2-3, E3-* |
 | E8-3 | [~] | Group B: model-dependent runs | M | Day 9 | 2 h + runs | E5-* |
 | E8-4 | [x] | Group C: rules-only baseline | M | Day 9 | 0.5 h | E8-3 |
 | E8-5 | [x] | Metrics | M | Day 9 | 1 h | E8-1 |
@@ -283,6 +283,8 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 **E8-5** · Acceptance: outcome, 0 ungated actions, 0 rationales with diagnosis/treatment words, citation validity, sign precision/recall, tool-order constraints, runs that disagree, tokens and latency (median, p95), cost. · Notes: done, `evals/metrics.py`, `evals/stats.py` (Wilson 95%, median, p95), `evals/wording.py`; 26 unit tests in `evals/tests` (`make eval-test`). Ungated = Flag, command row or approval in the audit log for the visit with no nurse click (the harness never approves). Rationale words: the eval's own wider list over the SHOWN text, separate from the product filter, whose replacements are reported too. Citations: every id on the card belongs to the visit; and how often the model cited an id no tool returned. Sign precision/recall counts complaint signs only (an input-implied sign is not a model sign). Runs that disagree = repeated runs of one case differing in proposal, colour, action or kept signs. Cost is $0 for local models.
 **E8-6** · Acceptance: template from architecture §11; one real unfixed failure (case, k/n, trace, tested hypothesis, next step, why not fixed); tuning/held-out split disclosed; only real runs reported. · Notes: `[~]`: EVALS.md written from the logs of the fixture run (method, k/n with Wilson intervals, rules-only side by side, limits); the 20-patient / held-out run waits for E5-1 (B), then `make eval CASES=...` rebuilds the tables and sections 2 and 4 must be re-checked against them. Unfixed failure: `m17-chest-pain` on qwen3:8b, 0/5, run `2819:2821`, probe in `evals/probes/` (time phrase read as past; removing the French negation example fixes it in the probe; not shipped because it is untested on the negation cases and would be tuning on the fixtures). Split disclosed: all 18 cases are author-seen fixtures, no held-out result yet. E12-4: headline now case level (k/n with Wilson at n = cases, majority of a case's runs; trial level secondary), baseline-commit difference stated, synthetic rules-only table added; the 20-patient model rerun and the check of sections 2 and 4 against it are **waiting for the OpenRouter key**.
 **E8-7** · Acceptance: `grep -r "sk-or-\|Authorization" evals/ ` returns nothing before each push.
+
+**E8-2 current verification:** Reopened at `28215e1`: the runner is missing `AFYA_MCP_TOKEN` and its audit test omits the now-required `auth`. Original run: 20 failed / 5 passed; temporary token supplied: 24 passed / 1 failed. The independent current-schema audit-permission probe and three WSO2 isolation cases passed. Full evidence and next steps: [competition-audit.md](competition-audit.md), also recorded in Decisions below. Earlier completion notes describe the previous successful run; the current checked-in suite is not green.
 
 ---
 
@@ -394,6 +396,8 @@ handed to B in the run report.
 | Late commit disqualifies | Freeze Day 10; tag the submission commit |
 
 ## Decisions log
+
+Technical competition audit of `28215e1`: [competition-audit.md](competition-audit.md) maps the published brief to code, model logs and fresh runtime checks. E8-2 is reopened after schema/auth changes: checked-in Group A configuration gives 20 failures / 5 passes because the runner lacks `AFYA_MCP_TOKEN`; a temporary token override gives 24 passes / 1 failure because its audit INSERT omits required `auth`. Independent current-schema INSERT and mutation-refusal probes passed. WSO2 isolation 3 passed; API 200 passed and MCP 272 passed with the isolated test DB; desktop/mobile browser approval paths passed (desktop needed one retry after ECONNRESET), eight successful screenshots inspected. No clinical code or labels changed. Historical model runs are not current-default proof; no new live model run was performed. Best-effort trace/read audit logging and provider/licensing documentation gaps are recorded against existing E4-8/E12/E5-11/E8/E10/E0 stories, without adding scope.
 
 | Decision |
 |---|
