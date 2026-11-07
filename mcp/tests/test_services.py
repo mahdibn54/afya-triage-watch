@@ -60,6 +60,25 @@ def test_record_vitals_saves_and_is_idempotent(fhir):
     assert fhir.creates == 1
 
 
+def test_idempotency_key_is_scoped_to_the_visit(fhir):
+    fhir.put({"resourceType": "Patient", "id": "p2", "birthDate": "1985-01-01"})
+    fhir.put({"resourceType": "Encounter", "id": "v2", "status": "arrived", "subject": {"reference": "Patient/p2"}})
+    a = record(fhir, BASE, "same-key", T0)
+    b = record(fhir, BASE, "same-key", T0, patient="p2", visit="v2")
+    assert a["observation_id"] != b["observation_id"] and fhir.creates == 2   # another visit: another reading
+    obs = fhir.read("Observation", b["observation_id"].split("/")[1])
+    assert obs["identifier"] == [{"system": "urn:afya:req", "value": "v2:same-key"}]
+    assert record(fhir, BASE, "same-key", T0, patient="p2", visit="v2")["observation_id"] == b["observation_id"]
+
+
+@pytest.mark.parametrize("status", ["finished", "cancelled", "planned"])
+def test_a_visit_that_is_not_open_takes_no_vitals(fhir, status):
+    fhir.put({"resourceType": "Encounter", "id": "vdone", "status": status, "subject": {"reference": "Patient/p014"}})
+    out = record(fhir, BASE, "k-done", T0, visit="vdone")
+    assert out["status"] == "invalid" and not out["saved"] and "not open" in out["problems"][0]
+    assert fhir.creates == 0
+
+
 def test_record_vitals_rejects_impossible_values_and_saves_nothing(fhir):
     out = record(fhir, {**BASE, "heart_rate": 400}, "key-2", T0)
     assert out["status"] == "remeasure" and not out["saved"]

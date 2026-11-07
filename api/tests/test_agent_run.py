@@ -79,7 +79,7 @@ def test_reported_worsening_without_a_score_rise_is_a_proposal(client, as_user, 
     assert next(s for s in steps if s["name"] == "trigger")["result_summary"].startswith("proposal: nurse_reported")
 
 def test_first_reading_without_a_confirmed_colour_is_a_baseline(client, as_user, fhir, conn):
-    vid = f"v-{uuid.uuid4().hex[:10]}"
+    vid = f"synthetic-test-v-{uuid.uuid4().hex[:10]}"
     fhir.put({"resourceType": "Encounter", "id": vid, "status": "in-progress", "subject": {"reference": "Patient/p1"}})
     r = vitals(client, vid)                                   # TEWS 6, but nothing to compare with
     assert len(proposals_of(conn, vid)) == 0

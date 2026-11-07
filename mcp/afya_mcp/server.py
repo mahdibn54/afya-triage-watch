@@ -51,9 +51,9 @@ async def _run(fn: Any, *args: Any) -> Any:
 
 
 async def _audited(kind: str, mode: str, inputs: dict[str, Any], fn: Any, actor: str = "agent",
-                   run_id: str | None = None) -> Any:
+                   run_id: str | None = None, intent: bool = False) -> Any:
     """E4-8: every tool call goes through audit.call (actor check for act tools, timing, one audit_log row)."""
-    return await _run(lambda: audit.call(_auditor(), kind, mode, inputs, fn, actor, run_id))
+    return await _run(lambda: audit.call(_auditor(), kind, mode, inputs, fn, actor, run_id, intent))
 
 
 @lru_cache(maxsize=1)
@@ -142,7 +142,7 @@ async def record_vitals(visit_id: str, values: dict, idempotency_key: str, actor
                           lambda: services.record_vitals(_fhir(), _plausibility(), _registry(), patient_id, visit_id,
                                                          values, idempotency_key, None, _store(), complaint,
                                                          reported_worsening),
-                          actor=actor, run_id=run_id)
+                          actor=actor, run_id=run_id, intent=True)
 
 
 @act.tool()
@@ -172,7 +172,7 @@ async def notify_staff(kind: str, actor: str, proposal_id: str | None = None, vi
         with db.connect() as conn:
             return services.notify_staff(conn, kind, proposal_id, visit_id)
     inputs = {"kind": kind, "proposal_id": proposal_id, "visit_id": visit_id}
-    return await _audited("notify_staff", audit.ACT, inputs, run, actor=actor, run_id=run_id)
+    return await _audited("notify_staff", audit.ACT, inputs, run, actor=actor, run_id=run_id, intent=True)
 
 
 @act.tool()
@@ -187,7 +187,7 @@ async def seed_demo_visit(label: str, birth_date: str, arrived_minutes_ago: int,
         return services.seed_demo_visit(_fhir(), label, birth_date, arrived_minutes_ago, confirmed_colour)
     inputs = {"label": label, "birth_date": birth_date, "arrived_minutes_ago": arrived_minutes_ago,
               "confirmed_colour": confirmed_colour}
-    return await _audited("seed_demo_visit", audit.ACT, inputs, run, actor=actor, run_id=run_id)
+    return await _audited("seed_demo_visit", audit.ACT, inputs, run, actor=actor, run_id=run_id, intent=True)
 
 
 @ui.tool()

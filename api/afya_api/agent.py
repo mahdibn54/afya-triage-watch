@@ -129,8 +129,10 @@ def _save_proposal(visit_id: str, trigger: str, obs_id: str, ehash: str,
         p = workflow.insert_proposal(conn, visit_id, trigger, obs_id, ehash, payload)
         if p is not None:
             return p, True
-        return conn.execute("SELECT * FROM proposals WHERE visit_id = %s AND trigger = %s AND evidence_hash = %s",
-                            (visit_id, trigger, ehash)).fetchone(), False
+        existing = conn.execute("SELECT * FROM proposals WHERE visit_id = %s AND trigger = %s AND evidence_hash = %s",
+                                (visit_id, trigger, ehash)).fetchone()
+        assert existing is not None   # the insert was skipped because this row exists
+        return existing, False
 
 
 def _open_notice(kind: str) -> bool:

@@ -79,6 +79,29 @@ def test_proposals_list_matches_the_contract(client, as_user, visit, fhir, conn)
     error(client.get("/proposals?status=bogus"), 422, "invalid")
 
 
+def test_proposals_visit_filter_and_limit(client, as_user, visit, fhir, conn):
+    pid, _ = new_proposal(conn, fhir, visit)
+    mine = client.get(f"/proposals?status=all&visit_id={visit}").json()
+    assert [p["id"] for p in mine] == [pid]
+    assert client.get("/proposals?status=all&visit_id=synthetic-test-none").json() == []
+    assert len(client.get("/proposals?status=all&limit=1").json()) == 1
+    assert [p["id"] for p in client.get(f"/proposals?visit_id={visit}&limit=5").json()] == [pid]
+    for bad in ("limit=0", "limit=1001", "visit_id=a%20b", "visit_id="):
+        error(client.get(f"/proposals?{bad}"), 422, "invalid")
+
+
+def test_decision_closes_the_clinician_reminder_and_the_chip_goes(client, as_user, visit, conn):
+    vitals(client, visit)
+    p = conn.execute("SELECT id FROM proposals WHERE visit_id = %s", (visit,)).fetchone()
+    assert conn.execute("SELECT count(*) AS n FROM notifications WHERE proposal_id = %s AND acknowledged_at IS NULL",
+                        (p["id"],)).fetchone()["n"] == 1
+    assert client.post(f"/proposals/{p['id']}/reject", json={"reason": "not needed"}).status_code == 200
+    assert conn.execute("SELECT count(*) AS n FROM notifications WHERE proposal_id = %s AND acknowledged_at IS NULL",
+                        (p["id"],)).fetchone()["n"] == 0
+    card = next(x for x in client.get("/proposals?status=all").json() if x["id"] == str(p["id"]))
+    assert "clinician_reminded" not in [n["code"] for n in card["notices"]]
+
+
 def test_proposal_complaint_falls_back_to_the_stored_reading_complaint(client, as_user, visit, fhir, conn):
     first = vitals(client, visit, complaint="Cough for two days").json()
     oid = first["observation_id"].split("/")[1]

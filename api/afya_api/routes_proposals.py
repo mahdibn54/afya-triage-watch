@@ -6,6 +6,7 @@ from typing import Any, Literal
 import psycopg
 from afya_mcp import rules, workflow
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from psycopg.rows import DictRow
 
 from . import helpers
 from .agent import Agent
@@ -18,6 +19,7 @@ from .schemas import (
     AcknowledgedProposal,
     ApproveIn,
     ApproveOut,
+    Notice,
     ProposalOut,
     RejectIn,
     RejectOut,
@@ -49,21 +51,26 @@ def proposal_out(row: dict[str, Any], notifications: list[dict[str, Any]], site:
         evidence=p.get("evidence", []), agent_action=p.get("agent_action"), missing_input=p.get("missing_input"),
         complaint=p.get("complaint") or row.get("reading_complaint"), signs_verdict=p.get("signs_verdict"),
         signs=p.get("signs", []), rationale=p.get("rationale"), rationale_source=p.get("rationale_source"),
-        notices=notices)
+        notices=[Notice(**n) for n in notices])
 
 
 @router.get("/proposals", response_model=list[ProposalOut], responses=ERROR_RESPONSES)
 def get_proposals(status: Literal["pending", "superseded", "all"] = Query("pending"),
-                  _user: User = Depends(current_user), conn: psycopg.Connection = Depends(get_conn)):
-    """status=pending (default), superseded (not yet reviewed) or all. Oldest first."""
+                  visit_id: str | None = Query(None, min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._-]+$"),
+                  limit: int | None = Query(None, ge=1, le=workflow.MAX_LIST),
+                  _user: User = Depends(current_user), conn: psycopg.Connection[DictRow] = Depends(get_conn)):
+    """status=pending (default), superseded (not yet reviewed) or all. Optional visit_id filter. Oldest first, except
+    status=all: newest first. limit (1..1000) keeps the first rows of that order; default 500 for status=all, none
+    for pending and superseded."""
     site = _site()
     notifications = workflow.open_notifications(conn)
-    return [proposal_out(r, notifications, site) for r in workflow.list_proposals(conn, status)]
+    return [proposal_out(r, notifications, site)
+            for r in workflow.list_proposals(conn, status, visit_id, limit)]
 
 
 @router.post("/proposals/{proposal_id}/approve", response_model=ApproveOut, responses=ERROR_RESPONSES)
 def approve(proposal_id: str, body: ApproveIn, background: BackgroundTasks,
-            user: User = Depends(current_user), conn: psycopg.Connection = Depends(get_conn),
+            user: User = Depends(current_user), conn: psycopg.Connection[DictRow] = Depends(get_conn),
             gateway: Gateway = Depends(get_gateway), agent: Agent = Depends(get_agent)) -> ApproveOut:
     """403 role, 409 not pending (or unknown), 422 override without a reason. Decision + audit + command are ONE
     transaction (workflow.approve_proposal); then, in the background, the paused agent run is resumed with the
@@ -85,7 +92,7 @@ def approve(proposal_id: str, body: ApproveIn, background: BackgroundTasks,
 
 @router.post("/proposals/{proposal_id}/reject", response_model=RejectOut, responses=ERROR_RESPONSES)
 def reject(proposal_id: str, body: RejectIn, user: User = Depends(current_user),
-           conn: psycopg.Connection = Depends(get_conn)) -> RejectOut:
+           conn: psycopg.Connection[DictRow] = Depends(get_conn)) -> RejectOut:
     """403 role, 409 not pending (or unknown), 422 no reason. Nothing reaches FHIR: no command is created."""
     pid = helpers.uuid_or_conflict(proposal_id)
     try:
@@ -99,7 +106,7 @@ def reject(proposal_id: str, body: RejectIn, user: User = Depends(current_user),
     return RejectOut(proposal_id=pid, status="rejected")
 
 
-def _require_role(conn: psycopg.Connection, user: User) -> None:
+def _require_role(conn: psycopg.Connection[DictRow], user: User) -> None:
     row = conn.execute("SELECT role FROM users WHERE id = %s", (user.id,)).fetchone()
     if row is None or row["role"] not in workflow.APPROVER_ROLES:
         raise ApiError(403, "only a nurse or clinician can do this")
@@ -107,7 +114,7 @@ def _require_role(conn: psycopg.Connection, user: User) -> None:
 
 @router.post("/proposals/{proposal_id}/acknowledge", response_model=AcknowledgedProposal, responses=ERROR_RESPONSES)
 def acknowledge_proposal(proposal_id: str, user: User = Depends(current_user),
-                         conn: psycopg.Connection = Depends(get_conn)) -> AcknowledgedProposal:
+                         conn: psycopg.Connection[DictRow] = Depends(get_conn)) -> AcknowledgedProposal:
     """A superseded proposal nobody reviewed stops showing as not_reviewed. 409 when it is not superseded or was
     already reviewed."""
     _require_role(conn, user)
@@ -120,7 +127,7 @@ def acknowledge_proposal(proposal_id: str, user: User = Depends(current_user),
 @router.post("/notifications/{notification_id}/acknowledge", response_model=AcknowledgedNotification,
              responses=ERROR_RESPONSES)
 def acknowledge_notification(notification_id: str, user: User = Depends(current_user),
-                             conn: psycopg.Connection = Depends(get_conn)) -> AcknowledgedNotification:
+                             conn: psycopg.Connection[DictRow] = Depends(get_conn)) -> AcknowledgedNotification:
     """Dismiss one notice. 404 if unknown."""
     _require_role(conn, user)
     nid = helpers.uuid_or_404(notification_id, "notification")

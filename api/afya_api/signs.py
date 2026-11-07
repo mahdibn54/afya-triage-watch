@@ -182,6 +182,11 @@ def _sum(calls: list[Call], attr: str) -> int | float | None:
     return sum(vals) if vals else None
 
 
+def _isum(calls: list[Call], attr: str) -> int | None:
+    total = _sum(calls, attr)
+    return None if total is None else int(total)
+
+
 def unavailable(complaint: str | None, score: dict[str, Any], chart: dict[str, Any], reason: str) -> dict[str, Any]:
     """map_signs' result when the model could not be used: only the reading's own signs count."""
     notices = [{"code": "instruction_like_text"}] if complaint and instruction_spans(complaint) else []
@@ -219,8 +224,8 @@ async def map_signs(ctx: Any, run_id: str, visit_id: str, complaint: str | None,
             reason = "invalid_response"
     if reason is not None:
         await write_step(run_id, visit_id, "model", "map_signs", args, f"model unavailable ({reason}): rules only",
-                         latency_ms=_sum(calls, "latency_ms"), tokens_in=_sum(calls, "tokens_in"),
-                         tokens_out=_sum(calls, "tokens_out"), cost_usd=_sum(calls, "cost_usd"),
+                         latency_ms=_sum(calls, "latency_ms"), tokens_in=_isum(calls, "tokens_in"),
+                         tokens_out=_isum(calls, "tokens_out"), cost_usd=_sum(calls, "cost_usd"),
                          model=await model.describe(getattr(ctx, "seed", None)), unavailable=reason)
         return {"verdict": None, "kept": [], "rows": rows, "notices": notices, "model": f"unavailable:{reason}"}
     others = [r["code"] for r in sign_rows if r["status"] == "other"]
@@ -228,8 +233,8 @@ async def map_signs(ctx: Any, run_id: str, visit_id: str, complaint: str | None,
     summary = f"{len(kept)} current sign(s), {len(others)} other mention(s)" + (f", {len(drops)} dropped"
                                                                                if drops else "")
     await write_step(run_id, visit_id, "model", "map_signs", args, summary,
-                     latency_ms=_sum(calls, "latency_ms"), tokens_in=_sum(calls, "tokens_in"),
-                     tokens_out=_sum(calls, "tokens_out"), cost_usd=_sum(calls, "cost_usd"),
+                     latency_ms=_sum(calls, "latency_ms"), tokens_in=_isum(calls, "tokens_in"),
+                     tokens_out=_isum(calls, "tokens_out"), cost_usd=_sum(calls, "cost_usd"),
                      model={**await model.describe(getattr(ctx, "seed", None)),
                             "temperature": model.s.temperatures["map_signs"],
                             "retried": len(calls) > 1, "load_ms": _sum(calls, "load_ms"),

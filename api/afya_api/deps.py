@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Literal
 import psycopg
 from afya_mcp import db
 from fastapi import Cookie, HTTPException
+from psycopg.rows import DictRow
 from pydantic import BaseModel
 
 from . import session
@@ -48,7 +49,7 @@ def current_user(afya_session: str | None = Cookie(default=None)) -> User:
     return User(**row)
 
 
-def get_conn() -> Iterator[psycopg.Connection]:
+def get_conn() -> Iterator[psycopg.Connection[DictRow]]:
     """One autocommit afya_app connection per request (routes that use it are plain `def`, run in a thread)."""
     with db.connect() as conn:
         yield conn

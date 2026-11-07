@@ -107,3 +107,42 @@ def test_trim_caps_strings_lists_and_depth():
     assert len(t["a"]) == audit.MAX_STR
     assert len(t["l"]) == audit.MAX_ITEMS + 1 and t["l"][-1] == "... 75 more"
     assert "..." in json.dumps(t["d"])
+
+
+# ---------- E12-2: intent row for tools whose effect commits before the audit row ----------
+
+class FailsAfter(FakeAuditor):
+    """Writes the first `ok` rows, then fails."""
+    def __init__(self, ok: int) -> None:
+        super().__init__()
+        self.ok = ok
+
+    def write(self, *a):
+        if len(self.rows) >= self.ok:
+            raise ConnectionError("database down")
+        super().write(*a)
+
+
+def test_intent_row_comes_first_and_the_final_row_follows():
+    a = FakeAuditor()
+    audit.call(a, "record_vitals", audit.ACT, {"visit_id": "v1"}, lambda: {"status": "saved"}, actor="nurse-a",
+               intent=True)
+    assert [r["kind"] for r in a.rows] == ["record_vitals_started", "record_vitals"]
+    assert a.rows[0]["visit_id"] == "v1" and "output" not in a.rows[0]["payload"]
+
+
+def test_without_an_intent_row_the_effect_does_not_happen():
+    ran = []
+    with pytest.raises(audit.AuditFailed):
+        audit.call(FakeAuditor(fail=True), "record_vitals", audit.ACT, {"visit_id": "v1"}, lambda: ran.append(1),
+                   actor="nurse-a", intent=True)
+    assert ran == []
+
+
+def test_when_only_the_final_row_fails_the_result_stands_and_the_intent_row_is_the_record(caplog):
+    a = FailsAfter(1)
+    with caplog.at_level(logging.ERROR, logger="afya_mcp.audit"):
+        out = audit.call(a, "record_vitals", audit.ACT, {"visit_id": "v1"}, lambda: {"status": "saved"},
+                         actor="nurse-a", intent=True)
+    assert out == {"status": "saved"} and [r["kind"] for r in a.rows] == ["record_vitals_started"]
+    assert "record_vitals_started row is the record" in caplog.text

@@ -29,21 +29,28 @@ check "HAPI answers through the gateway" bash -c 'for i in $(seq 60); do docker 
 
 echo "== database"
 check "lg checkpoint tables exist" test "$(dc exec -T postgres psql -U "$PG_SUPERUSER" -d afya -Atc "select count(*) from information_schema.tables where table_schema='lg' and table_name in ('checkpoints','checkpoint_blobs','checkpoint_writes','checkpoint_migrations')" | tr -d '\r')" = 4
-check "afya_app INSERT audit_log" app_psql "INSERT INTO afya.audit_log (kind, actor, payload) VALUES ('smoke', 'nurse-a', '{}')"
+check "afya_app INSERT audit_log" app_psql "INSERT INTO afya.audit_log (kind, actor, auth, payload) VALUES ('smoke', 'nurse-a', 'demo_switcher', '{}')"
 check "afya_app INSERT audit_log without at/id (column grant)" app_psql "INSERT INTO afya.audit_log (kind, actor, auth, visit_id, run_id, payload) VALUES ('smoke', 'nurse-a', 'demo_switcher', NULL, NULL, '{}')"
 refuse "afya_app cannot set audit_log.at (column grant)" app_psql "INSERT INTO afya.audit_log (at, kind, actor, payload) VALUES (now(), 'smoke', 'nurse-a', '{}')"
 refuse "afya_app nextval on audit_log sequence denied" app_psql "SELECT nextval(pg_get_serial_sequence('afya.audit_log', 'id'))"
 check "afya_app INSERT on lg.checkpoints" test "$(app_atc "select has_table_privilege('afya_app','lg.checkpoints','INSERT')")" = t
 check "afya_app no TRUNCATE on lg.checkpoints" test "$(app_atc "select has_table_privilege('afya_app','lg.checkpoints','TRUNCATE')")" = f
 check "PUBLIC has no TEMP on afya" test "$(dc exec -T postgres psql -U "$PG_SUPERUSER" -d afya -Atc "select has_database_privilege('afya_app','afya','TEMP')" | tr -d '\r')" = f
-SMOKE_ID="smoke-$(date +%s)-$$"
+# Every row this script leaves in the stack's database is tagged: visit ids start with "synthetic-smoke-", patient labels
+# with "SMOKE-", idempotency keys with "smoke-". To start empty: see db/README.md (docker compose down -v wipes ALL data).
+SMOKE_ID="synthetic-smoke-$(date +%s)-$$"
 app_psql "INSERT INTO afya.visits (id, patient_id, latest_obs_id) VALUES ('$SMOKE_ID', 'p', 'o1'); INSERT INTO afya.proposals (visit_id, trigger, evidence_hash, obs_id, payload) VALUES ('$SMOKE_ID', 'colour_rise', 'h', 'o1', '{}')" >/dev/null 2>&1 && ok "smoke visit and proposal created" || bad "smoke visit and proposal created"
-APPROVE="UPDATE afya.proposals p SET status='approved', decided_by='%s', decided_at=now() FROM afya.users u WHERE p.visit_id='$SMOKE_ID' AND p.status='pending' AND u.id='%s' AND u.role IN ('nurse','clinician') RETURNING p.id"
+# approve + command in ONE statement (CTE): the database refuses an approved proposal without a command
+APPROVE="WITH a AS (UPDATE afya.proposals p SET status='approved', decided_by='%s', decided_at=now() FROM afya.users u WHERE p.visit_id='$SMOKE_ID' AND p.status='pending' AND u.id='%s' AND u.role IN ('nurse','clinician') RETURNING p.*) INSERT INTO afya.commands (proposal_id, visit_id, obs_id, colour, evidence_hash, expires_at) SELECT id, visit_id, obs_id, 'RED', evidence_hash, now() + interval '1 hour' FROM a RETURNING proposal_id"
 refuse "proposals_guard: manager cannot approve (direct UPDATE)" app_psql "UPDATE afya.proposals SET status='approved', decided_by='mgr-k', decided_at=now() WHERE visit_id='$SMOKE_ID'"
 check "approve query by nurse -> 1 row" test "$(app_atc "$(printf "$APPROVE" nurse-a nurse-a)" | grep -cE '^[0-9a-f-]{36}$')" = 1
 check "approve query a second time -> 0 rows" test "$(app_atc "$(printf "$APPROVE" nurse-a nurse-a)" | grep -cE '^[0-9a-f-]{36}$')" = 0
 refuse "proposals_guard: approved proposal cannot be re-decided" app_psql "UPDATE afya.proposals SET status='rejected' WHERE visit_id='$SMOKE_ID'"
-refuse "commands: done_at without claimed_at refused" app_psql "INSERT INTO afya.commands (proposal_id, visit_id, obs_id, colour, evidence_hash, expires_at, done_at) SELECT id, '$SMOKE_ID', 'o1', 'RED', 'h', now(), now() FROM afya.proposals WHERE visit_id='$SMOKE_ID'"
+refuse "commands: done_at without claimed_at refused" app_psql "UPDATE afya.commands SET done_at = now() WHERE visit_id='$SMOKE_ID'"
+refuse "afya_app cannot rewrite an approved proposal's payload (column grants)" app_psql "UPDATE afya.proposals SET payload = '{}' WHERE visit_id='$SMOKE_ID'"
+refuse "afya_app cannot rewrite a command's colour or expiry (column grants)" app_psql "UPDATE afya.commands SET colour = 'GREEN' WHERE visit_id='$SMOKE_ID'"
+refuse "a command for a proposal that is not approved is refused" app_psql "INSERT INTO afya.proposals (visit_id, trigger, evidence_hash, obs_id, payload) VALUES ('$SMOKE_ID', 'x', 'h2', 'o1', '{}'); INSERT INTO afya.commands (proposal_id, visit_id, obs_id, colour, evidence_hash, expires_at) SELECT id, visit_id, obs_id, 'RED', evidence_hash, now() FROM afya.proposals WHERE visit_id='$SMOKE_ID' AND trigger='x'"
+check "schema_version recorded" test "$(app_atc "select max(version) from afya.schema_version")" -ge 2
 refuse "afya_app UPDATE audit_log refused" app_psql "UPDATE afya.audit_log SET kind='x'"
 refuse "afya_app DELETE audit_log refused" app_psql "DELETE FROM afya.audit_log"
 refuse "afya_app TRUNCATE audit_log refused" app_psql "TRUNCATE afya.audit_log"
@@ -112,7 +119,7 @@ def post(res):
     r = httpx.post(f"{F}/{res['resourceType']}", json=res, headers=H, timeout=30); r.raise_for_status(); return r.json()["id"]
 
 born = (date.today() - timedelta(days=365 * 40)).isoformat()
-pid = post({"resourceType": "Patient", "birthDate": born, "gender": "other"})
+pid = post({"resourceType": "Patient", "identifier": [{"system": "urn:afya:label", "value": "SMOKE-" + uuid.uuid4().hex[:8]}], "birthDate": born, "gender": "other"})
 eid = post({"resourceType": "Encounter", "status": "in-progress", "class": {"code": "EMER"}, "subject": {"reference": f"Patient/{pid}"}})
 obs = vitals_observation(pid, eid, {"resp_rate": 26, "heart_rate": 118, "systolic_bp": 95, "temperature": 38.6,
                                      "spo2": 93, "mobility": "walking", "consciousness": "alert", "trauma": "no"},
@@ -141,7 +148,7 @@ F = "http://hapi:8080/fhir"
 def post(res):
     r = httpx.post(f"{F}/{res['resourceType']}", json=res, headers=H, timeout=30); r.raise_for_status(); return r.json()["id"]
 
-pid = post({"resourceType": "Patient", "birthDate": (date.today() - timedelta(days=365 * 40)).isoformat(), "gender": "other"})
+pid = post({"resourceType": "Patient", "identifier": [{"system": "urn:afya:label", "value": "SMOKE-" + uuid.uuid4().hex[:8]}], "birthDate": (date.today() - timedelta(days=365 * 40)).isoformat(), "gender": "other"})
 eid = post({"resourceType": "Encounter", "status": "in-progress", "class": {"code": "EMER"}, "subject": {"reference": f"Patient/{pid}"}})
 values = {"resp_rate": 16, "heart_rate": 80, "systolic_bp": 120, "temperature": 37.0, "mobility": "walking",
           "consciousness": "alert", "trauma": "no"}
@@ -164,7 +171,7 @@ sys.exit(0 if row == (oid, pid) and audited == 1 else 1)
 PY
 
 check "get_queue_state via /read/mcp lists a seeded visit with minutes waited vs SATS target" mcpx <<'PY'
-import asyncio, json, sys, httpx
+import asyncio, json, sys, uuid, httpx
 from datetime import date, datetime, timedelta, timezone
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
@@ -174,7 +181,7 @@ F = "http://hapi:8080/fhir"
 def post(res):
     r = httpx.post(f"{F}/{res['resourceType']}", json=res, headers=H, timeout=30); r.raise_for_status(); return r.json()["id"]
 
-pid = post({"resourceType": "Patient", "birthDate": (date.today() - timedelta(days=365 * 40)).isoformat(), "gender": "other"})
+pid = post({"resourceType": "Patient", "identifier": [{"system": "urn:afya:label", "value": "SMOKE-" + uuid.uuid4().hex[:8]}], "birthDate": (date.today() - timedelta(days=365 * 40)).isoformat(), "gender": "other"})
 start = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
 eid = post({"resourceType": "Encounter", "status": "arrived", "class": {"code": "EMER"}, "subject": {"reference": f"Patient/{pid}"},
             "period": {"start": start}, "priority": {"coding": [{"system": "urn:afya:sats-colour", "code": "ORANGE"}]}})
@@ -206,7 +213,7 @@ F = "http://hapi:8080/fhir"
 def post(res):
     r = httpx.post(f"{F}/{res['resourceType']}", json=res, headers=H, timeout=30); r.raise_for_status(); return r.json()["id"]
 
-pid = post({"resourceType": "Patient", "birthDate": (date.today() - timedelta(days=365 * 40)).isoformat(), "gender": "other"})
+pid = post({"resourceType": "Patient", "identifier": [{"system": "urn:afya:label", "value": "SMOKE-" + uuid.uuid4().hex[:8]}], "birthDate": (date.today() - timedelta(days=365 * 40)).isoformat(), "gender": "other"})
 eid = post({"resourceType": "Encounter", "status": "in-progress", "class": {"code": "EMER"}, "subject": {"reference": f"Patient/{pid}"},
             "priority": {"coding": [{"system": "urn:afya:sats-colour", "code": "YELLOW"}]}})
 values = {"resp_rate": 26, "heart_rate": 118, "systolic_bp": 95, "temperature": 38.6, "mobility": "walking",
@@ -254,7 +261,7 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from afya_mcp import db
 
-visit = "smoke-" + uuid.uuid4().hex[:12]
+visit = "synthetic-smoke-" + uuid.uuid4().hex[:12]
 
 async def main():
     async with streamablehttp_client("http://127.0.0.1:9000/act/mcp/") as (r, w, _):

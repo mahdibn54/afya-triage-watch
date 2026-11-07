@@ -50,6 +50,7 @@ services:
       db-init: { condition: service_completed_successfully }
     environment:
       OWNER_DATABASE_URL: postgresql://afya_owner:${AFYA_OWNER_PASSWORD}@postgres:5432/afya
+      OWNER_TEST_DATABASE_URL: postgresql://afya_owner:${AFYA_OWNER_PASSWORD}@postgres:5432/afya_test
     command: ["python", "-m", "afya_api.lg_setup"]
     networks: [app]
     restart: "no"

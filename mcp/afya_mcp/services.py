@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import psycopg
+from psycopg.rows import DictRow
 
 from . import rules, workflow
 from .db import VisitStore
@@ -49,7 +50,9 @@ def record_vitals(fhir: Fhir, plausibility: dict[str, Any], registry: list[dict[
                   complaint: str | None = None, reported_worsening: bool = False) -> dict[str, Any]:
     """E4-2. Validation and plausibility first: anything wrong or impossible means nothing is saved.
 
-    Conditional create on the request identifier, so a retried call returns the same Observation.
+    Conditional create on the request identifier `<visit id>:<key>` (per visit: the same key on another visit is
+    another reading), so a retried call returns the same Observation. A visit whose Encounter is not waiting
+    (arrived, triaged, in-progress) takes no new vitals.
     patient_id may be None: the patient is then the visit's subject. complaint: free text (Postgres only, see
     _clean_complaint). After the FHIR write, the visit row and latest_obs_id are upserted in Postgres (`store`, one
     transaction). The latest reading is read back from FHIR, so a retry of an older entry never moves latest_obs_id
@@ -68,19 +71,27 @@ def record_vitals(fhir: Fhir, plausibility: dict[str, Any], registry: list[dict[
         return {"status": "remeasure", "saved": False, "problems": [asdict(p) for p in implausible]}
     vid = ref_id(visit_id, "Encounter")
     encounter = fhir.read("Encounter", vid)
+    if encounter.get("status") not in WAITING_STATUSES:
+        return {"status": "invalid", "saved": False,
+                "problems": [f"visit is not open (status {encounter.get('status')}): no new vitals"]}
     subject = encounter.get("subject", {}).get("reference", "").rstrip("/").split("/")[-2:]
     pid = ref_id(patient_id, "Patient") if patient_id else (subject[-1] if subject[:1] == ["Patient"] else "")
     if not pid or subject != ["Patient", pid]:
         return {"status": "invalid", "saved": False, "problems": ["visit does not belong to this patient"]}
-    obs = vitals_observation(pid, vid, values, idempotency_key, when)
-    created = fhir.conditional_create(obs, f"{REQ_SYSTEM}|{idempotency_key}")
+    # The request identifier is scoped to the visit: the same key on another visit is another reading (E12-2).
+    scoped = f"{vid}:{idempotency_key}"
+    obs = vitals_observation(pid, vid, values, scoped, when)
+    created = fhir.conditional_create(obs, f"{REQ_SYSTEM}|{scoped}")
     if store is not None:
         newest = fhir.search("Observation", {"encounter": f"Encounter/{vid}", "code": f"http://loinc.org|{PANEL_CODE}",
                                              "status": ",".join(USABLE_STATUSES), "_sort": "-date", "_count": "1"})
-        store.record_reading(vid, pid, newest[0]["id"] if newest else created["id"], _patient_label(fhir, pid))
-        # api.md Q1: Postgres only, never FHIR; a retry keeps the first row
-        if clean_complaint or reported_worsening:
-            store.save_complaint(vid, created["id"], clean_complaint, reported_worsening)
+        latest = newest[0] if newest else created
+        # One Postgres transaction: visit + latest reading (moves forward in time only) + complaint (api.md Q1:
+        # Postgres only, never FHIR; a retry keeps the first row).
+        store.record_reading(vid, pid, latest["id"], _patient_label(fhir, pid),
+                             latest_at=_when(latest.get("effectiveDateTime")),
+                             reading_obs_id=created["id"], complaint=clean_complaint,
+                             reported_worsening=reported_worsening)
     return {"status": "saved", "saved": True, "observation_id": f"Observation/{created['id']}"}
 
 
@@ -353,15 +364,18 @@ def _recheck(site: dict[str, Any], colour: str | None, arrived: datetime | None,
     """Next reading due = last reading (or arrival) + the site interval for the confirmed colour.
     Without a confirmed colour only the first reading is due (on arrival); no interval is guessed."""
     interval = site.get("recheck_minutes", {}).get(colour) if colour else None
-    if interval is not None and (last_at or arrived):
-        due = (last_at or arrived) + timedelta(minutes=interval)
+    since = last_at or arrived
+    due: datetime | None
+    if interval is not None and since is not None:
+        due = since + timedelta(minutes=interval)
     elif no_reading and arrived:
         due = arrived
     else:
         due = None
     overdue = due is not None and now >= due
+    late = _minutes(now - due) if due is not None and overdue else 0
     return {"rule": "site rule", "interval_minutes": interval, "due_at": due.isoformat() if due else None,
-            "overdue": overdue, "overdue_minutes": _minutes(now - due) if overdue else 0 if due else None}
+            "overdue": overdue, "overdue_minutes": late if due is not None else None}
 
 
 def _open_proposals(store: VisitStore | None, site: dict[str, Any], now: datetime) -> list[dict[str, Any]] | None:
@@ -506,7 +520,7 @@ EVIDENCE_URL = "urn:afya:evidence"
 FHIR_ID = re.compile(r"^[A-Za-z0-9.-]{1,64}$")
 
 
-def raise_recheck_flag(fhir: Fhir, conn: psycopg.Connection, command_id: str, actor: str,
+def raise_recheck_flag(fhir: Fhir, conn: psycopg.Connection[DictRow], command_id: str, actor: str,
                        run_id: str | None = None) -> dict[str, Any]:
     """E4-6. Execute a nurse-approved command (input: its ID only). Order of writes (architecture s. 9): the intent is
     already committed in Postgres (approve) -> claim, or resume a claimed command after a crash -> idempotent FHIR
@@ -521,7 +535,8 @@ def raise_recheck_flag(fhir: Fhir, conn: psycopg.Connection, command_id: str, ac
         cid = str(uuid.UUID(str(command_id)))
     except ValueError:
         return {"status": "invalid", "command_id": command_id, "reason": "command_id is not a UUID"}
-    if not conn.execute("SELECT pg_try_advisory_lock(hashtextextended(%s, 0)) AS ok", (cid,)).fetchone()["ok"]:
+    lock = conn.execute("SELECT pg_try_advisory_lock(hashtextextended(%s, 0)) AS ok", (cid,)).fetchone()
+    if lock is None or not lock["ok"]:
         return {"status": "in_progress", "command_id": cid, "reason": "another executor is running this command"}
     try:
         return _execute(fhir, conn, cid, actor, run_id)
@@ -530,7 +545,7 @@ def raise_recheck_flag(fhir: Fhir, conn: psycopg.Connection, command_id: str, ac
             conn.execute("SELECT pg_advisory_unlock(hashtextextended(%s, 0))", (cid,))
 
 
-def _execute(fhir: Fhir, conn: psycopg.Connection, cid: str, actor: str, run_id: str | None) -> dict[str, Any]:
+def _execute(fhir: Fhir, conn: psycopg.Connection[DictRow], cid: str, actor: str, run_id: str | None) -> dict[str, Any]:
     row = conn.execute("SELECT c.*, p.decided_by, p.payload FROM commands c JOIN proposals p ON p.id = c.proposal_id "
                        "WHERE c.id = %s", (cid,)).fetchone()
     if row is None:
@@ -545,7 +560,7 @@ def _execute(fhir: Fhir, conn: psycopg.Connection, cid: str, actor: str, run_id:
         return {**base, "status": "refused", "reason": f"no executor for action_type {row['action_type']!r}"}
     if row["done_at"] is not None:
         return {**base, "status": "already_done", **executor(fhir, row, lookup_only=True)}
-    command = workflow.claim_command(conn, cid) or workflow.resume_command(conn, cid)
+    command = workflow.claim_command(conn, cid, actor, run_id) or workflow.resume_command(conn, cid, actor, run_id)
     if command is None:
         return {**base, "status": "refused", "reason": _why_not_claimable(conn, cid)}
     written = executor(fhir, {**command, "payload": row["payload"]})
@@ -554,13 +569,18 @@ def _execute(fhir: Fhir, conn: psycopg.Connection, cid: str, actor: str, run_id:
     return {**base, "status": "done", "attempts": command["attempts"], **written}
 
 
-def _why_not_claimable(conn: psycopg.Connection, cid: str) -> str:
+def _why_not_claimable(conn: psycopg.Connection[DictRow], cid: str) -> str:
     r = conn.execute(
-        "SELECT c.claimed_at IS NOT NULL AS claimed, c.expires_at <= now() AS expired, c.attempts, p.status, "
+        "SELECT c.claimed_at IS NOT NULL AS claimed, c.abandoned_at IS NOT NULL AS abandoned, c.abandon_reason, "
+        "c.expires_at <= now() AS expired, c.attempts, p.status, "
         "v.latest_obs_id IS DISTINCT FROM c.obs_id AS stale FROM commands c JOIN proposals p ON p.id = c.proposal_id "
         "JOIN visits v ON v.id = c.visit_id WHERE c.id = %s", (cid,)).fetchone()
+    if r is None:
+        return "not found"
     if r["status"] != "approved":
         return f"proposal is {r['status']}"
+    if r["abandoned"]:
+        return (f"abandoned ({r['abandon_reason']}): nothing was written; record a new reading for a fresh proposal")
     if r["claimed"]:
         return f"stopped after {r['attempts']} attempts" if r["attempts"] >= workflow.MAX_ATTEMPTS else "not resumable"
     if r["expired"]:
@@ -636,7 +656,7 @@ NOTIFY_ROLES = {"vitals_due": "nurse", "remeasure": "nurse", "clinician_reminder
                 "model_unavailable": "nurse", "agent_failed": "nurse"}
 
 
-def notify_staff(conn: psycopg.Connection, kind: str, proposal_id: str | None = None,
+def notify_staff(conn: psycopg.Connection[DictRow], kind: str, proposal_id: str | None = None,
                  visit_id: str | None = None) -> dict[str, Any]:
     """E4-7. Store a fixed-text reminder in afya.notifications for the UI to poll. Never changes the queue.
 
@@ -680,6 +700,7 @@ def notify_staff(conn: psycopg.Connection, kind: str, proposal_id: str | None = 
     row = conn.execute(
         "INSERT INTO notifications (kind, visit_id, proposal_id, target_role, text) VALUES (%s, %s, %s, %s, %s) "
         "RETURNING id, at", (kind, vid, proposal["id"] if proposal else None, NOTIFY_ROLES[kind], text)).fetchone()
+    assert row is not None   # INSERT ... RETURNING
     return {"status": "sent", "notification_id": str(row["id"]), "at": row["at"].isoformat(), "kind": kind,
             "visit_id": vid, "proposal_id": str(proposal["id"]) if proposal else None,
             "target_role": NOTIFY_ROLES[kind], "text": text}

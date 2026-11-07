@@ -13,14 +13,20 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import uuid
 from collections.abc import Iterable
 from datetime import timedelta
 from typing import Any
 
 import psycopg
+from psycopg.rows import DictRow
 from psycopg.types.json import Jsonb
 
 MAX_ATTEMPTS = 5
+# A command abandoned this long after its approval (or less) tells the nurse (a notice); older ones are only audited,
+# so cleaning up a long-neglected database does not flood the board.
+ABANDON_NOTICE_WINDOW = timedelta(hours=24)
+SERVICE_ROLES = ("agent", "system")
 COLOURS = ("RED", "ORANGE", "YELLOW", "GREEN")
 COMMAND_TTL = timedelta(hours=1)
 APPROVER_ROLES = ("nurse", "clinician")
@@ -40,10 +46,28 @@ class InvalidDecision(ValueError):
     """The decision itself is wrong: unknown colour, override without a reason, unknown sign code (HTTP 422)."""
 
 
-def _audit(conn: psycopg.Connection, kind: str, actor: str, visit_id: str | None, payload: dict[str, Any],
+def _audit(conn: psycopg.Connection[DictRow], kind: str, actor: str, visit_id: str | None, payload: dict[str, Any],
            run_id: str | None = None) -> None:
-    conn.execute("INSERT INTO audit_log (kind, actor, visit_id, run_id, payload) VALUES (%s, %s, %s, %s, %s)",
-                 (kind, actor, visit_id, run_id, Jsonb(payload)))
+    """auth follows the actor's role: 'service' for the agent and system, 'demo_switcher' for a signed-in person."""
+    conn.execute(
+        "INSERT INTO audit_log (kind, actor, auth, visit_id, run_id, payload) VALUES (%s, %s, "
+        "COALESCE((SELECT CASE WHEN role = ANY(%s) THEN 'service' ELSE 'demo_switcher' END FROM users WHERE id = %s), "
+        "'demo_switcher'), %s, %s, %s)",
+        (kind, actor, list(SERVICE_ROLES), actor, visit_id, run_id, Jsonb(payload)))
+
+
+def _bare(ref: Any) -> str:
+    return str(ref).rstrip("/").split("/")[-1]
+
+
+def _proposal_visit(conn: psycopg.Connection[DictRow], proposal_id: Any) -> str | None:
+    """The visit of a proposal, for audit rows of refusals (None when the id is not a UUID or unknown)."""
+    try:
+        pid = str(uuid.UUID(str(proposal_id)))
+    except ValueError:
+        return None
+    row = conn.execute("SELECT visit_id FROM proposals WHERE id = %s", (pid,)).fetchone()
+    return row["visit_id"] if row else None
 
 
 def run_id_for(visit_id: str, obs_id: str) -> str:
@@ -73,25 +97,32 @@ def evidence_hash(obs_ids: Iterable[str], sign_codes: Iterable[str], rules_versi
     return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
-def insert_proposal(conn: psycopg.Connection, visit_id: str, trigger: str, obs_id: str, ehash: str,
+def insert_proposal(conn: psycopg.Connection[DictRow], visit_id: str, trigger: str, obs_id: str, ehash: str,
                     payload: dict[str, Any]) -> dict[str, Any] | None:
     """payload must carry "to_colour" (RED/ORANGE/YELLOW/GREEN); approval copies it to the command. The other
     fields are the ones the approval card shows (see PAYLOAD_FIELDS and _check_payload); "cited_obs_ids" are the
     readings the executor lists on the Flag. Unknown or malformed fields are refused with ValueError before the
-    INSERT. Returns the new proposal, or None when the same (visit, trigger, evidence) already exists (a retry)."""
+    INSERT. Returns the new proposal, or None when the same (visit, trigger, evidence) already exists (a retry).
+    If the visit's latest reading is no longer obs_id the proposal is created already superseded (and unreviewed)."""
     _check_payload(payload)
-    return conn.execute(
-        "INSERT INTO proposals (visit_id, trigger, evidence_hash, obs_id, payload) VALUES (%s, %s, %s, %s, %s) "
-        "ON CONFLICT (visit_id, trigger, evidence_hash) DO NOTHING RETURNING *",
-        (visit_id, trigger, ehash, obs_id, Jsonb(payload))).fetchone()
+    with conn.transaction():
+        # Share-lock the visit row: a reading that arrives meanwhile waits for this insert and then supersedes it,
+        # and if it arrived first we see it here. Either way no proposal about an older reading is left pending.
+        v = conn.execute("SELECT latest_obs_id FROM visits WHERE id = %s FOR SHARE", (visit_id,)).fetchone()
+        stale = v is not None and v["latest_obs_id"] is not None and _bare(v["latest_obs_id"]) != _bare(obs_id)
+        return conn.execute(
+            "INSERT INTO proposals (visit_id, trigger, evidence_hash, obs_id, payload, status) "
+            "VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (visit_id, trigger, evidence_hash) DO NOTHING RETURNING *",
+            (visit_id, trigger, ehash, obs_id, Jsonb(payload), "superseded" if stale else "pending")).fetchone()
 
 
 NOTICE_CODES = ("remeasure", "no_chart", "not_reviewed", "instruction_like_text", "vitals_due", "clinician_reminded",
-                "model_unavailable", "fhir_unavailable", "data_incomplete", "agent_failed")
+                "model_unavailable", "fhir_unavailable", "data_incomplete", "agent_failed", "command_abandoned")
 # notifications.kind -> notice code of api.md section 6 (Q7: the database says clinician_reminder, the UI says
 # clinician_reminded)
 NOTICE_FROM_KIND = {"remeasure": "remeasure", "vitals_due": "vitals_due", "clinician_reminder": "clinician_reminded",
-                    "model_unavailable": "model_unavailable", "agent_failed": "agent_failed"}
+                    "model_unavailable": "model_unavailable", "agent_failed": "agent_failed",
+                    "command_abandoned": "command_abandoned"}
 
 
 def notice_from_notification(n: dict[str, Any]) -> dict[str, Any]:
@@ -202,7 +233,7 @@ def _check_signs(signs: Any) -> None:
             raise _bad("signs", "rows need code, gloss, colour, source, status, quote, quote_span {start,end}, reason")
 
 
-def open_proposals(conn: psycopg.Connection) -> list[dict[str, Any]]:
+def open_proposals(conn: psycopg.Connection[DictRow]) -> list[dict[str, Any]]:
     """Proposals nobody has decided yet (pending) and superseded ones nobody has reviewed, oldest first.
     Only IDs, codes and times: the payload's colour, never its text."""
     return conn.execute(
@@ -210,28 +241,41 @@ def open_proposals(conn: psycopg.Connection) -> list[dict[str, Any]]:
         "WHERE status = 'pending' OR (status = 'superseded' AND NOT reviewed) ORDER BY created_at").fetchall()
 
 
-def list_proposals(conn: psycopg.Connection, status: str = "pending") -> list[dict[str, Any]]:
-    """For GET /proposals: "pending" (default), "superseded" (not yet reviewed) or "all" (every proposal),
-    oldest first, with the visit's patient label. A row without a to_colour is not a card (it could not be approved)
-    and is left out."""
+MAX_LIST = 1000
+DEFAULT_LIST = 500
+
+
+def list_proposals(conn: psycopg.Connection[DictRow], status: str = "pending", visit_id: str | None = None,
+                   limit: int | None = None) -> list[dict[str, Any]]:
+    """For GET /proposals: "pending" (default), "superseded" (not yet reviewed) or "all" (every proposal), with the
+    visit's patient label. Optional visit_id filter. Oldest first, except "all": newest first (so `limit` keeps the
+    latest). `limit` is 1..MAX_LIST; left out it is DEFAULT_LIST for "all" and unlimited for "pending" and
+    "superseded" (a queue must never silently hide its newest card). A row without a to_colour is not a card (it could
+    not be approved) and is left out."""
     where = {"pending": "p.status = 'pending'", "superseded": "p.status = 'superseded' AND NOT p.reviewed",
              "all": "true"}.get(status)
     if where is None:
         raise ValueError("status must be pending, superseded or all")
+    if limit is None:
+        limit = DEFAULT_LIST if status == "all" else None
+    elif not 1 <= limit <= MAX_LIST:
+        raise ValueError(f"limit must be between 1 and {MAX_LIST}")
+    order = "DESC" if status == "all" else "ASC"
     return conn.execute(
         "SELECT p.*, v.patient_label, r.complaint AS reading_complaint FROM proposals p "
         "JOIN visits v ON v.id = p.visit_id "
         "LEFT JOIN readings r ON r.obs_id = regexp_replace(p.obs_id, '^.*/', '') "
-        f"WHERE ({where}) AND p.payload ? 'to_colour' ORDER BY p.created_at").fetchall()
+        f"WHERE ({where}) AND p.payload ? 'to_colour' AND (%s::text IS NULL OR p.visit_id = %s) "
+        f"ORDER BY p.created_at {order}, p.id LIMIT %s", (visit_id, visit_id, limit)).fetchall()  # LIMIT NULL = all
 
 
-def open_notifications(conn: psycopg.Connection) -> list[dict[str, Any]]:
+def open_notifications(conn: psycopg.Connection[DictRow]) -> list[dict[str, Any]]:
     """Notices nobody has dismissed yet (kind, visit, proposal, time), oldest first. Fixed-text notifications only."""
     return conn.execute("SELECT id, at, kind, visit_id, proposal_id FROM notifications "
                         "WHERE acknowledged_at IS NULL ORDER BY at").fetchall()
 
 
-def acknowledge_notification(conn: psycopg.Connection, notification_id: str, user_id: str) -> bool:
+def acknowledge_notification(conn: psycopg.Connection[DictRow], notification_id: str, user_id: str) -> bool:
     """Dismiss one notice (idempotent). False when it does not exist. Audited in the same transaction."""
     with conn.transaction():
         row = conn.execute("UPDATE notifications SET acknowledged_at = COALESCE(acknowledged_at, now()) "
@@ -242,14 +286,27 @@ def acknowledge_notification(conn: psycopg.Connection, notification_id: str, use
     return row is not None
 
 
-def supersede_pending(conn: psycopg.Connection, visit_id: str, latest_obs_id: str) -> int:
-    """Newer vitals: pending proposals about an older reading become superseded, reviewed stays false."""
-    return conn.execute(
-        "UPDATE proposals SET status = 'superseded' WHERE visit_id = %s AND status = 'pending' AND obs_id <> %s",
-        (visit_id, latest_obs_id)).rowcount
+def close_reminders(conn: psycopg.Connection[DictRow], proposal_ids: Iterable[Any]) -> int:
+    """The clinician reminders of these proposals are acknowledged (the proposal was decided or superseded): the patient
+    stops showing "Clinician reminded". Runs inside the caller's transaction."""
+    ids = [str(i) for i in proposal_ids]
+    if not ids:
+        return 0
+    return conn.execute("UPDATE notifications SET acknowledged_at = now() WHERE kind = 'clinician_reminder' "
+                        "AND acknowledged_at IS NULL AND proposal_id = ANY(%s::uuid[])", (ids,)).rowcount
 
 
-def acknowledge(conn: psycopg.Connection, proposal_id: str, user_id: str) -> bool:
+def supersede_pending(conn: psycopg.Connection[DictRow], visit_id: str, latest_obs_id: str) -> int:
+    """Newer vitals: pending proposals about an older reading become superseded, reviewed stays false. Their clinician
+    reminders are closed in the same step."""
+    rows = conn.execute(
+        "UPDATE proposals SET status = 'superseded' WHERE visit_id = %s AND status = 'pending' AND obs_id <> %s "
+        "RETURNING id", (visit_id, latest_obs_id)).fetchall()
+    close_reminders(conn, [r["id"] for r in rows])
+    return len(rows)
+
+
+def acknowledge(conn: psycopg.Connection[DictRow], proposal_id: str, user_id: str) -> bool:
     """A nurse has seen a superseded proposal: it stops showing as "not reviewed". Audited in the same transaction."""
     with conn.transaction():
         row = conn.execute("UPDATE proposals SET reviewed = true WHERE id = %s AND status = 'superseded' "
@@ -261,12 +318,14 @@ def acknowledge(conn: psycopg.Connection, proposal_id: str, user_id: str) -> boo
 
 # ---------- E3-5: approve, claim, mark done, resume, sweep ----------
 
-def _require_decider(conn: psycopg.Connection, user_id: str, refused_kind: str, proposal_id: str, verb: str) -> None:
+def _require_decider(conn: psycopg.Connection[DictRow], user_id: str, refused_kind: str, proposal_id: str,
+                     verb: str) -> None:
     """Role check shared by approve and reject: only a nurse or clinician decides. A refusal is audited."""
     role = conn.execute("SELECT role FROM users WHERE id = %s", (user_id,)).fetchone()
     if role is None or role["role"] not in APPROVER_ROLES:
         if role is not None:
-            _audit(conn, refused_kind, user_id, None, {"proposal_id": str(proposal_id), "reason": "role"})
+            _audit(conn, refused_kind, user_id, _proposal_visit(conn, proposal_id),
+                   {"proposal_id": str(proposal_id), "reason": "role"})
         raise Forbidden(f"only a nurse or clinician can {verb}")
 
 
@@ -298,7 +357,7 @@ def _check_decision(payload: dict[str, Any], colour: str | None, signs_kept: lis
     return out
 
 
-def approve_proposal(conn: psycopg.Connection, proposal_id: str, user_id: str, colour: str | None = None,
+def approve_proposal(conn: psycopg.Connection[DictRow], proposal_id: str, user_id: str, colour: str | None = None,
                      signs_kept: Iterable[str] | None = None, override_reason: str | None = None,
                      ttl: timedelta = COMMAND_TTL) -> dict[str, Any]:
     """Role check (Forbidden), single-use UPDATE (0 rows: Conflict), then decision + command + audit in ONE transaction.
@@ -325,19 +384,23 @@ def approve_proposal(conn: psycopg.Connection, proposal_id: str, user_id: str, c
                     "INSERT INTO commands (proposal_id, visit_id, obs_id, colour, evidence_hash, expires_at) "
                     "VALUES (%s, %s, %s, %s, %s, now() + %s) RETURNING *",
                     (p["id"], p["visit_id"], p["obs_id"], decision["colour"], p["evidence_hash"], ttl)).fetchone()
+                assert command is not None   # INSERT ... RETURNING
+                closed = close_reminders(conn, [p["id"]])
                 _audit(conn, "proposal_approved", user_id, p["visit_id"],
                        {"proposal_id": str(p["id"]), "command_id": str(command["id"]), "obs_id": p["obs_id"],
-                        **decision})
+                        **decision, **({"reminders_closed": closed} if closed else {})})
     except InvalidDecision:
-        _audit(conn, "approve_refused", user_id, None, {"proposal_id": str(proposal_id), "reason": "invalid"})
+        _audit(conn, "approve_refused", user_id, _proposal_visit(conn, proposal_id),
+               {"proposal_id": str(proposal_id), "reason": "invalid"})
         raise
     if p is None:
-        _audit(conn, "approve_refused", user_id, None, {"proposal_id": str(proposal_id), "reason": "not pending"})
+        _audit(conn, "approve_refused", user_id, _proposal_visit(conn, proposal_id),
+               {"proposal_id": str(proposal_id), "reason": "not pending"})
         raise Conflict("proposal is not pending")
     return {"proposal": p, "command": command}
 
 
-def reject_proposal(conn: psycopg.Connection, proposal_id: str, user_id: str, reason: str) -> dict[str, Any]:
+def reject_proposal(conn: psycopg.Connection[DictRow], proposal_id: str, user_id: str, reason: str) -> dict[str, Any]:
     """Same role check (Forbidden) and single-use UPDATE (Conflict) as approve. A reason is required
     (InvalidDecision). Decision and audit row are one transaction; no command is created, nothing reaches FHIR."""
     _require_decider(conn, user_id, "reject_refused", proposal_id, "reject")
@@ -350,52 +413,116 @@ def reject_proposal(conn: psycopg.Connection, proposal_id: str, user_id: str, re
             "FROM users u WHERE p.id = %s AND p.status = 'pending' AND u.id = %s AND u.role IN ('nurse', 'clinician') "
             "RETURNING p.*", (user_id, proposal_id, user_id)).fetchone()
         if p is not None:
+            closed = close_reminders(conn, [p["id"]])
             _audit(conn, "proposal_rejected", user_id, p["visit_id"],
-                   {"proposal_id": str(p["id"]), "obs_id": p["obs_id"], "reason": text})
+                   {"proposal_id": str(p["id"]), "obs_id": p["obs_id"], "reason": text,
+                    **({"reminders_closed": closed} if closed else {})})
     if p is None:
-        _audit(conn, "reject_refused", user_id, None, {"proposal_id": str(proposal_id), "reason": "not pending"})
+        _audit(conn, "reject_refused", user_id, _proposal_visit(conn, proposal_id),
+               {"proposal_id": str(proposal_id), "reason": "not pending"})
         raise Conflict("proposal is not pending")
     return {"proposal": p}
 
 
-def claim_command(conn: psycopg.Connection, command_id: str) -> dict[str, Any] | None:
-    """Unclaimed, not expired, still the latest reading and proposal approved: all inside the UPDATE.
-    None means the claim failed (someone else holds it, it expired, or newer vitals arrived)."""
-    return conn.execute(
-        "UPDATE commands c SET claimed_at = now(), attempts = attempts + 1 "
-        "FROM visits v WHERE c.id = %s AND c.claimed_at IS NULL AND c.expires_at > now() "
-        "AND v.id = c.visit_id AND v.latest_obs_id = c.obs_id "
-        "AND EXISTS (SELECT 1 FROM proposals p WHERE p.id = c.proposal_id AND p.status = 'approved') "
-        "RETURNING c.*", (command_id,)).fetchone()
+def _command_audit(conn: psycopg.Connection[DictRow], kind: str, c: dict[str, Any], actor: str,
+                   run_id: str | None) -> None:
+    _audit(conn, kind, actor, c["visit_id"],
+           {"command_id": str(c["id"]), "proposal_id": str(c["proposal_id"]), "obs_id": c["obs_id"],
+            "colour": c["colour"], "attempts": c["attempts"]}, run_id)
 
 
-def resume_command(conn: psycopg.Connection, command_id: str) -> dict[str, Any] | None:
-    """After a crash: claimed, not done, attempts < 5. A nurse-approved flag is still written when newer vitals
-    arrived meanwhile (documented in Appendix A); the new reading gets its own run."""
-    return conn.execute(
-        "UPDATE commands SET attempts = attempts + 1 "
-        "WHERE id = %s AND claimed_at IS NOT NULL AND done_at IS NULL AND attempts < %s RETURNING *",
-        (command_id, MAX_ATTEMPTS)).fetchone()
-
-
-def mark_done(conn: psycopg.Connection, command_id: str, actor: str = "agent",
-              run_id: str | None = None) -> dict[str, Any] | None:
-    """done_at and the audit row in one transaction. None if the command is not claimed or already done."""
+def claim_command(conn: psycopg.Connection[DictRow], command_id: str, actor: str = "system",
+                  run_id: str | None = None) -> dict[str, Any] | None:
+    """Unclaimed, not expired, not abandoned, still the latest reading and proposal approved: all inside the UPDATE;
+    a `command_claimed` audit row in the same transaction. None means the claim failed (someone else holds it, it
+    expired, or newer vitals arrived)."""
     with conn.transaction():
-        c = conn.execute("UPDATE commands SET done_at = now() WHERE id = %s AND claimed_at IS NOT NULL "
-                         "AND done_at IS NULL RETURNING *", (command_id,)).fetchone()
+        c = conn.execute(
+            "UPDATE commands c SET claimed_at = now(), attempts = attempts + 1 "
+            "FROM visits v WHERE c.id = %s AND c.claimed_at IS NULL AND c.abandoned_at IS NULL "
+            "AND c.expires_at > now() AND v.id = c.visit_id AND v.latest_obs_id = c.obs_id "
+            "AND EXISTS (SELECT 1 FROM proposals p WHERE p.id = c.proposal_id AND p.status = 'approved') "
+            "RETURNING c.*", (command_id,)).fetchone()
         if c:
-            _audit(conn, "command_done", actor, c["visit_id"],
-                   {"command_id": str(c["id"]), "proposal_id": str(c["proposal_id"]), "obs_id": c["obs_id"],
-                    "colour": c["colour"], "attempts": c["attempts"]}, run_id)
+            _command_audit(conn, "command_claimed", c, actor, run_id)
     return c
 
 
-def sweep_open_commands(conn: psycopg.Connection) -> list[dict[str, Any]]:
-    """Startup sweep: approved commands that are not done and may still run (attempts < 5). Claimed ones resume;
-    unclaimed ones are claimable only while not expired. The caller runs claim_command or resume_command on each."""
+def resume_command(conn: psycopg.Connection[DictRow], command_id: str, actor: str = "system",
+                   run_id: str | None = None) -> dict[str, Any] | None:
+    """After a crash: claimed, not done, not abandoned, attempts < 5. A nurse-approved flag is still written when newer
+    vitals arrived meanwhile (documented in Appendix A); the new reading gets its own run. Audited as
+    `command_resumed` in the same transaction."""
+    with conn.transaction():
+        c = conn.execute(
+            "UPDATE commands SET attempts = attempts + 1 WHERE id = %s AND claimed_at IS NOT NULL AND done_at IS NULL "
+            "AND abandoned_at IS NULL AND attempts < %s RETURNING *", (command_id, MAX_ATTEMPTS)).fetchone()
+        if c:
+            _command_audit(conn, "command_resumed", c, actor, run_id)
+    return c
+
+
+def mark_done(conn: psycopg.Connection[DictRow], command_id: str, actor: str = "agent",
+              run_id: str | None = None) -> dict[str, Any] | None:
+    """done_at and the audit row in one transaction. None if the command is not claimed, abandoned or already done."""
+    with conn.transaction():
+        c = conn.execute("UPDATE commands SET done_at = now() WHERE id = %s AND claimed_at IS NOT NULL "
+                         "AND done_at IS NULL AND abandoned_at IS NULL RETURNING *", (command_id,)).fetchone()
+        if c:
+            _command_audit(conn, "command_done", c, actor, run_id)
+    return c
+
+
+ABANDON_TEXT = {
+    "expired": "the approval ran out of time before the flag could be written",
+    "attempts": "writing the flag kept failing",
+}
+
+
+def abandon_unrunnable_commands(conn: psycopg.Connection[DictRow]) -> list[dict[str, Any]]:
+    """Approved commands that can never run are ABANDONED, so the sweep stops retrying them (E12-2):
+    `expired` (never claimed, approval older than its TTL), `stale` (never claimed, newer vitals arrived) and
+    `attempts` (claimed, not done, MAX_ATTEMPTS used). Each one gets a `command_abandoned` audit row (actor system) in
+    the same transaction. Expired and failed ones approved within ABANDON_NOTICE_WINDOW also raise one open
+    `command_abandoned` notice per visit (fixed text, nurse). Nothing was written to FHIR for them. A nurse re-opens
+    the work by recording a new reading: that gets a fresh proposal to approve (the old one is single-use)."""
+    with conn.transaction():
+        rows = conn.execute(
+            "UPDATE commands c SET abandoned_at = now(), abandon_reason = "
+            "CASE WHEN c.attempts >= %s THEN 'attempts' WHEN c.expires_at <= now() THEN 'expired' ELSE 'stale' END "
+            "FROM proposals p, visits v WHERE p.id = c.proposal_id AND v.id = c.visit_id AND p.status = 'approved' "
+            "AND c.done_at IS NULL AND c.abandoned_at IS NULL "
+            "AND (c.attempts >= %s OR (c.claimed_at IS NULL AND (c.expires_at <= now() "
+            "OR v.latest_obs_id IS DISTINCT FROM c.obs_id))) "
+            "RETURNING c.*, p.decided_at, p.decided_at > now() - %s AS recent",
+            (MAX_ATTEMPTS, MAX_ATTEMPTS, ABANDON_NOTICE_WINDOW)).fetchall()
+        noticed: set[str] = set()
+        for c in rows:
+            try:
+                run = run_id_for(c["visit_id"], c["obs_id"])
+            except ValueError:
+                run = None
+            _audit(conn, "command_abandoned", "system", c["visit_id"],
+                   {"command_id": str(c["id"]), "proposal_id": str(c["proposal_id"]), "obs_id": c["obs_id"],
+                    "colour": c["colour"], "attempts": c["attempts"], "reason": c["abandon_reason"]}, run)
+            if c["recent"] and c["abandon_reason"] in ABANDON_TEXT and c["visit_id"] not in noticed:
+                noticed.add(c["visit_id"])
+                text = (f"A re-check you confirmed for visit {c['visit_id']} was not carried out: "
+                        f"{ABANDON_TEXT[c['abandon_reason']]}. Nothing was written to the record. "
+                        "Record a new reading to get a fresh proposal.")
+                conn.execute("INSERT INTO notifications (kind, visit_id, proposal_id, target_role, text) "
+                             "VALUES ('command_abandoned', %s, %s, 'nurse', %s) ON CONFLICT DO NOTHING",
+                             (c["visit_id"], c["proposal_id"], text))
+    return rows
+
+
+def sweep_open_commands(conn: psycopg.Connection[DictRow]) -> list[dict[str, Any]]:
+    """Startup sweep: first abandons what can never run (abandon_unrunnable_commands), then lists approved commands
+    that are not done and may still run (attempts < 5, not abandoned). Claimed ones resume; unclaimed ones are
+    claimable only while not expired. The caller runs claim_command or resume_command on each."""
+    abandon_unrunnable_commands(conn)
     return conn.execute(
         "SELECT c.* FROM commands c JOIN proposals p ON p.id = c.proposal_id "
-        "WHERE p.status = 'approved' AND c.done_at IS NULL AND c.attempts < %s "
+        "WHERE p.status = 'approved' AND c.done_at IS NULL AND c.abandoned_at IS NULL AND c.attempts < %s "
         "AND (c.claimed_at IS NOT NULL OR c.expires_at > now()) ORDER BY c.expires_at",
         (MAX_ATTEMPTS,)).fetchall()

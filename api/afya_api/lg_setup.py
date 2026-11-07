@@ -8,9 +8,11 @@ from langgraph.checkpoint.postgres import PostgresSaver
 
 
 def main() -> None:
-    url = os.environ["OWNER_DATABASE_URL"] + "?options=-csearch_path%3Dlg"
-    with PostgresSaver.from_conn_string(url) as saver:
-        saver.setup()
+    # the app database, and the separate test database when the compose file names one
+    for var in ("OWNER_DATABASE_URL", "OWNER_TEST_DATABASE_URL"):
+        if os.environ.get(var):
+            with PostgresSaver.from_conn_string(os.environ[var] + "?options=-csearch_path%3Dlg") as saver:
+                saver.setup()
     print("lg-init: checkpoint tables ready")
 
 

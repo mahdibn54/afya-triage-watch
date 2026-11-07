@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 Colour = Literal["RED", "ORANGE", "YELLOW", "GREEN"]
 NoticeCode = Literal["remeasure", "no_chart", "not_reviewed", "instruction_like_text", "vitals_due",
                      "clinician_reminded", "model_unavailable", "fhir_unavailable", "data_incomplete",
-                     "agent_failed"]
+                     "agent_failed", "command_abandoned"]
 Num = Annotated[float, Field(strict=True, allow_inf_nan=False)]
 
 

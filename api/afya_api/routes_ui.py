@@ -7,6 +7,7 @@ from typing import Any
 import psycopg
 from afya_mcp import workflow
 from fastapi import APIRouter, Depends
+from psycopg.rows import DictRow
 
 from . import helpers
 from .deps import User, current_user, get_conn, get_gateway
@@ -83,7 +84,7 @@ def trace_steps(rows: list[dict[str, Any]]) -> list[TraceStep]:
 
 
 @router.get("/runs/{run_id}/trace", response_model=list[TraceStep], responses=ERROR_RESPONSES)
-def run_trace(run_id: str, _user: User = Depends(current_user), conn: psycopg.Connection = Depends(get_conn)):
+def run_trace(run_id: str, _user: User = Depends(current_user), conn: psycopg.Connection[DictRow] = Depends(get_conn)):
     """Ordered steps of one agent run, from audit_log rows with this run_id. Our tools come from the MCP audit rows;
     the agent's own steps (model, decision, gate, borrowed tools) from `agent_step` rows (E5). Unknown run: []."""
     if not workflow.RUN_ID.match(run_id):
@@ -97,7 +98,7 @@ def run_trace(run_id: str, _user: User = Depends(current_user), conn: psycopg.Co
 
 @router.get("/proposals/{proposal_id}/gates", response_model=list[Gate], responses=ERROR_RESPONSES)
 def proposal_gates(proposal_id: str, _user: User = Depends(current_user),
-                   conn: psycopg.Connection = Depends(get_conn)):
+                   conn: psycopg.Connection[DictRow] = Depends(get_conn)):
     """Always the six gates in order; `at` is null for a gate not reached. Refused attempts (approve or reject by
     the wrong role, double clicks) hang on `confirmed` with the role of the person who tried."""
     pid = helpers.uuid_or_404(proposal_id)

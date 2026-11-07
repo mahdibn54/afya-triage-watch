@@ -33,7 +33,7 @@ known-third-party = ["afya_mcp"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [".", "../mcp/tests"]
-markers = ["integration: needs the running Postgres (DATABASE_URL as afya_app); skipped when unreachable"]
+markers = ["integration: needs the running Postgres (TEST_DATABASE_URL as afya_app); skipped when unreachable"]
 
 [build-system]
 requires = ["setuptools>=68"]

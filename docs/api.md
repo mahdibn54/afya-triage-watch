@@ -249,8 +249,11 @@ stored in Postgres (`afya.readings`), NFKC-normalised, never in FHIR; a retry ke
 
 ## 6. Proposals, decisions, notices
 
-### GET /proposals?status=pending
-`status` is `pending` (default), `superseded` (not yet reviewed) or `all`. One object per proposal. `current_colour` is
+### GET /proposals?status=pending&visit_id=&limit=
+`status` is `pending` (default), `superseded` (not yet reviewed) or `all`. `visit_id` (optional) keeps only that
+visit's proposals. `limit` is 1 to 1000 (`422` outside); left out it is 500 for `status=all` and no limit for `pending` and `superseded`. Order: oldest first, except `status=all`, which is
+newest first (so `limit` keeps the latest). A clinician reminder is closed when its proposal is approved, rejected or
+superseded, so `clinician_reminded` disappears with the decision. One object per proposal. `current_colour` is
 the confirmed colour; `proposed_colour` is never lower. `evidence` lists the readings behind the flag, one row per input
 whose value changed, with the record id of each reading; `band_changed` is true when the input moved into a higher
 score band (the UI emphasises those rows). `signs` has both the signs that count (`status: "current"`) and the mentions
@@ -384,6 +387,7 @@ Notices appear in `/queue` (per patient, or top level) and in proposals. The UI 
 | `vitals_due` | the site re-check interval has passed | notification `vitals_due` |
 | `clinician_reminded` | the clinician on duty was reminded of a pending proposal | notification `clinician_reminder` |
 | `model_unavailable` | the language model is down; scoring and proposals continue | notification `model_unavailable` |
+| `command_abandoned` | a flag the nurse confirmed was not written (the approval expired or the executor kept failing): nothing reached the record; recording a new reading gives a fresh proposal | notification `command_abandoned` (per visit, only for approvals less than a day old) |
 | `fhir_unavailable` | the FHIR server could not be reached (Q12); `/queue` then has no patients and this notice at top level | queue (`get_queue_state`) |
 | `data_incomplete` | a visit lacks data the queue needs (no patient, unknown colour, no arrival time) | queue (added by M, not in B's first list) |
 

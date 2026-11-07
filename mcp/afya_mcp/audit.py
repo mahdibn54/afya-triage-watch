@@ -9,6 +9,12 @@ Actors: act tools take a user id from afya.users (the approving user for raise_r
 record_vitals, 'agent' or 'system' for automated calls); a manager or an unknown id is refused before the tool runs.
 Read tools always log actor 'agent' (the model-facing tools have no actor field).
 
+Tools whose effect commits before the audit row (record_vitals, notify_staff, seed_demo_visit: `intent=True`) write
+an intent row `<tool>_started` BEFORE running. If that row cannot be written the tool does not run; if only the final
+row fails afterwards, the effect stands, the intent row is the record, the failure is logged and the result is
+returned (an error would make the nurse retry something that already happened). raise_recheck_flag needs no intent
+row: mark done and its audit row are one transaction.
+
 Audit failures are never silent: for an act tool the call fails (AuditFailed); for a read tool the error is logged
 and the result is still returned (a read changes nothing).
 """
@@ -70,8 +76,8 @@ class PgAuditor:
 
 
 def call(auditor: Auditor | None, kind: str, mode: str, inputs: dict[str, Any], fn: Callable[[], Any],
-         actor: str = "agent", run_id: str | None = None) -> Any:
-    """Run `fn` and audit it. Blocking: call it from a worker thread."""
+         actor: str = "agent", run_id: str | None = None, intent: bool = False) -> Any:
+    """Run `fn` and audit it. Blocking: call it from a worker thread. intent: see the module docstring."""
     run_id = _short(run_id, 128) if run_id else None
     if mode == ACT:
         if auditor is None:
@@ -83,6 +89,14 @@ def call(auditor: Auditor | None, kind: str, mode: str, inputs: dict[str, Any], 
         auth = "demo_switcher" if role in HUMAN_ROLES else "service"
     else:
         actor, auth = "agent", "service"
+
+    visit_before = _visit_of(inputs, None)
+    if intent and mode == ACT and auditor is not None:
+        try:
+            auditor.write(f"{kind}_started", actor, auth, visit_before, run_id,
+                          _cap({"mount": mode, "inputs": trim(inputs)}))
+        except Exception as e:
+            raise AuditFailed(f"{kind}: intent row not written ({type(e).__name__}); nothing was done") from e
 
     start = time.perf_counter()
     result: Any = None
@@ -103,7 +117,9 @@ def call(auditor: Auditor | None, kind: str, mode: str, inputs: dict[str, Any], 
         try:
             auditor.write(kind, actor, auth, visit_id, run_id, payload)
         except Exception as e:
-            if mode == ACT:
+            if mode == ACT and intent:
+                log.exception("audit row for %s not written; the %s_started row is the record", kind, kind)
+            elif mode == ACT:
                 raise AuditFailed(f"{kind}: audit row not written ({type(e).__name__})") from (error or e)
             log.exception("audit row for read tool %s not written", kind)
     if error is not None:

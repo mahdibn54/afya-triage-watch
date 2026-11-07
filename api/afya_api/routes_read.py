@@ -10,6 +10,7 @@ from typing import Any
 
 import psycopg
 from fastapi import APIRouter, Depends, Query
+from psycopg.rows import DictRow
 
 from . import helpers
 from .deps import User, current_user, get_conn, get_gateway
@@ -37,7 +38,8 @@ async def queue(_user: User = Depends(current_user), gateway: Gateway = Depends(
 @router.get("/audit", response_model=list[AuditRowOut], responses=ERROR_RESPONSES)
 def audit(visit_id: str | None = Query(None, max_length=64), run_id: str | None = Query(None, max_length=128),
           kind: str | None = Query(None, max_length=64), limit: int = Query(100, ge=1, le=AUDIT_MAX),
-          _user: User = Depends(current_user), conn: psycopg.Connection = Depends(get_conn)) -> list[AuditRowOut]:
+          _user: User = Depends(current_user),
+          conn: psycopg.Connection[DictRow] = Depends(get_conn)) -> list[AuditRowOut]:
     """Newest first. Payloads hold ids, codes and numbers only (written that way by the audit wrapper)."""
     where, args = [], []
     for column, value in (("visit_id", visit_id), ("run_id", run_id), ("kind", kind)):

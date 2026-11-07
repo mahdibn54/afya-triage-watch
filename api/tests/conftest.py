@@ -8,6 +8,7 @@ import os
 import uuid
 from typing import Any
 
+import dbselect
 import psycopg
 import pytest
 from afya_mcp import audit, db, rules, services
@@ -22,6 +23,8 @@ from afya_api.main import app
 from afya_api.mcp_client import ToolRefused
 from afya_api.model import Model, ModelSettings, OllamaBackend
 
+dbselect.select()   # never the stack's own database: see mcp/tests/dbselect.py
+
 
 def _reachable() -> bool:
     url = os.environ.get("DATABASE_URL")
@@ -35,6 +38,7 @@ def _reachable() -> bool:
 
 
 DB = _reachable()
+TAG = "synthetic-test"   # ids of the visits these tests leave in the dev database start with this
 
 
 @pytest.fixture
@@ -53,6 +57,7 @@ class InProcessGateway:
 
     def __init__(self, fhir: FakeFhir) -> None:
         self.fhir, self.calls = fhir, []
+        self.now = None     # tests move the clock here (the app role cannot rewrite proposals.created_at)
 
     async def act(self, tool: str, args: dict[str, Any]) -> dict[str, Any]:
         self.calls.append((tool, args))
@@ -98,7 +103,7 @@ class InProcessGateway:
             fn = lambda: services.check_deterioration(self.fhir, REG, args["visit_id"])  # noqa: E731
         elif tool == "get_queue_state":
             inputs = {}
-            fn = lambda: services.get_queue_state(self.fhir, REG, SITE, db.PgVisitStore())  # noqa: E731
+            fn = lambda: services.get_queue_state(self.fhir, REG, SITE, db.PgVisitStore(), self.now)  # noqa: E731
         else:
             raise AssertionError(tool)
         return audit.call(audit.PgAuditor(), tool, audit.READ, inputs, fn, "agent", run_id)
@@ -119,7 +124,7 @@ class InProcessGateway:
         if tool == "demo_visit":
             return services.demo_visit(self.fhir, args["label"])
         if tool == "queue_state":
-            return services.get_queue_state(self.fhir, REG, SITE, db.PgVisitStore())
+            return services.get_queue_state(self.fhir, REG, SITE, db.PgVisitStore(), self.now)
         raise AssertionError(tool)
 
 
@@ -134,7 +139,7 @@ def fhir(_db) -> FakeFhir:
 
 @pytest.fixture
 def visit(fhir) -> str:
-    vid = f"v-{uuid.uuid4().hex[:10]}"
+    vid = f"{TAG}-v-{uuid.uuid4().hex[:10]}"
     fhir.put({"resourceType": "Encounter", "id": vid, "status": "in-progress", "subject": {"reference": "Patient/p1"},
               "priority": {"coding": [{"system": COLOUR_SYSTEM, "code": "YELLOW"}]}})
     return vid

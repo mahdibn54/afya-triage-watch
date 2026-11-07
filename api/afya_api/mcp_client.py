@@ -16,6 +16,7 @@ from typing import Any, Protocol
 import anyio
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
+from mcp.types import TextContent
 
 from .fhir_projection import FHIRPATHS, restore_response
 
@@ -59,7 +60,11 @@ class McpGateway:
                     res = await session.call_tool(tool, args)
         except (OSError, TimeoutError, ExceptionGroup) as e:
             raise McpUnavailable(f"afya-mcp: {type(e).__name__}") from e
-        text = res.content[0].text if res.content else ""
+        first = res.content[0] if res.content else None
+        if first is not None and not isinstance(first, TextContent):
+            # an image, audio or resource answer: never expected from afya-mcp or WSO2, and not parseable
+            raise ToolFailed(f"{tool}: the tool answered with {type(first).__name__}, not text")
+        text = first.text if first is not None else ""
         if res.isError:
             if "may not run" in text:
                 raise ToolRefused(text)

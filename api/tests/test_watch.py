@@ -33,7 +33,7 @@ def test_orange_proposal_notifies_the_clinician_at_creation(client, as_user, vis
 
 
 def test_yellow_proposal_does_not_notify_at_creation(client, as_user, fhir, conn):
-    vid = f"v-{uuid.uuid4().hex[:10]}"
+    vid = f"synthetic-test-v-{uuid.uuid4().hex[:10]}"
     fhir.put({"resourceType": "Encounter", "id": vid, "status": "in-progress", "subject": {"reference": "Patient/p1"},
               "priority": {"coding": [{"system": COLOUR_SYSTEM, "code": "GREEN"}]}})
     vitals(client, vid, **STABLE_YELLOW)
@@ -44,7 +44,7 @@ def test_yellow_proposal_does_not_notify_at_creation(client, as_user, fhir, conn
 def test_unread_orange_after_five_minutes_is_reminded_once(client, as_user, visit, conn, gateway):
     vitals(client, visit)
     p = proposal_of(conn, visit)
-    conn.execute("UPDATE proposals SET created_at = now() - interval '6 minutes' WHERE id = %s", (p["id"],))
+    gateway.now = datetime.now(UTC) + timedelta(minutes=6)       # six minutes later
     sent = asyncio.run(watch_once(gateway))
     assert str(p["id"]) in sent["clinician_reminder"]
     assert notes(conn, proposal_id=p["id"]) == ["clinician_reminder", "clinician_reminder"]
@@ -54,7 +54,7 @@ def test_unread_orange_after_five_minutes_is_reminded_once(client, as_user, visi
 
 
 def test_vitals_due_once_and_nothing_in_the_queue_changes(client, as_user, fhir, conn, gateway):
-    vid = f"v-{uuid.uuid4().hex[:10]}"
+    vid = f"synthetic-test-v-{uuid.uuid4().hex[:10]}"
     start = (datetime.now(UTC) - timedelta(minutes=90)).isoformat()
     fhir.put({"resourceType": "Encounter", "id": vid, "status": "in-progress", "subject": {"reference": "Patient/p1"},
               "period": {"start": start}, "priority": {"coding": [{"system": COLOUR_SYSTEM, "code": "YELLOW"}]}})

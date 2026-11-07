@@ -20,7 +20,7 @@ dev = ["pytest", "ruff", "mypy", "types-PyYAML"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [".", "tests"]
-markers = ["integration: needs the running Postgres (DATABASE_URL as afya_app); skipped when unreachable"]
+markers = ["integration: needs the running Postgres (TEST_DATABASE_URL as afya_app); skipped when unreachable"]
 
 [tool.ruff]
 line-length = 120
