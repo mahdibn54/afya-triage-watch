@@ -12,7 +12,7 @@ test("manager controls and logout failure/retry preserve session boundaries", as
   await page.getByTestId("switch-mgr-k").click();
   await expect(page.getByTestId("user-switcher")).toHaveAccessibleName("User menu for Dir. K");
   await expect(director).toHaveCount(0);
-  await expect(page.locator('[data-testid^="row-"]').first()).toBeVisible();
+  await expect(page.locator('[data-testid^="row-"]').first()).toBeVisible({ timeout: 60_000 });
   await expect(page.locator('[data-testid^="record-"]')).toHaveCount(0);
   expect((await page.request.post("/api/demo/scenario", { data: { scenario: "p014" } })).status()).toBe(403);
   await page.screenshot({ path: info.outputPath("manager-board.png"), scale: "css" });

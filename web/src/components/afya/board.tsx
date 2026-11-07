@@ -102,10 +102,10 @@ export function Board({
               onClick={() => onOpen(pr.visit_id)}
               className="animate-rise flex w-full flex-wrap items-center gap-3 rounded-2xl border border-agent/35 bg-agent-soft px-4 py-3 text-left transition hover:shadow-md"
             >
-              <span className="grid size-9 place-items-center rounded-xl bg-agent text-white animate-pulse-ring">
+              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-agent text-white animate-pulse-ring">
                 <Sparkles className="size-[18px]" />
               </span>
-              <span className="min-w-0 flex-1">
+              <span className="min-w-0 flex-1 basis-3/4 [overflow-wrap:anywhere] sm:basis-0">
                 <span className="block font-semibold text-agent-foreground">
                   Second look suggested for <span className="font-mono">{pr.patient_label ?? pr.visit_id}</span>
                 </span>
