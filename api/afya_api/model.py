@@ -1,6 +1,6 @@
 """E5-9 / E5-11: the language model client, its settings and its limits (architecture section 8).
 
-Three transports (`MODEL_PROVIDER`):
+Four transports, picked with `MODEL_PROVIDER` (the model of each provider comes from its own variable):
 - `openrouter`: an OPEN-WEIGHTS Qwen3 model through OpenRouter's chat completions API, with the provider
   pinned (`provider.order`, `allow_fallbacks: false`, `require_parameters: true`) and the billed `usage.cost` read
   from every answer. It is a remote service, so it is used ONLY when `DATA_CLASSIFICATION=synthetic` (the default of
@@ -15,6 +15,16 @@ Three transports (`MODEL_PROVIDER`):
   caller, with one retry); `OLLAMA_CLOUD_FORMAT=1` sends `format` instead.
   At most `OLLAMA_CLOUD_CONCURRENCY` (default 1) calls at a time; HTTP 429 ends as `rate_limited` and 402 as
   `usage_limit` (the plan's limit), both counted by the breaker so the agent backs off and runs on the rules.
+- `groq`: GroqCloud's OpenAI-compatible chat completions (https://api.groq.com/openai/v1, `Authorization: Bearer
+  $GROQ_API_KEY`) with an open-weights model (`GROQ_MODEL`, e.g. `openai/gpt-oss-120b`, Apache-2.0). Same code path
+  as OpenRouter (message shape, tool ids, `response_format` json_schema with `strict: true`) without OpenRouter's own
+  fields (provider pinning, `usage.include`, `top_k`, which Groq rejects with HTTP 400). Same synthetic-data guard.
+  The free plan has small limits (gpt-oss-120b: 30 requests/min, 1K requests/day, 8K tokens/min, 200K tokens/day),
+  so the backend paces itself from Groq's `x-ratelimit-*` headers (tokens per minute, requests per day), sends at
+  most `GROQ_CONCURRENCY` (default 1) calls at a time, honours `retry-after` on 429 only when the wait fits in the
+  call's time, and otherwise ends as `rate_limited` (or `daily_limit` when Groq says the per-day limit is spent),
+  counted by the breaker: the agent backs off and still proposes from the rules. Cost on the free plan is 0; tokens
+  and seconds are logged per call.
 - `ollama`: Ollama's /api/chat with `think: false` set explicitly (qwen3 would otherwise think). Exempt from the
   synthetic-data guard only while `OLLAMA_BASE_URL` is a local or private (bridge) address; any other host is remote.
 
@@ -32,6 +42,7 @@ part of the settings, a log line, the trace or an error message.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import ipaddress
 import json
 import logging
@@ -48,7 +59,7 @@ import httpx
 log = logging.getLogger("afya_api.model")
 
 PURPOSES = ("map_signs", "investigate", "warm_up")
-PROVIDERS = ("openrouter", "ollama", "ollama_cloud")
+PROVIDERS = ("openrouter", "ollama", "ollama_cloud", "groq")
 # E5-11: chosen from https://openrouter.ai/api/v1/models (Decisions log): Qwen3-30B-A3B-Instruct-2507, Apache-2.0
 # open weights, non-thinking, tools + structured outputs + seed + top_k on the pinned provider.
 OPENROUTER_MODEL = "qwen/qwen3-30b-a3b-instruct-2507"
@@ -58,6 +69,10 @@ OLLAMA_MODEL = "qwen3:8b"
 # gpt-oss:120b is Apache-2.0 open weights with tool calling; no Qwen3 is in the cloud list (Decisions log).
 OLLAMA_CLOUD_URL = "https://ollama.com"
 OLLAMA_CLOUD_MODEL = "gpt-oss:120b"
+# Groq (console.groq.com/docs/openai, /docs/rate-limits): gpt-oss-120b is Apache-2.0 open weights with tool calling and
+# strict JSON schema output; qwen/qwen3.8-27b (Apache-2.0 on Hugging Face, a "preview" model on Groq) is the backup.
+GROQ_URL = "https://api.groq.com/openai/v1"
+GROQ_MODEL = "openai/gpt-oss-120b"
 SYNTHETIC = "synthetic"
 
 
@@ -71,6 +86,9 @@ class ModelSettings:
     ollama_cloud_url: str = OLLAMA_CLOUD_URL
     cloud_format: bool = False      # Ollama Cloud: send `format` (documented as unsupported) instead of the prompt
     cloud_concurrency: int = 1
+    groq_url: str = GROQ_URL
+    groq_concurrency: int = 1
+    reasoning_effort: str | None = None   # Groq `reasoning_effort` ("low" for gpt-oss); None = not sent
     think: bool | str = False       # Ollama `think`: false, or a level such as "low" for gpt-oss (cannot switch off)
     data_classification: str = SYNTHETIC
     num_ctx: int = 8192
@@ -97,6 +115,7 @@ class ModelSettings:
         if provider not in PROVIDERS:
             raise ValueError(f"MODEL_PROVIDER must be one of {PROVIDERS}")
         model = {"openrouter": lambda: env("OPENROUTER_MODEL", OPENROUTER_MODEL),
+                 "groq": lambda: env("GROQ_MODEL", GROQ_MODEL),
                  "ollama_cloud": lambda: env("OLLAMA_CLOUD_MODEL", OLLAMA_CLOUD_MODEL)}.get(
                      provider, lambda: env("MODEL", OLLAMA_MODEL))()
         keep: str | int = env("MODEL_KEEP_ALIVE", "30m")
@@ -107,13 +126,20 @@ class ModelSettings:
         think_default = "low" if provider == "ollama_cloud" and model.startswith("gpt-oss") else "false"
         think_raw = env("MODEL_THINK", think_default).strip().lower()
         think: bool | str = {"false": False, "true": True}.get(think_raw, think_raw)
-        predict_default = 1024 if provider == "ollama_cloud" else cls.num_predict
+        # Groq: gpt-oss reasons always, "low" keeps it short. MODEL_REASONING_EFFORT overrides (empty = this default,
+        # "off" = not sent; Groq's own values such as "none" are sent as they are).
+        effort_default = "low" if provider == "groq" and "gpt-oss" in model else "off"
+        effort_raw = (env("MODEL_REASONING_EFFORT") or effort_default).strip().lower()
+        effort = None if effort_raw == "off" else effort_raw
+        predict_default = 1024 if provider in ("ollama_cloud", "groq") else cls.num_predict
         return cls(provider=provider, base_url=env("OLLAMA_BASE_URL", cls.base_url), model=model,
                    openrouter_url=env("OPENROUTER_BASE_URL", cls.openrouter_url),
                    openrouter_provider=env("OPENROUTER_PROVIDER", OPENROUTER_PROVIDER),
                    ollama_cloud_url=env("OLLAMA_CLOUD_BASE_URL", OLLAMA_CLOUD_URL).rstrip("/"),
                    cloud_format=env("OLLAMA_CLOUD_FORMAT", "0") == "1",
                    cloud_concurrency=max(1, int(env("OLLAMA_CLOUD_CONCURRENCY", "1"))), think=think,
+                   groq_url=(env("GROQ_BASE_URL") or GROQ_URL).rstrip("/"),
+                   groq_concurrency=max(1, int(env("GROQ_CONCURRENCY", "1"))), reasoning_effort=effort,
                    num_predict=int(env("MODEL_NUM_PREDICT", str(predict_default))),
                    data_classification=env("DATA_CLASSIFICATION", SYNTHETIC).strip().lower(),
                    seed=int(env("MODEL_SEED", str(cls.seed))), seed_per_run=env("MODEL_SEED_PER_RUN", "1") != "0",
@@ -143,18 +169,32 @@ class Reply:
     load_ms: float | None = None
     eval_ms: float | None = None
     model: str | None = None
-    cost_usd: float | None = None      # billed cost (OpenRouter usage.cost); 0 for a local model
+    cost_usd: float | None = None      # billed cost (OpenRouter usage.cost); 0 for a local model and Groq's free plan
     provider: str | None = None        # who served it (OpenRouter's answer); None for a local model
 
 
 class ModelUnavailable(Exception):
     """The model was not used: reason is one of circuit_open, run_budget, timeout, warming_up, unreachable,
-    http_error, rate_limited, usage_limit, invalid_response, invalid_output, disabled, data_not_synthetic,
+    http_error, rate_limited, daily_limit, usage_limit, invalid_response, invalid_output, disabled, data_not_synthetic,
     no_api_key."""
 
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
         self.reason = reason
+
+
+class ProviderLimit(Exception):
+    """The provider's own limit, seen before or instead of an HTTP error (Groq pacing): `rate_limited` or
+    `daily_limit`. Counted by the breaker like a 429."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
+
+
+# Model.call sets the monotonic time by which the backend must have answered, so a backend can decide whether a
+# provider's wait (retry-after, rate-limit reset) still fits in the call instead of being cut off by the timeout.
+CALL_DEADLINE: contextvars.ContextVar[float | None] = contextvars.ContextVar("model_call_deadline", default=None)
 
 
 class Backend(Protocol):
@@ -166,17 +206,30 @@ class Backend(Protocol):
 
 async def _post_with_retry(client: httpx.AsyncClient, path: str, body: dict[str, Any], s: ModelSettings,
                            headers: dict[str, str] | None = None,
-                           sleep: Callable[[float], Awaitable[None]] = asyncio.sleep) -> httpx.Response:
+                           sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+                           on_response: Callable[[httpx.Response], None] | None = None,
+                           honour_retry_after: bool = False) -> httpx.Response:
     """POST; on 429 or 5xx wait (Retry-After if given, else exponential) and try again, at most `http_retries`
-    times. The caller's asyncio timeout bounds the whole thing. The last answer is raised as HTTPStatusError."""
+    times. The caller's asyncio timeout bounds the whole thing. The last answer is raised as HTTPStatusError.
+    `honour_retry_after` (Groq): wait the full Retry-After when it fits before the call's deadline (CALL_DEADLINE),
+    otherwise give up at once; a per-day limit is never retried."""
     for attempt in range(s.http_retries + 1):
         r = await client.post(path, json=body, headers=headers)
+        if on_response is not None:
+            on_response(r)
         if (r.status_code == 429 or r.status_code >= 500) and attempt < s.http_retries:
             try:
                 wait = float(r.headers.get("retry-after", ""))
             except ValueError:
                 wait = s.backoff_s * 2 ** attempt
-            wait = min(max(wait, 0.0), s.backoff_cap_s)
+            if honour_retry_after:
+                deadline = CALL_DEADLINE.get()
+                if _limit_kind(r) == "daily_limit" or (
+                        deadline is not None and time.monotonic() + max(wait, 0.0) + 2.0 > deadline):
+                    r.raise_for_status()
+                wait = max(wait, 0.0)
+            else:
+                wait = min(max(wait, 0.0), s.backoff_cap_s)
             log.warning("model HTTP %s, retry %d in %.1fs", r.status_code, attempt + 1, wait)
             await sleep(wait)
             continue
@@ -343,6 +396,25 @@ def to_openai(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+def openai_reply(d: Any, model: str, start: float) -> Reply:
+    """An OpenAI-shaped chat completion -> Reply (content, tool calls, token counts, latency). A provider error body
+    or an answer without choices raises ValueError (never with the provider's text)."""
+    if not isinstance(d, dict) or d.get("error") or not d.get("choices"):
+        code = (d.get("error") or {}).get("code") if isinstance(d, dict) else None
+        raise ValueError(f"provider error {code}" if code else "no choices in the answer")
+    msg = d["choices"][0].get("message") or {}
+    calls = [{"name": str((c.get("function") or {}).get("name", "")),
+              "args": _args((c.get("function") or {}).get("arguments"))} for c in msg.get("tool_calls") or []]
+    usage = d.get("usage") or {}
+    return Reply(content=msg.get("content") or "", tool_calls=calls, tokens_in=usage.get("prompt_tokens"),
+                 tokens_out=usage.get("completion_tokens"),
+                 latency_ms=round((time.perf_counter() - start) * 1000, 1), model=d.get("model", model))
+
+
+def json_schema_format(schema: dict[str, Any]) -> dict[str, Any]:
+    return {"type": "json_schema", "json_schema": {"name": "answer", "strict": True, "schema": schema}}
+
+
 class OpenRouterBackend:
     """OpenRouter /chat/completions, non-streaming, provider pinned, billed cost read from `usage.cost`.
     Refuses to send anything unless DATA_CLASSIFICATION is `synthetic` (checked here AND by Model.call)."""
@@ -379,8 +451,7 @@ class OpenRouterBackend:
         if tools:
             body["tools"], body["tool_choice"] = tools, "auto"
         if format is not None:
-            body["response_format"] = {"type": "json_schema",
-                                       "json_schema": {"name": "answer", "strict": True, "schema": format}}
+            body["response_format"] = json_schema_format(format)
         return body
 
     async def chat(self, messages: list[dict[str, Any]], *, options: dict[str, Any],
@@ -394,32 +465,188 @@ class OpenRouterBackend:
             r = await _post_with_retry(c, "/chat/completions", self.body(messages, options, tools, format), self.s,
                                        headers=headers)
         d = r.json()
-        if not isinstance(d, dict) or d.get("error") or not d.get("choices"):
-            code = (d.get("error") or {}).get("code") if isinstance(d, dict) else None
-            raise ValueError(f"provider error {code}" if code else "no choices in the answer")
-        msg = d["choices"][0].get("message") or {}
-        calls = [{"name": str((c.get("function") or {}).get("name", "")),
-                  "args": _args((c.get("function") or {}).get("arguments"))} for c in msg.get("tool_calls") or []]
-        usage = d.get("usage") or {}
-        cost = usage.get("cost")
-        return Reply(content=msg.get("content") or "", tool_calls=calls, tokens_in=usage.get("prompt_tokens"),
-                     tokens_out=usage.get("completion_tokens"),
-                     latency_ms=round((time.perf_counter() - start) * 1000, 1), model=d.get("model", self.s.model),
-                     cost_usd=float(cost) if isinstance(cost, (int, float)) else None, provider=d.get("provider"))
+        reply = openai_reply(d, self.s.model, start)
+        cost = (d.get("usage") or {}).get("cost")
+        reply.cost_usd = float(cost) if isinstance(cost, (int, float)) else None
+        reply.provider = d.get("provider")
+        return reply
 
     async def digest(self) -> str | None:
         return None   # a hosted model has no digest; the model id and the serving provider are logged instead
 
 
+def _duration_s(text: str | None) -> float | None:
+    """Groq's reset headers: "7.66s", "2m59.56s", "547ms", "1h2m3s" -> seconds."""
+    if not text:
+        return None
+    total, found = 0.0, False
+    for num, unit in re.findall(r"([0-9]*\.?[0-9]+)(ms|h|m|s)", text):
+        total += float(num) * {"ms": 0.001, "s": 1.0, "m": 60.0, "h": 3600.0}[unit]
+        found = True
+    return total if found else None
+
+
+@dataclass
+class RateState:
+    """What Groq's last answer said about the limits (x-ratelimit-* headers): tokens per minute and requests per
+    day. Shared by every GroqBackend of the process for one base URL (the eval runner makes one backend per trial)."""
+    tokens_limit: int | None = None
+    tokens_left: int | None = None
+    tokens_reset_at: float = 0.0
+    requests_left: int | None = None
+    requests_reset_at: float = 0.0
+
+    def update(self, r: httpx.Response, now: float) -> None:
+        h = r.headers
+
+        def num(name: str) -> int | None:
+            try:
+                return int(float(h[name]))
+            except (KeyError, ValueError):
+                return None
+        if num("x-ratelimit-limit-tokens") is not None:
+            self.tokens_limit = num("x-ratelimit-limit-tokens")
+        if num("x-ratelimit-remaining-tokens") is not None:
+            self.tokens_left = num("x-ratelimit-remaining-tokens")
+            self.tokens_reset_at = now + (_duration_s(h.get("x-ratelimit-reset-tokens")) or 60.0)
+        if num("x-ratelimit-remaining-requests") is not None:
+            self.requests_left = num("x-ratelimit-remaining-requests")
+            self.requests_reset_at = now + (_duration_s(h.get("x-ratelimit-reset-requests")) or 60.0)
+        if r.status_code == 429 and _limit_kind(r) == "rate_limited":
+            self.tokens_left = 0
+            try:
+                self.tokens_reset_at = max(self.tokens_reset_at, now + float(h.get("retry-after", "")))
+            except ValueError:
+                pass
+
+    def wait_for(self, tokens: int, now: float) -> float:
+        """Seconds to wait before a request of about `tokens` (prompt + max output) fits the per-minute budget.
+        Groq refills the bucket continuously, so the wait is the missing share of a minute, at most the reset."""
+        if self.tokens_left is None or now >= self.tokens_reset_at or tokens <= self.tokens_left:
+            return 0.0
+        rate = (self.tokens_limit or 0) / 60.0
+        missing = (tokens - self.tokens_left) / rate if rate > 0 else self.tokens_reset_at - now
+        return max(0.0, min(missing, self.tokens_reset_at - now))
+
+
+_GROQ_RATES: dict[str, RateState] = {}
+
+
+class GroqBackend:
+    """GroqCloud's OpenAI-compatible /chat/completions, non-streaming, open-weights model, strict JSON schema output.
+    Remote: synthetic data only and a key (`GROQ_API_KEY`, sent only in the Authorization header). Paces itself to
+    the free plan's per-minute token budget, one call at a time by default; cost is 0 on the free plan."""
+
+    def __init__(self, settings: ModelSettings, transport: httpx.AsyncBaseTransport | None = None,
+                 api_key: str | None = None, sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+                 clock: Callable[[], float] = time.monotonic) -> None:
+        self.s, self.transport, self.sleep, self.clock = settings, transport, sleep, clock
+        self._key = (api_key if api_key is not None else os.environ.get("GROQ_API_KEY", "")).strip()
+        self._slots: asyncio.Semaphore | None = None
+        self.rates = _GROQ_RATES.setdefault(settings.groq_url, RateState())
+
+    def __repr__(self) -> str:   # never show the key
+        return f"GroqBackend(model={self.s.model!r})"
+
+    def refusal(self) -> str | None:
+        """Why the remote provider may not be called now (None = it may)."""
+        if self.s.data_classification != SYNTHETIC:
+            return "data_not_synthetic"
+        if not self._key:
+            return "no_api_key"
+        return None
+
+    def info(self) -> dict[str, Any]:
+        out: dict[str, Any] = {"provider": "groq", "data_classification": self.s.data_classification}
+        if self.s.reasoning_effort:
+            out["reasoning_effort"] = self.s.reasoning_effort
+        return out
+
+    def body(self, messages: list[dict[str, Any]], options: dict[str, Any], tools: list[dict[str, Any]] | None,
+             format: dict[str, Any] | None) -> dict[str, Any]:
+        body: dict[str, Any] = {
+            "model": self.s.model, "messages": to_openai(messages), "stream": False,
+            "temperature": options["temperature"], "top_p": options["top_p"], "seed": options["seed"],
+            "max_completion_tokens": options["num_predict"]}     # no top_k: Groq answers 400 to it
+        if self.s.reasoning_effort:
+            body["reasoning_effort"] = self.s.reasoning_effort
+            body["include_reasoning"] = False                  # the reasoning text is not used, not kept
+        if tools:
+            body["tools"], body["tool_choice"] = tools, "auto"
+        if format is not None:
+            body["response_format"] = json_schema_format(format)
+        return body
+
+    async def chat(self, messages: list[dict[str, Any]], *, options: dict[str, Any],
+                   tools: list[dict[str, Any]] | None = None, format: dict[str, Any] | None = None) -> Reply:
+        why = self.refusal()
+        if why:
+            raise ModelUnavailable(why)
+        body = self.body(messages, options, tools, format)
+        if self._slots is None:
+            self._slots = asyncio.Semaphore(self.s.groq_concurrency)
+        async with self._slots:     # the free plan's 8K tokens/min: queue here, not at the provider
+            await self._pace(body)
+            return await self._send(body)
+
+    async def _pace(self, body: dict[str, Any]) -> None:
+        now = self.clock()
+        if self.rates.requests_left == 0 and now < self.rates.requests_reset_at:
+            raise ProviderLimit("daily_limit")
+        # rough size: ~3.5 characters per token of the request, plus the output Groq reserves for it
+        need = int(len(json.dumps(body, separators=(",", ":"))) / 3.5) + int(body.get("max_completion_tokens") or 0)
+        wait = self.rates.wait_for(need, now)
+        if wait <= 0:
+            return
+        deadline = CALL_DEADLINE.get()
+        if deadline is not None and time.monotonic() + wait + 2.0 > deadline:
+            raise ProviderLimit("rate_limited")      # the per-minute budget does not refill within this call
+        log.info("groq: waiting %.1fs for the tokens-per-minute budget (about %d tokens needed)", wait, need)
+        await self.sleep(wait)
+
+    async def _send(self, body: dict[str, Any]) -> Reply:
+        start = time.perf_counter()
+        headers = {"Authorization": f"Bearer {self._key}"}
+        async with httpx.AsyncClient(base_url=self.s.groq_url, timeout=None, transport=self.transport) as c:
+            r = await _post_with_retry(c, "/chat/completions", body, self.s, headers=headers, sleep=self.sleep,
+                                       on_response=lambda resp: self.rates.update(resp, self.clock()),
+                                       honour_retry_after=True)
+        reply = openai_reply(r.json(), self.s.model, start)
+        reply.cost_usd, reply.provider = 0.0, "groq"      # free plan: nothing billed
+        log.info("groq limits left: tokens/min=%s requests/day=%s", self.rates.tokens_left, self.rates.requests_left)
+        return reply
+
+    async def digest(self) -> str | None:
+        return None   # a hosted model has no digest; the model id is logged instead
+
+
 def backend_for(settings: ModelSettings, transport: httpx.AsyncBaseTransport | None = None) -> Backend:
     if settings.provider == "openrouter":
         return OpenRouterBackend(settings, transport)
+    if settings.provider == "groq":
+        return GroqBackend(settings, transport)
     return OllamaBackend(settings, transport)
 
 
+_DAILY = re.compile(r"per day|\((?:TPD|RPD)\)", re.I)
+
+
+def _limit_kind(r: httpx.Response) -> str:
+    """429 -> `daily_limit` when the provider says a per-day limit is spent (Groq: "... tokens per day (TPD) ..."),
+    else `rate_limited`. Only the error's class is kept, never its text."""
+    try:
+        msg = str(((r.json() or {}).get("error") or {}).get("message", ""))
+    except Exception:  # noqa: BLE001 - not JSON: a plain rate limit
+        msg = ""
+    return "daily_limit" if _DAILY.search(msg) else "rate_limited"
+
+
 def status_reason(e: httpx.HTTPStatusError) -> str:
-    """429: rate or concurrency limit; 402: the plan's usage limit is spent; anything else: http_error."""
-    return {429: "rate_limited", 402: "usage_limit"}.get(e.response.status_code, "http_error")
+    """429: rate or concurrency limit (`daily_limit` for a per-day limit); 402: the plan's usage limit is spent;
+    anything else: http_error."""
+    if e.response.status_code == 429:
+        return _limit_kind(e.response)
+    return {402: "usage_limit"}.get(e.response.status_code, "http_error")
 
 
 class CircuitBreaker:
@@ -542,6 +769,7 @@ class Model:
                 raise ModelUnavailable("run_budget")   # not the model's fault: no breaker count
         if not self.breaker.allow():
             raise ModelUnavailable("circuit_open")
+        token = CALL_DEADLINE.set(time.monotonic() + timeout)   # the backend's own waits must fit in this call
         try:
             reply = await asyncio.wait_for(
                 self.backend.chat(messages, options=self.s.options(purpose, seed), tools=tools, format=format),
@@ -556,6 +784,8 @@ class Model:
             raise await self._fail("timeout") from None
         except httpx.HTTPStatusError as e:
             raise await self._fail(status_reason(e)) from None
+        except ProviderLimit as e:               # the provider's limit seen before sending (Groq pacing)
+            raise await self._fail(e.reason) from None
         except (httpx.HTTPError, OSError):
             raise await self._fail("unreachable") from None
         except ModelUnavailable as e:            # the backend's own guard (refusal): not counted
@@ -565,6 +795,8 @@ class Model:
         except Exception as e:  # noqa: BLE001 - B2: any other transport/answer error means "model unavailable"
             log.warning("model answer unusable (%s)", type(e).__name__)
             raise await self._fail("invalid_response") from None
+        finally:
+            CALL_DEADLINE.reset(token)
         self.breaker.success()
         self.last = "ok"
         log.info("model call %s: model=%s provider=%s tokens=%s/%s cost_usd=%s latency_ms=%s", purpose,
@@ -621,6 +853,8 @@ class Model:
                         type(e).__name__)
             if isinstance(e, httpx.HTTPStatusError) and status_reason(e) != "http_error":
                 self.last = status_reason(e)    # a provider limit: shown in /healthz, the eval runner stops on it
+            elif isinstance(e, ProviderLimit):
+                self.last = e.reason
             self.warmed = False
             return False
         finally:

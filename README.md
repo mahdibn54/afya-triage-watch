@@ -42,7 +42,9 @@ the fixtures. See [`seed/README.md`](seed/README.md) for retry behaviour and rev
 | `PG_SUPERUSER_PASSWORD`, `AFYA_OWNER_PASSWORD`, `AFYA_APP_PASSWORD` | database passwords, URL-safe: `openssl rand -hex 24` |
 | `SESSION_SECRET` | long random string that signs the session cookie |
 | `AFYA_MCP_CLIENT_SECRET` | OAuth client secret of the api at the local authorization server (`openssl rand -hex 32`); the api trades it for short-lived access tokens to our MCP server (see below) |
-| `OLLAMA_API_KEY` | Ollama Cloud key (default provider); empty means rules only (see next section) |
+| `MODEL_PROVIDER` | which provider runs the open-weights model: `ollama_cloud` (default), `groq`, `openrouter` or `ollama` (see next section) |
+| `OLLAMA_API_KEY` | only with `MODEL_PROVIDER=ollama_cloud`; empty means rules only |
+| `GROQ_API_KEY` | only with `MODEL_PROVIDER=groq`; empty means rules only |
 | `OPENROUTER_API_KEY` | only with `MODEL_PROVIDER=openrouter`; empty means rules only |
 | `DATA_CLASSIFICATION` | `synthetic` (default, the only value that allows the hosted model) |
 
@@ -61,10 +63,13 @@ mount with only that mount's scope (`afya:read`, `afya:act`, `afya:ui`). Rotate 
 
 The model only maps warning signs from the nurse's free text and investigates with read-only tools; scores, colours and
 triggers are fixed code, so the whole product works without a model (proposals then carry a "no model" notice).
+The model is always open weights. Pick the provider with `MODEL_PROVIDER` in `.env`; each provider's model comes from
+its own variable. All hosted providers get the same synthetic-data guard, key handling and limit handling.
 
 | `MODEL_PROVIDER` | Where the model runs | Key | Notes |
 |---|---|---|---|
 | `ollama_cloud` (default) | Ollama's hosted API, `https://ollama.com/api` (native `/api/chat`) | `OLLAMA_API_KEY` | open-weights `gpt-oss:120b` by default (`OLLAMA_CLOUD_MODEL`, a name from `GET https://ollama.com/api/tags`). Account limits apply, see below. |
+| `groq` | GroqCloud, OpenAI-compatible API, `https://api.groq.com/openai/v1` | `GROQ_API_KEY` | open-weights `openai/gpt-oss-120b` (Apache-2.0; `GROQ_MODEL`; backup `qwen/qwen3.8-27b`, Apache-2.0, a preview model on Groq). Free plan, no card; small limits, see below. Tool calling and strict JSON schema output. |
 | `openrouter` | OpenRouter, provider pinned to `nebius/fp8`, no fallback | `OPENROUTER_API_KEY` | open-weights Qwen3-30B-A3B-Instruct-2507; billed cost of each call logged in the trace |
 | `ollama` | your own Ollama (local or bridge address) | none | `MODEL=qwen3:8b`, see "Optional: local Ollama" |
 
@@ -81,7 +86,20 @@ triggers are fixed code, so the whole product works without a model (proposals t
   the fixed rules with the `model_unavailable` notice. The api sends one cloud call at a time
   (`OLLAMA_CLOUD_CONCURRENCY`). The eval runner (`ollama_cloud:<name>` as the model) runs trials one after another
   and stops at the first limit without writing that trial as a result.
-- **Synthetic-data guard.** A hosted model (Ollama Cloud, OpenRouter, or an Ollama on a non-local address) is called
+- **Groq setup.** Create a key at https://console.groq.com/keys and put it in `.env` as `GROQ_API_KEY`, with
+  `MODEL_PROVIDER=groq` and `GROQ_MODEL=openai/gpt-oss-120b` (the key goes to the api container only and is sent only
+  to api.groq.com, in the Authorization header). gpt-oss always reasons: `reasoning_effort` is `low`
+  (`MODEL_REASONING_EFFORT`) and the token limit per answer is 1024 (`MODEL_NUM_PREDICT`). Groq rejects `top_k`, so it
+  is not sent; `seed` is best effort on Groq. Cost on the free plan is 0; tokens and seconds are in the trace.
+- **Groq free-plan limits (caveat).** For `openai/gpt-oss-120b`: 30 requests/minute, 1,000 requests/day, 8,000
+  tokens/minute, 200,000 tokens/day (https://console.groq.com/docs/rate-limits; they change, check your account's
+  limits page). One P-014 run uses about 2,000 tokens. The api sends one Groq call at a time (`GROQ_CONCURRENCY`),
+  paces itself from Groq's `x-ratelimit-*` headers, and on HTTP 429 waits the `retry-after` only when it fits in the
+  call's 60 s; otherwise the call ends as `rate_limited` (or `daily_limit` when the per-day limit is spent): "model
+  unavailable", the circuit breaker backs off, and the proposal is still built from the fixed rules. The eval runner
+  (`groq:<model id>`) runs trials one after another with a full per-minute budget each, retries a trial after a
+  per-minute limit, stops cleanly at the daily limit (that trial is not written) and resumes with `RESUME=<batch>`.
+- **Synthetic-data guard.** A hosted model (Ollama Cloud, Groq, OpenRouter, or an Ollama on a non-local address) is called
   only while `DATA_CLASSIFICATION=synthetic`, enforced in code. Any other value (or no key) refuses it and the agent continues on the fixed rules with the `model_unavailable` notice.
   This prototype holds synthetic patients only; a real deployment would run the same open-weights model hosted
   in-country.
@@ -98,7 +116,7 @@ eval "$(sh evals/stack_env.sh)"          # exports TEST_DATABASE_URL (the separa
 (cd mcp && pytest) && (cd api && pytest) && pytest evals/tests     # database tests skip when TEST_DATABASE_URL is unreachable
 ruff check mcp api evals
 make eval-test                           # statistics and metrics of the eval harness only
-make eval MODELS=ollama_cloud:gpt-oss:120b   # live eval run (Ollama Cloud key; OpenRouter ids or local Ollama tags also work), then rebuilds the tables in EVALS.md; see evals/README.md
+make eval MODELS=groq:openai/gpt-oss-120b RUNS=1   # live eval run (groq:<id>, ollama_cloud:<name>, OpenRouter ids or local Ollama tags), then rebuilds the tables in EVALS.md; see evals/README.md
 scripts/smoke.sh                         # against the running stack; must end with SMOKE OK
 ```
 

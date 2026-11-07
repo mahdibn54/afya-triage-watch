@@ -15,9 +15,13 @@ calls, then `submit_decision`) → `proposal` → `paused` (LangGraph `interrupt
 - The model can add urgency, never remove it; a colour rise always becomes a proposal. Tools take record IDs, not numbers.
 - Model text is shown only if every number, record id and word passes `decision.rationale_text`; otherwise the code builds
   the sentence. Any model failure means the `model_unavailable` notice and the run goes on with the rules.
-- **Model provider.** Default OpenRouter, open-weights Qwen3-30B-A3B-Instruct-2507 pinned to one provider with no fallback;
-  optional local Ollama. The hosted model is called only while `DATA_CLASSIFICATION=synthetic` (guard in code, checked
-  twice); anything else refuses it. Billed cost per call is logged in the trace. Free text from FHIR never reaches the model.
+- **Model provider.** Always an open-weights model; `MODEL_PROVIDER` picks where it runs: `ollama_cloud` (code default,
+  `gpt-oss:120b`), `groq` (GroqCloud free plan, `openai/gpt-oss-120b`, the provider of the recorded live run and the
+  Groq eval runs), `openrouter` (Qwen3-30B-A3B-Instruct-2507 pinned to one provider, no fallback) or a local `ollama`.
+  A hosted model is called only while `DATA_CLASSIFICATION=synthetic` (guard in code, checked twice); anything else
+  refuses it. Tokens, seconds and the billed cost (0 on Groq's free plan and a local model) are logged per call in the
+  trace. Provider limits (429, daily limits) mean "model unavailable" and the rules-only proposal. Free text from FHIR
+  never reaches the model.
 - A watch loop (`watch.py`) reminds staff of overdue re-checks and unanswered proposals.
 
 ## MCP servers: built and borrowed

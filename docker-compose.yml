@@ -206,11 +206,17 @@ services:
       AFYA_MCP_CLIENT_ID: afya-api
       AFYA_MCP_CLIENT_SECRET: ${AFYA_MCP_CLIENT_SECRET:?set AFYA_MCP_CLIENT_SECRET in .env}
       WSO2_MCP_URL: http://wso2-fhir-mcp:8000/mcp                      # on the "borrowed" network
-      # E5-11: open-weights model on Ollama Cloud (default), OpenRouter, or a local Ollama (MODEL_PROVIDER=ollama).
+      # E5-11: always an open-weights model. Pick the provider with MODEL_PROVIDER in .env: ollama_cloud (default),
+      # groq, openrouter, or a local Ollama (ollama); each provider's model comes from its own variable.
       MODEL_PROVIDER: ${MODEL_PROVIDER:-ollama_cloud}
       OLLAMA_CLOUD_MODEL: ${OLLAMA_CLOUD_MODEL:-gpt-oss:120b}   # a name from GET https://ollama.com/api/tags
       OLLAMA_CLOUD_BASE_URL: ${OLLAMA_CLOUD_BASE_URL:-https://ollama.com}
       OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}                       # api only; empty = rules only (model_unavailable)
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}           # Apache-2.0 open weights (backup: qwen/qwen3.8-27b)
+      GROQ_BASE_URL: ${GROQ_BASE_URL:-https://api.groq.com/openai/v1}
+      GROQ_CONCURRENCY: ${GROQ_CONCURRENCY:-1}                  # free plan: 8K tokens/min, one call at a time
+      GROQ_API_KEY: ${GROQ_API_KEY:-}                           # api only; empty = rules only (model_unavailable)
+      MODEL_REASONING_EFFORT: ${MODEL_REASONING_EFFORT:-}       # Groq; empty = "low" for gpt-oss, off otherwise
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-qwen/qwen3-30b-a3b-instruct-2507}
       OPENROUTER_PROVIDER: ${OPENROUTER_PROVIDER:-nebius/fp8}   # pinned, no fallback to another provider
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}               # empty = rules only (model_unavailable notice)

@@ -488,7 +488,7 @@ Readings oldest first. `values[input].points` is `null` for an input that is sho
 Ordered steps of one agent run. `server` is `ours` (afya-mcp) or `borrowed` (the WSO2 FHIR server) for tool steps and
 `null` for model, decision and gate steps. Tool names are the real ones: ours `compute_tews` `check_deterioration`
 `get_queue_state`; borrowed `search` `read`. `args_summary` and `result_summary` are short and carry no free text. On `model` steps `cost_usd` is the billed cost
-reported by OpenRouter for the call (0 for a local Ollama model, `null` on non-model steps); the provider that served the
+reported by OpenRouter for the call (0 for a local Ollama model and on Groq's free plan, `null` on non-model steps); the provider that served the
 call (`served_by`, for example `Nebius`) is kept in the step's `agent_step` audit payload (`model.served_by`, read it with
 `GET /audit?run_id=`), not in this response.
 

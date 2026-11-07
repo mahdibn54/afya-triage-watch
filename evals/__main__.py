@@ -19,11 +19,17 @@ def main(argv: list[str] | None = None) -> int:
     r = sub.add_parser("run", help="run groups B (models) and C (rules-only) live and write JSONL to --out")
     r.add_argument("--cases", required=True, help="a case file or a directory of case files")
     r.add_argument("--models", default="qwen3:8b,qwen3:4b-instruct",
-                   help="comma-separated: Ollama tags, OpenRouter ids (with a slash) or ollama_cloud:<name>")
+                   help="comma-separated: Ollama tags, OpenRouter ids (with a slash), ollama_cloud:<name> or "
+                        "groq:<model id>")
     r.add_argument("--runs", type=int, default=5, help="runs per case per model (group B)")
     r.add_argument("--rules-only-runs", type=int, default=1, help="runs per case for group C (0 = skip)")
     r.add_argument("--out", default=str(ROOT / "evals" / "runs"))
     r.add_argument("--only", default="", help="comma-separated case ids (smoke runs; leave empty for the real run)")
+    r.add_argument("--resume", default="", help="batch id (UTC stamp of the log names) to append to, skipping the "
+                   "trials already written (after a provider limit)")
+    r.add_argument("--token-budget", type=int, default=int(os.environ.get("EVAL_TOKEN_BUDGET", "0") or 0),
+                   help="stop cleanly before the model trials of this run use more tokens (0 = no budget; "
+                        "env EVAL_TOKEN_BUDGET)")
     r.add_argument("--no-cleanup", action="store_true", help="leave pending proposals of eval visits in the queue")
     t = sub.add_parser("tables", help="rebuild the tables in EVALS.md from the logs (no stack needed)")
     t.add_argument("--runs", default=str(ROOT / "evals" / "runs"))
@@ -45,7 +51,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{k} is not set; run: eval \"$(sh evals/stack_env.sh)\"", file=sys.stderr)
             return 2
     paths = asyncio.run(run_all(cases, models, a.runs, a.rules_only_runs, Path(a.out), set_name,
-                                os.environ.get("OLLAMA_BASE_URL", "http://172.17.0.1:11434"), not a.no_cleanup))
+                                os.environ.get("OLLAMA_BASE_URL", "http://172.17.0.1:11434"), not a.no_cleanup,
+                                resume=a.resume or None, token_budget=a.token_budget or None))
     for p in paths:
         print("wrote", p)
     return 0
