@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 67 done · 9 drafted · 19 to do · 0 blocked · 95 stories
+**Progress:** 67 done · 10 drafted · 18 to do · 0 blocked · 95 stories
 
 ---
 
@@ -375,7 +375,7 @@ Audit context: [competition-audit.md](competition-audit.md).
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
 | E13-1 | [x] | Upgrade own MCP client/server integration to the current protocol | M | TBD | TBD | E12-3 |
-| E13-2 | [ ] | Implement current MCP server discovery | M | TBD | TBD | E13-1 |
+| E13-2 | [~] | Implement current MCP server discovery | M | TBD | TBD | E13-1 |
 | E13-3 | [ ] | Implement standardized MCP OAuth authorization flow | M | TBD | TBD | E13-1 |
 | E13-4 | [~] | Official MCP conformance tests and versioned reports | M | TBD | TBD | E13-1, E13-2, E13-3 |
 
