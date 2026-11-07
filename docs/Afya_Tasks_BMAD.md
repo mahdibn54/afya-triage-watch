@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 66 done · 10 drafted · 19 to do · 0 blocked · 95 stories
+**Progress:** 67 done · 9 drafted · 19 to do · 0 blocked · 95 stories
 
 ---
 
@@ -374,7 +374,7 @@ Audit context: [competition-audit.md](competition-audit.md).
 
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
-| E13-1 | [~] | Upgrade own MCP client/server integration to the current protocol | M | TBD | TBD | E12-3 |
+| E13-1 | [x] | Upgrade own MCP client/server integration to the current protocol | M | TBD | TBD | E12-3 |
 | E13-2 | [ ] | Implement current MCP server discovery | M | TBD | TBD | E13-1 |
 | E13-3 | [ ] | Implement standardized MCP OAuth authorization flow | M | TBD | TBD | E13-1 |
 | E13-4 | [~] | Official MCP conformance tests and versioned reports | M | TBD | TBD | E13-1, E13-2, E13-3 |
@@ -385,7 +385,32 @@ server configuration and API client request/version handling; preserve interoper
 WSO2 server through an explicit supported-version path. Keep fixed scoring, read-only model tools, Postgres
 checkpoints, named clinician confirmation, idempotent execution and append-only audit behavior. Pass existing
 application, real-stack and desktop/mobile workflow checks; inspect screenshots and record the tested commit.
-Notes: assigned by Dheker; implementation pending.
+Notes: done. **Verified from official sources** (not the audit): the current revision is `2026-07-28`
+([versioning](https://modelcontextprotocol.io/specification/versioning), [changelog](https://modelcontextprotocol.io/specification/2026-07-28/changelog));
+`server/discover` is a mandatory RPC returning `supportedVersions`, `capabilities` and `_meta["io.modelcontextprotocol/serverInfo"]`
+([spec](https://modelcontextprotocol.io/specification/2026-07-28/server/discover)); every request carries
+`io.modelcontextprotocol/protocolVersion` in `_meta` and the `MCP-Protocol-Version` header, a bad one gets
+`UnsupportedProtocolVersionError` listing the supported versions. The official Python SDK that implements it is **`mcp` 2.3.0**
+(stable, "Production/Stable" on [PyPI](https://pypi.org/project/mcp/2.3.0/), [release v2.3.0](https://github.com/modelcontextprotocol/python-sdk/releases/tag/v2.3.0),
+[v1 to v2 migration guide](https://py.sdk.modelcontextprotocol.io/v2/migration/); `LATEST_PROTOCOL_VERSION` is `2026-07-28`, handshake
+versions up to `2025-11-25` stay supported). **Changes.** Pin `mcp==2.3.0` in `mcp/pyproject.toml` (was `>=1.9,<2`; the SDK brings
+`mcp-types` and `httpx2`). `langchain-mcp-adapters` removed from `api/pyproject.toml`: nothing imports it (the api calls MCP through
+`mcp_client.py`) and its newest release (0.3.2) requires `mcp<2`. **Server** (`mcp/afya_mcp/server.py`): `FastMCP` to `MCPServer`,
+transport settings moved to `streamable_http_app(stateless_http=True, transport_security=...)`; Host allow-list kept, and an Origin
+allow-list added (own and loopback origins, `AFYA_MCP_ALLOWED_ORIGINS`) because the E13-4 baseline showed every Origin was refused;
+identity (name/title/version/description/instructions, no patient data) and `subscriptions=False` (static catalogue, no listChanged);
+mcp 2.x hides every exception but `ToolError`, which broke the api's 403 (`may not run`) and 404 (`HTTP 404`) mapping, so `_run` re-raises
+`ActorRefused`, `AuditFailed`, `FhirUnavailable` and `FhirRejected` as `ToolError(audit.error_text(e))` (same sanitised text as before;
+crashes stay opaque). **Client** (`api/afya_api/mcp_client.py`, `evals/host_gateway.py`): `Client(streamable_http_client(url, http_client=...))`
+with `MODES`: afya-mcp `auto` (probes `server/discover`, lands on 2026-07-28, falls back to `initialize`), the borrowed WSO2 server `legacy`
+(explicit supported-version path; it negotiates 2025-11-25, checked live; no afya token sent). Verified live: read/act/ui negotiate
+2026-07-28, WSO2 2025-11-25. Unchanged: fixed scoring, read-only `/read`, gated `/act`, Postgres checkpoints, audit, idempotency, Host check,
+bearer token. Known SDK limit: `MCPServer` always registers empty prompt/resource lists, so discovery lists `prompts` and `resources`
+capabilities (no subscribe, no listChanged); not hand-patched. **Tests:** mcp 288, api 201, evals 61 passed, ruff clean, `scripts/smoke.sh` SMOKE OK
+after rebuilding afya-mcp and api (smoke clients moved to the SDK 2 API, plus a discover check); the isolated real-stack Group A harness
+25/25 and WSO2-container isolation 3/3 passed and the desktop and mobile approval flows 2/2 passed (8 screenshots written under ignored
+`.playwright-mcp/group-a/`; the desktop confirmed-orange and mobile manager-refused ones inspected), run on the E13-1 tree (parent `4d11e7e`).
+Conformance before/after: [baseline](conformance/baseline-2025-11-25.md) and [after migration](conformance/after-migration-sdk-2.3.0.md).
 
 **E13-2** · Acceptance: implement `server/discover` as required by the selected protocol, returning accurate supported
 versions, identity and capabilities; test valid requests, unsupported-version errors and appropriate access controls.
@@ -407,7 +432,16 @@ and applicable authorization role. Pin/record test-tool version, protocol requir
 commands and pass/fail/skipped results; disclose unsupported features and any expected failures without presenting
 them as passes. Keep reports reproducible and free of secrets. Integrate appropriate checks into CI; retain the
 existing application/security tests and desktop/mobile approval screenshots. Do not claim clinical validation or
-automatic AAIF certification. Notes: assigned by Dheker; official conformance testing has not been run.
+automatic AAIF certification. Notes: **baseline done, story stays in progress.** Tool: `@modelcontextprotocol/conformance` 0.1.16
+(stable; [repo](https://github.com/modelcontextprotocol/conformance); its stable release only covers 2025-06-18 and 2025-11-25; the `alpha`
+tag 0.2.0-alpha.12 adds 2026-07-28). Baseline run before any E13 code change, suite `all`, source commit `46866cf`, `mcp` 1.30.0, protocol
+2025-11-25: 7 pass, 1 warn, 24 fail of 32 scenarios on each mount, report in [docs/conformance/baseline-2025-11-25.md](conformance/baseline-2025-11-25.md).
+Most failures are the tool's reference fixtures (test tools, prompts, resources, logging, sampling, elicitation) that a three-tool clinical server
+does not offer; two passes are vacuous (unknown tool answered with an error); one real finding (valid loopback Origin refused with 403) was fixed in
+E13-1. Helpers: `scripts/conformance_app.py` (adds a throwaway bearer token, the tool cannot send headers) and `scripts/conformance_report.py`
+(markdown from the output directory). Informational runs after migration (legacy path: 9 pass; 2026-07-28 with the alpha tool: 94 checks
+passed, 32 failed, fixture or not testable) are in [docs/conformance/after-migration-sdk-2.3.0.md](conformance/after-migration-sdk-2.3.0.md). Still to do:
+final run on 2026-07-28 with the then-current pinned tool, applicable authorization scenarios after E13-3, CI integration (Dheker owns `.github/`).
 
 ---
 

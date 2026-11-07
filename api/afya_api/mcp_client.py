@@ -6,6 +6,9 @@
 with the run_id so afya-mcp's audit row lands in the run's trace.
 E12-3: afya-mcp needs `Authorization: Bearer $AFYA_MCP_TOKEN` on every mount; the token is never sent to WSO2 and
 never logged.
+E13-1: protocol versions. afya-mcp is called with `mode="auto"` (mcp SDK 2.x: probe `server/discover`, use protocol
+2026-07-28, fall back to the `initialize` handshake if the server is older). The borrowed WSO2 server only speaks the
+older handshake protocols, so it is called with `mode="legacy"` (an explicit supported-version path, no probe).
 wso2: the borrowed WSO2 FHIR MCP server (read-only behind the GET-only gateway); the agent only ever calls `search`
 and `read` on it (investigate.py wraps them).
 """
@@ -16,8 +19,9 @@ import os
 from typing import Any, Protocol
 
 import anyio
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+import httpx2
+from mcp import Client
+from mcp.client.streamable_http import streamable_http_client
 from mcp.types import TextContent
 
 from .fhir_projection import FHIRPATHS, restore_response
@@ -46,6 +50,15 @@ class Gateway(Protocol):
     async def wso2(self, tool: str, args: dict[str, Any]) -> dict[str, Any]: ...
 
 
+# Per mount: how the SDK negotiates the protocol version (see the module docstring).
+MODES = {"act": "auto", "ui": "auto", "read": "auto", "wso2": "legacy"}
+
+
+def http_client(headers: dict[str, str]) -> httpx2.AsyncClient:
+    """The SDK 2.x transport takes its headers and timeouts from the http client (v1's defaults)."""
+    return httpx2.AsyncClient(headers=headers, timeout=httpx2.Timeout(30, read=300))
+
+
 class McpGateway:
     def __init__(self) -> None:
         act = os.environ.get("AFYA_MCP_ACT_URL", "http://afya-mcp:9000/act/mcp")
@@ -62,10 +75,9 @@ class McpGateway:
         url = self.urls[mount].rstrip("/")   # no trailing slash: "/act/mcp/" would be a 307 redirect
         try:
             with anyio.fail_after(30):
-                async with streamablehttp_client(url, headers=self.headers(mount)) as (r, w, _), \
-                        ClientSession(r, w) as session:
-                    await session.initialize()
-                    res = await session.call_tool(tool, args)
+                async with http_client(self.headers(mount)) as http, \
+                        Client(streamable_http_client(url, http_client=http), mode=MODES[mount], cache=None) as client:
+                    res = await client.call_tool(tool, args)
         except (OSError, TimeoutError, ExceptionGroup) as e:
             raise McpUnavailable(f"afya-mcp: {type(e).__name__}") from e
         first = res.content[0] if res.content else None
@@ -73,7 +85,7 @@ class McpGateway:
             # an image, audio or resource answer: never expected from afya-mcp or WSO2, and not parseable
             raise ToolFailed(f"{tool}: the tool answered with {type(first).__name__}, not text")
         text = first.text if first is not None else ""
-        if res.isError:
+        if res.is_error:
             if "may not run" in text:
                 raise ToolRefused(text)
             raise ToolFailed(text)

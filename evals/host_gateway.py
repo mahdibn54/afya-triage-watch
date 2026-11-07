@@ -11,9 +11,9 @@ import os
 from typing import Any
 
 import anyio
-from afya_api.mcp_client import McpGateway, ToolFailed, ToolRefused
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+from afya_api.mcp_client import MODES, McpGateway, ToolFailed, ToolRefused, http_client
+from mcp import Client
+from mcp.client.streamable_http import streamable_http_client
 
 
 class HostGateway(McpGateway):
@@ -27,12 +27,11 @@ class HostGateway(McpGateway):
         url = self.urls[mount].rstrip("/")
         headers = {**self.headers(mount), "Host": self.hosts[mount]}
         with anyio.fail_after(30):
-            async with streamablehttp_client(url, headers=headers) as (r, w, _), \
-                    ClientSession(r, w) as session:
-                await session.initialize()
-                res = await session.call_tool(tool, args)
+            async with http_client(headers) as http, \
+                    Client(streamable_http_client(url, http_client=http), mode=MODES[mount], cache=None) as client:
+                res = await client.call_tool(tool, args)
         text = res.content[0].text if res.content else ""
-        if res.isError:
+        if res.is_error:
             if "may not run" in text:
                 raise ToolRefused(text)
             raise ToolFailed(text)

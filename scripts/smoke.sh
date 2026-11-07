@@ -109,6 +109,14 @@ check "afya-mcp /act with the api's token -> initialize ok" dc exec -T api pytho
 import httpx,sys,os
 r=httpx.post('http://afya-mcp:9000/act/mcp',headers={'Accept':'application/json, text/event-stream','Authorization':'Bearer '+os.environ['AFYA_MCP_TOKEN']},json=$MCP_INIT)
 sys.exit(0 if r.status_code==200 and 'serverInfo' in r.text else 1)"
+check "afya-mcp /read server/discover (protocol 2026-07-28) names the server and its versions" dc exec -T api python -c "
+import httpx,sys,os
+v='2026-07-28'
+m='io.modelcontextprotocol/'
+body={'jsonrpc':'2.0','id':'d','method':'server/discover','params':{'_meta':{m+'protocolVersion':v,m+'clientInfo':{'name':'smoke','version':'1'},m+'clientCapabilities':{}}}}
+r=httpx.post('http://afya-mcp:9000/read/mcp',headers={'Accept':'application/json, text/event-stream','Authorization':'Bearer '+os.environ['AFYA_MCP_TOKEN'],'MCP-Protocol-Version':v,'Mcp-Method':'server/discover'},json=body)
+res=r.json()['result']
+sys.exit(0 if r.status_code==200 and res['supportedVersions']==[v] and res['_meta'][m+'serverInfo']['name']=='afya-read' else 1)"
 check "WSO2 MCP initialize at /mcp" dc exec -T api python -c "
 import httpx,sys,os
 r=httpx.post(os.environ['WSO2_MCP_URL'],headers={'Accept':'application/json, text/event-stream'},json={'jsonrpc':'2.0','id':1,'method':'initialize','params':{'protocolVersion':'2025-03-26','capabilities':{},'clientInfo':{'name':'smoke','version':'1'}}})
@@ -135,8 +143,9 @@ check "api /healthz" dc exec -T api python -c "import urllib.request as u;assert
 check "compute_tews on seeded Patient+Encounter+Observation (audited as agent)" mcpx <<'PY'
 import asyncio, os, sys, uuid, httpx
 from datetime import date, timedelta
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+import httpx2
+from mcp import Client
+from mcp.client.streamable_http import streamable_http_client
 from afya_mcp.fhir import vitals_observation
 
 H = {"Content-Type": "application/fhir+json"}
@@ -153,12 +162,11 @@ obs = vitals_observation(pid, eid, {"resp_rate": 26, "heart_rate": 118, "systoli
 oid = post(obs)
 
 async def main():
-    async with streamablehttp_client("http://127.0.0.1:9000/read/mcp/", headers={"Authorization": "Bearer " + os.environ["AFYA_MCP_TOKEN"]}) as (r, w, _):
-        async with ClientSession(r, w) as s:
-            await s.initialize()
+    async with httpx2.AsyncClient(headers={"Authorization": "Bearer " + os.environ["AFYA_MCP_TOKEN"]}) as hc:
+        async with Client(streamable_http_client("http://127.0.0.1:9000/read/mcp", http_client=hc), cache=None) as s:
             res = await s.call_tool("compute_tews", {"observation_id": f"Observation/{oid}"})
-            print(res.structuredContent or res.content)
-            return not res.isError and "scored" in str(res.structuredContent or res.content)
+            print(res.structured_content or res.content)
+            return not res.is_error and "scored" in str(res.structured_content or res.content)
 sys.exit(0 if asyncio.run(main()) else 1)
 PY
 
@@ -166,8 +174,9 @@ check "api imports afya_mcp.workflow (shared SQL module)" dc exec -T api python 
 check "record_vitals via /act/mcp sets visits.latest_obs_id and writes one audit row" mcpx <<'PY'
 import asyncio, json, os, sys, uuid, httpx, psycopg
 from datetime import date, timedelta
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+import httpx2
+from mcp import Client
+from mcp.client.streamable_http import streamable_http_client
 
 H = {"Content-Type": "application/fhir+json"}
 F = "http://hapi:8080/fhir"
@@ -180,9 +189,8 @@ values = {"resp_rate": 16, "heart_rate": 80, "systolic_bp": 120, "temperature": 
           "consciousness": "alert", "trauma": "no"}
 
 async def main():
-    async with streamablehttp_client("http://127.0.0.1:9000/act/mcp/", headers={"Authorization": "Bearer " + os.environ["AFYA_MCP_TOKEN"]}) as (r, w, _):
-        async with ClientSession(r, w) as s:
-            await s.initialize()
+    async with httpx2.AsyncClient(headers={"Authorization": "Bearer " + os.environ["AFYA_MCP_TOKEN"]}) as hc:
+        async with Client(streamable_http_client("http://127.0.0.1:9000/act/mcp", http_client=hc), cache=None) as s:
             res = await s.call_tool("record_vitals", {"patient_id": pid, "visit_id": eid, "values": values,
                                                       "idempotency_key": "smoke-" + uuid.uuid4().hex,
                                                       "actor": "nurse-a"})
@@ -199,8 +207,9 @@ PY
 check "get_queue_state via /read/mcp lists a seeded visit with minutes waited vs SATS target" mcpx <<'PY'
 import asyncio, json, os, sys, uuid, httpx
 from datetime import date, datetime, timedelta, timezone
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+import httpx2
+from mcp import Client
+from mcp.client.streamable_http import streamable_http_client
 
 H = {"Content-Type": "application/fhir+json"}
 F = "http://hapi:8080/fhir"
@@ -213,9 +222,8 @@ eid = post({"resourceType": "Encounter", "status": "arrived", "class": {"code": 
             "period": {"start": start}, "priority": {"coding": [{"system": "urn:afya:sats-colour", "code": "ORANGE"}]}})
 
 async def main():
-    async with streamablehttp_client("http://127.0.0.1:9000/read/mcp/", headers={"Authorization": "Bearer " + os.environ["AFYA_MCP_TOKEN"]}) as (r, w, _):
-        async with ClientSession(r, w) as s:
-            await s.initialize()
+    async with httpx2.AsyncClient(headers={"Authorization": "Bearer " + os.environ["AFYA_MCP_TOKEN"]}) as hc:
+        async with Client(streamable_http_client("http://127.0.0.1:9000/read/mcp", http_client=hc), cache=None) as s:
             res = await s.call_tool("get_queue_state", {})
             return json.loads(res.content[0].text)
 
@@ -230,8 +238,9 @@ PY
 check "approve -> raise_recheck_flag via /act/mcp: one Flag in HAPI, Encounter.priority set, audit rows (retry safe)" mcpx <<'PY'
 import asyncio, json, os, sys, uuid, httpx
 from datetime import date, timedelta
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+import httpx2
+from mcp import Client
+from mcp.client.streamable_http import streamable_http_client
 from afya_mcp import db, workflow
 
 H = {"Content-Type": "application/fhir+json"}
@@ -247,12 +256,11 @@ values = {"resp_rate": 26, "heart_rate": 118, "systolic_bp": 95, "temperature": 
 
 async def act(session, tool, args):
     res = await session.call_tool(tool, args)
-    return res.isError, (json.loads(res.content[0].text) if not res.isError else res.content[0].text)
+    return res.is_error, (json.loads(res.content[0].text) if not res.is_error else res.content[0].text)
 
 async def main():
-    async with streamablehttp_client("http://127.0.0.1:9000/act/mcp/", headers={"Authorization": "Bearer " + os.environ["AFYA_MCP_TOKEN"]}) as (r, w, _):
-        async with ClientSession(r, w) as s:
-            await s.initialize()
+    async with httpx2.AsyncClient(headers={"Authorization": "Bearer " + os.environ["AFYA_MCP_TOKEN"]}) as hc:
+        async with Client(streamable_http_client("http://127.0.0.1:9000/act/mcp", http_client=hc), cache=None) as s:
             _, saved = await act(s, "record_vitals", {"patient_id": pid, "visit_id": eid, "values": values,
                                                       "idempotency_key": "smoke-" + uuid.uuid4().hex, "actor": "nurse-a"})
             oid = saved["observation_id"].split("/")[1]
@@ -283,16 +291,16 @@ PY
 
 check "notify_staff via /act/mcp stores a fixed-text notification and an audit row" mcpx <<'PY'
 import asyncio, json, os, sys, uuid
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+import httpx2
+from mcp import Client
+from mcp.client.streamable_http import streamable_http_client
 from afya_mcp import db
 
 visit = "synthetic-smoke-" + uuid.uuid4().hex[:12]
 
 async def main():
-    async with streamablehttp_client("http://127.0.0.1:9000/act/mcp/", headers={"Authorization": "Bearer " + os.environ["AFYA_MCP_TOKEN"]}) as (r, w, _):
-        async with ClientSession(r, w) as s:
-            await s.initialize()
+    async with httpx2.AsyncClient(headers={"Authorization": "Bearer " + os.environ["AFYA_MCP_TOKEN"]}) as hc:
+        async with Client(streamable_http_client("http://127.0.0.1:9000/act/mcp", http_client=hc), cache=None) as s:
             res = await s.call_tool("notify_staff", {"kind": "vitals_due", "visit_id": visit, "actor": "agent"})
             return json.loads(res.content[0].text)
 

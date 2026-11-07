@@ -15,43 +15,76 @@ from __future__ import annotations
 
 import contextlib
 import hmac
+import importlib.metadata
 import os
 from functools import lru_cache
 from typing import Any
 
 import anyio
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.applications import Starlette
 from starlette.responses import PlainTextResponse
 from starlette.routing import Mount, Route
 
 from . import audit, db, rules, services
 from .db import PgVisitStore
-from .fhir import HttpFhir
+from .fhir import FhirRejected, FhirUnavailable, HttpFhir
 
 
-def _server_settings() -> dict[str, Any]:
-    """FastMCP defaults to host 127.0.0.1, which (mcp >= 1.10) turns on DNS-rebinding protection that only accepts
-    Host: localhost. Containers call us as http://afya-mcp:9000, so list the accepted hosts explicitly."""
-    hosts = [h.strip() for h in os.environ.get("AFYA_MCP_ALLOWED_HOSTS",
-                                               "afya-mcp:*,localhost:*,127.0.0.1:*").split(",") if h.strip()]
+def _csv(name: str, default: str) -> list[str]:
+    return [h.strip() for h in os.environ.get(name, default).split(",") if h.strip()]
+
+
+def _security() -> TransportSecuritySettings:
+    """Host and Origin allow-lists (not authentication: any client can set both itself). Containers call us as
+    http://afya-mcp:9000, so list the accepted hosts explicitly. Origin is checked only when a request carries one;
+    browsers are not clients of this server, so only our own and loopback origins are listed (E13-4 baseline: with no
+    allowed origin a valid loopback Origin was refused with 403)."""
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=_csv("AFYA_MCP_ALLOWED_HOSTS", "afya-mcp:*,localhost:*,127.0.0.1:*"),
+        allowed_origins=_csv("AFYA_MCP_ALLOWED_ORIGINS",
+                             "http://afya-mcp:*,http://localhost:*,http://127.0.0.1:*"))
+
+
+def _version() -> str:
     try:
-        from mcp.server.transport_security import TransportSecuritySettings
-    except ImportError:          # mcp 1.9: no Host check at all
-        return {"host": "0.0.0.0"}
-    return {"host": "0.0.0.0",
-            "transport_security": TransportSecuritySettings(enable_dns_rebinding_protection=True,
-                                                            allowed_hosts=hosts)}
+        return importlib.metadata.version("afya-mcp")
+    except importlib.metadata.PackageNotFoundError:
+        return "0+unknown"
 
 
-read = FastMCP("afya-read", stateless_http=True, **_server_settings())
-act = FastMCP("afya-act", stateless_http=True, **_server_settings())
-ui = FastMCP("afya-ui", stateless_http=True, **_server_settings())
+def _server(name: str, title: str, description: str, instructions: str) -> MCPServer:
+    """E13-2: identity (name, title, version, description, instructions) is what `server/discover` reports as
+    serverInfo. It names the server and its purpose only: never patient data, hosts, paths or credentials."""
+    return MCPServer(name, title=title, description=description, version=_version(), instructions=instructions,
+                     subscriptions=False)   # static tool list: no listChanged, no subscriptions/listen
+
+
+read = _server("afya-read", "Afya Triage Watch (read tools)",
+               "Read-only SATS scoring and queue tools for the triage agent.",
+               "Read-only tools. Scores and triggers are computed by fixed code; they change nothing.")
+act = _server("afya-act", "Afya Triage Watch (gated actions)",
+              "Executor-only tools that act after nurse or clinician approval.",
+              "Executor only. Every call is audited and needs an authorised actor.")
+ui = _server("afya-ui", "Afya Triage Watch (screen data)",
+             "Read-only data for the Afya API's screens.",
+             "Read-only data for the Afya API's screens; the model never connects here.")
 
 
 async def _run(fn: Any, *args: Any) -> Any:
-    """FastMCP calls sync tools on the event loop; the FHIR client is blocking, so run it in a worker thread."""
-    return await anyio.to_thread.run_sync(fn, *args)
+    """The FHIR client is blocking, so run it in a worker thread.
+
+    E13-1: mcp 2.x keeps the text of a ToolError only; any other exception reaches the client as a bare "Error
+    executing tool X". The api tells a refused actor (403) and a missing record (404) from an outage by that text,
+    so the anticipated failures are re-raised as ToolError with audit.error_text (class name and a short message,
+    FHIR diagnostics cut off, as before). Anything else stays opaque on purpose."""
+    try:
+        return await anyio.to_thread.run_sync(fn, *args)
+    except (audit.ActorRefused, audit.AuditFailed, FhirUnavailable, FhirRejected) as e:
+        raise ToolError(audit.error_text(e)) from e
 
 
 async def _audited(kind: str, mode: str, inputs: dict[str, Any], fn: Any, actor: str = "agent",
@@ -252,9 +285,9 @@ async def lifespan(_app):
 app = Starlette(
     routes=[
         Route("/healthz", health),
-        Mount("/read", app=read.streamable_http_app()),
-        Mount("/act", app=act.streamable_http_app()),
-        Mount("/ui", app=ui.streamable_http_app()),
+        Mount("/read", app=read.streamable_http_app(stateless_http=True, transport_security=_security())),
+        Mount("/act", app=act.streamable_http_app(stateless_http=True, transport_security=_security())),
+        Mount("/ui", app=ui.streamable_http_app(stateless_http=True, transport_security=_security())),
     ],
     lifespan=lifespan,
 )
