@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 67 done · 10 drafted · 18 to do · 0 blocked · 95 stories
+**Progress:** 68 done · 9 drafted · 18 to do · 0 blocked · 95 stories
 
 ---
 
@@ -375,7 +375,7 @@ Audit context: [competition-audit.md](competition-audit.md).
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
 | E13-1 | [x] | Upgrade own MCP client/server integration to the current protocol | M | TBD | TBD | E12-3 |
-| E13-2 | [~] | Implement current MCP server discovery | M | TBD | TBD | E13-1 |
+| E13-2 | [x] | Implement current MCP server discovery | M | TBD | TBD | E13-1 |
 | E13-3 | [ ] | Implement standardized MCP OAuth authorization flow | M | TBD | TBD | E13-1 |
 | E13-4 | [~] | Official MCP conformance tests and versioned reports | M | TBD | TBD | E13-1, E13-2, E13-3 |
 
@@ -414,8 +414,17 @@ Conformance before/after: [baseline](conformance/baseline-2025-11-25.md) and [af
 
 **E13-2** · Acceptance: implement `server/discover` as required by the selected protocol, returning accurate supported
 versions, identity and capabilities; test valid requests, unsupported-version errors and appropriate access controls.
-Keep `tools/list` separate and do not expose patient data in discovery metadata. Notes: assigned by Dheker;
-implementation pending.
+Keep `tools/list` separate and do not expose patient data in discovery metadata. Notes: done. The SDK answers `server/discover` on each of `/read/mcp`,
+`/act/mcp` and `/ui/mcp`; what we set is accurate content. Result: `supportedVersions ["2026-07-28"]` (the handshake versions up to
+2025-11-25 are served through `initialize`, which the borrowed-WSO2 path and old clients use), identity per mount
+(`afya-read`, `afya-act`, `afya-ui`, with title, version from the package, description and short instructions), capabilities only
+`tools` (static, no listChanged), plus the SDK's empty `prompts`/`resources` list capabilities (no subscribe). No FHIR or database access, no
+patient data, host, path or secret in the answer. Access control: the bearer token (401 with `WWW-Authenticate`), Host (421) and Origin (403)
+checks run before the MCP layer, so discovery needs the same credentials as any call; an unsupported version gives HTTP 400 with `-32022` and the
+supported list. `tools/list` is unchanged (same names and input schemas on 2026-07-28 and via the 2025-11-25 handshake) and not part of the
+discover result. Tests: `mcp/tests/test_discovery.py` (15: valid, no patient data, unsupported version, 401/421/403 plus a valid loopback
+Origin accepted, tools/list unchanged on both paths, FHIR and store forbidden during discovery); smoke checks `server/discover` through the
+api container.
 
 **E13-3** · Acceptance: select an established authorization/identity provider and document the user-delegated and/or
 service identity flow appropriate to the actual callers; implement the selected MCP OAuth 2.1 authorization profile,
