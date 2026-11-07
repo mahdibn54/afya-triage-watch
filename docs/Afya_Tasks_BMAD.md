@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 65 done · 9 drafted · 17 to do · 0 blocked · 91 stories
+**Progress:** 66 done · 8 drafted · 17 to do · 0 blocked · 91 stories
 
 ---
 
@@ -267,7 +267,7 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 | ID | Status | Story | Owner | Day | Est. | Depends |
 |---|---|---|---|---|---|---|
 | E8-1 | [x] | Eval harness `make eval` | M | Day 5 | 3 h | E5-2 |
-| E8-2 | [~] | Group A: fixed-code and security tests (run once) | B | Day 8 | 3 h | E2-3, E3-* |
+| E8-2 | [x] | Group A: fixed-code and security tests (run once) | B | Day 8 | 3 h | E2-3, E3-* |
 | E8-3 | [~] | Group B: model-dependent runs | M | Day 9 | 2 h + runs | E5-* |
 | E8-4 | [x] | Group C: rules-only baseline | M | Day 9 | 0.5 h | E8-3 |
 | E8-5 | [x] | Metrics | M | Day 9 | 1 h | E8-1 |
@@ -284,7 +284,7 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 **E8-6** · Acceptance: template from architecture §11; one real unfixed failure (case, k/n, trace, tested hypothesis, next step, why not fixed); tuning/held-out split disclosed; only real runs reported. · Notes: `[~]`: EVALS.md written from the logs of the fixture run (method, k/n with Wilson intervals, rules-only side by side, limits); the 20-patient / held-out run waits for E5-1 (B), then `make eval CASES=...` rebuilds the tables and sections 2 and 4 must be re-checked against them. Unfixed failure: `m17-chest-pain` on qwen3:8b, 0/5, run `2819:2821`, probe in `evals/probes/` (time phrase read as past; removing the French negation example fixes it in the probe; not shipped because it is untested on the negation cases and would be tuning on the fixtures). Split disclosed: all 18 cases are author-seen fixtures, no held-out result yet. E12-4: headline now case level (k/n with Wilson at n = cases, majority of a case's runs; trial level secondary), baseline-commit difference stated, synthetic rules-only table added; the 20-patient model rerun and the check of sections 2 and 4 against it are **waiting for the OpenRouter key**.
 **E8-7** · Acceptance: `grep -r "sk-or-\|Authorization" evals/ ` returns nothing before each push.
 
-**E8-2 current verification:** Reopened at `28215e1`: the runner is missing `AFYA_MCP_TOKEN` and its audit test omits the now-required `auth`. Original run: 20 failed / 5 passed; temporary token supplied: 24 passed / 1 failed. The independent current-schema audit-permission probe and three WSO2 isolation cases passed. Full evidence and next steps: [competition-audit.md](competition-audit.md), also recorded in Decisions below. Earlier completion notes describe the previous successful run; the current checked-in suite is not green.
+**E8-2 current verification:** Harness regressions repaired by B after the audit: Compose passes the same required `AFYA_MCP_TOKEN` to the runner and server; Group A CI generates a fresh token; the nurse audit fixture explicitly supplies `auth=demo_switcher` and verifies it remains unchanged after rejected mutations. UPDATE/DELETE/TRUNCATE refusal checks remain intact. Harness imports linted and run instructions updated. Fresh disposable project `afya-e8-2-fix`, model off, run marker `73ee041+e82-fix`: **25 real-stack tests passed with no extra token/command overrides and zero skips; 3 WSO2-container isolation tests passed; desktop Chromium and iPhone 13 browser-emulation approval checks both passed first attempt**. Eight viewport screenshots inspected under ignored `.playwright-mcp/group-a/browser/`; JUnit confirms zero failures/errors/skips. No clinical code, permissions or E5-1 labels changed. [competition-audit.md](competition-audit.md) retains original failures and records this resolution. Local checks passed; this does not claim a remote CI result.
 
 ---
 
@@ -401,6 +401,7 @@ Technical competition audit of `28215e1`: [competition-audit.md](competition-aud
 
 | Decision |
 |---|
+| **E8-2 harness repair (B):** test clients use the configured server bearer token through Compose, and audit fixtures explicitly declare human `auth`. Tests adapt to the current security contract; production auth, schema constraints and audit-mutation refusal remain unchanged. Local checked-in harness passes 25 real-service + 3 isolation cases and both desktop/mobile approval flows without overrides. |
 | **E2-6 seed semantics (B):** explicit demo-only loader imports each E5-1 case's first reading as the waiting-room baseline. Later readings and expected evaluation labels stay in the fixtures; seeding is not a model evaluation. Versioned conditional identifiers preserve clinical decisions and visits across retries; closed seeded visits are not reopened. E5-1 review remains M-owned and pending. |
 | Models must always be open weights, on every provider (Mahdi's rule; the challenge requires a full run on an open-weights model). Default model: Ollama Cloud `gpt-oss:120b` (Apache-2.0); OpenRouter option `qwen/qwen3-30b-a3b-instruct-2507` and local `qwen3:8b` (both Apache-2.0). Non-OSI custom licences (Gemma, Nemotron, modified-MIT Kimi) are not used. |
 | docs/review-for-mahdi.md removed by M: items 1–4 and 6 fixed (E12-1, E12-2). Left for B: E0-6 — update the mypy count (afya_mcp 0 errors, afya_api 12, all LangGraph typing) and decide whether mypy fails CI; E2-5 — M agrees B closes it (binding done in E5-9; qwen3:30b-a3b not pulled; default provider is now OpenRouter). |

@@ -28,6 +28,7 @@ services:
       AFYA_MCP_READ_URL: http://afya-mcp:9000/read/mcp
       AFYA_MCP_ACT_URL: http://afya-mcp:9000/act/mcp
       AFYA_MCP_UI_URL: http://afya-mcp:9000/ui/mcp
+      AFYA_MCP_TOKEN: ${AFYA_MCP_TOKEN:?set AFYA_MCP_TOKEN in .env}
       WSO2_MCP_URL: http://wso2-fhir-mcp:8000/mcp
       RULES_DIR: /rules
     volumes:

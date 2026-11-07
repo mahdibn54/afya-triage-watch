@@ -7,10 +7,9 @@ from threading import Barrier
 import httpx
 import psycopg
 import pytest
+from afya_api.mcp_client import ToolFailed
 from afya_mcp import db, workflow
 from conftest import ORANGE, run
-
-from afya_api.mcp_client import ToolFailed
 
 
 def approve(proposal, ttl=timedelta(hours=1)):
@@ -94,14 +93,15 @@ def test_lost_flag_response_retry_converges_to_one_flag(stack):
 
 def test_audit_log_insert_allowed_but_mutations_denied(stack):
     with db.connect() as conn:
-        row = conn.execute("INSERT INTO audit_log(kind,actor,payload) "
-                           "VALUES ('group_a','nurse-a','{}') RETURNING id").fetchone()
+        row = conn.execute("INSERT INTO audit_log(kind,actor,auth,payload) "
+                           "VALUES ('group_a','nurse-a','demo_switcher','{}') RETURNING id").fetchone()
         for sql in ["UPDATE audit_log SET kind='tampered' WHERE id=%s", "DELETE FROM audit_log WHERE id=%s"]:
             with pytest.raises(psycopg.errors.InsufficientPrivilege):
                 conn.execute(sql, (row["id"],))
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             conn.execute("TRUNCATE audit_log")
-        assert conn.execute("SELECT kind FROM audit_log WHERE id=%s", (row["id"],)).fetchone()["kind"] == "group_a"
+        assert conn.execute("SELECT kind, auth FROM audit_log WHERE id=%s", (row["id"],)).fetchone() == {
+            "kind": "group_a", "auth": "demo_switcher"}
 
 
 def test_unreviewed_superseded_proposal_stays_visible_until_acknowledged(stack):

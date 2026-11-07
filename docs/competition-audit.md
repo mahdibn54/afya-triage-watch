@@ -5,9 +5,23 @@ Audited source revision: `28215e1`. Scope: technical implementation and evidence
 No clinical code, fixture labels or model configuration changed. No live model calls were made.
 This report is evidence, not a second backlog. Dates and personal eligibility are outside its scope.
 
+## E8-2 repair follow-up
+
+The two harness regressions below have been repaired. Compose now passes the required server token to `group-a`,
+Group A CI generates a fresh token, and the nurse audit INSERT explicitly sets `auth=demo_switcher`. The test also
+verifies that auth remains unchanged after refused mutations. No clinical code, permissions or constraints changed.
+
+Fresh disposable project `afya-e8-2-fix`, local marker `73ee041+e82-fix`: the checked-in harness passed **25/25**
+real-stack cases without additional token/command overrides, **3/3** inside-WSO2 isolation cases, and **2/2**
+desktop/mobile approval workflows, with no retries or skipped tests. Eight viewport screenshots were inspected;
+harness lint passed. JUnit and screenshots are under ignored `.playwright-mcp/group-a/`. CI token generation was
+updated; these local results do not claim the remote CI run has passed. Original failure counts below are retained
+as historical audit evidence and are superseded for the harness by this follow-up.
+
 **Conclusion: most core mechanisms are implemented, but complete technical compliance is not yet established.**
-The outstanding issues are current model-on execution evidence, audit completeness under logging failure,
-and regressions in the real-stack verification harness. See the separate licensing and submission notes below.
+The outstanding issues are current model-on execution evidence and audit completeness under logging failure.
+The harness regressions found in the original audit are resolved as documented above.
+See the separate licensing and submission notes below.
 
 ## Implementation mapping
 
@@ -51,7 +65,7 @@ Eight successful-run viewport screenshots were visually inspected. The mobile de
 obscure portions of the board or gate list in these captures; passing document-overflow checks does not establish
 that every panel element fits at once. These existing UI limitations are separate from the tested approval boundary.
 
-### Harness defects requiring repair
+### Harness defects found at the audited revision (now repaired)
 
 1. [evals/stack/compose.yml](../evals/stack/compose.yml) must pass the configured `AFYA_MCP_TOKEN` to `group-a`.
    Supplying a valid token at runtime changes the suite from 20 failures to one. The production API already receives it.
@@ -106,7 +120,7 @@ The synthetic set's 14 held-out cases have rules-only outcomes. Preserve these d
 
 ## Next work, within the existing backlog
 
-1. E8-2/E0-6: repair the two harness regressions and run the checked-in suite without overrides.
+1. E8-2 harness regressions: repaired and verified without overrides; follow the pushed CI run separately under E0-6.
 2. E5-11/E8-3/E8-6: record one current open-weights run, with actual model-selected tool use where useful,
    a valid decision, cited proposal, named human approval, all gates and durable tool trace. Record actual latency,
    tokens, provider and cost; keep a failure/recovery visible. Then complete the declared held-out evaluation.

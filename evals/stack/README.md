@@ -5,6 +5,11 @@ the earlier in-memory FHIR tests. No model service/key/GPU is needed: the applic
 model-dependent refusal/outage cases use the existing deterministic `ScriptedBackend` at that boundary only.
 All patients are invented `GA-*` visits; the E5-1 tuning/held-out dataset is untouched.
 
+Set `AFYA_MCP_TOKEN` in the selected environment file along with the database passwords and session secret.
+The overlay passes that same token to the test client and the server; no extra `docker compose run -e` override
+is needed. CI generates a fresh token for each run. The audit-permission fixture supplies `auth=demo_switcher`
+for its synthetic nurse, matching the current schema, and still requires UPDATE/DELETE/TRUNCATE to be refused.
+
 The overlay routes **only the test MCP server** through a fault proxy. It can return three HTTP 503 responses for
 one Observation read, or let HAPI commit a Flag and close the connection before returning its response. All other
 traffic is forwarded to real HAPI. No production code imports the proxy, and normal `docker-compose.yml` is unchanged.

@@ -6,13 +6,12 @@ import uuid
 
 import httpx
 import pytest
-from afya_mcp import db
-from fake_model import ScriptedBackend
-
 from afya_api.agent import Agent
 from afya_api.demo_scenario import birth_date
 from afya_api.mcp_client import McpGateway
 from afya_api.model import Model, ModelSettings
+from afya_mcp import db
+from fake_model import ScriptedBackend
 
 BASE = {"resp_rate": 14, "heart_rate": 80, "systolic_bp": 120, "temperature": 37.0, "spo2": 98,
         "mobility": "walking", "consciousness": "alert", "trauma": "no"}
