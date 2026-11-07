@@ -124,6 +124,27 @@ services:
       - ./rules:/rules:ro
     networks: [fhir_rw, mcp, app]
 
+  # E2-6: explicit one-shot loader; never run automatically with the application.
+  seed:
+    profiles: ["seed"]
+    build: ./mcp
+    depends_on:
+      db-init: { condition: service_completed_successfully }
+      hapi: { condition: service_started }
+    environment:
+      DATABASE_URL: postgresql://afya_app:${AFYA_APP_PASSWORD}@postgres:5432/afya
+      FHIR_BASE_URL: http://hapi:8080/fhir
+      RULES_DIR: /rules
+      DEMO_MODE: ${DEMO_MODE:-1}
+      DATA_CLASSIFICATION: ${DATA_CLASSIFICATION:-synthetic}
+      PYTHONPATH: /workspace
+    volumes:
+      - ./seed:/workspace/seed:ro
+      - ./evals:/workspace/evals:ro
+      - ./rules:/rules:ro
+    command: ["python", "-m", "seed"]
+    networks: [fhir_rw, app]
+
   api:
     build: { context: ., dockerfile: api/Dockerfile }   # repo root: the api also installs mcp/ (afya_mcp.workflow)
     depends_on:

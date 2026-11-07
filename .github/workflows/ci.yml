@@ -77,6 +77,8 @@ jobs:
         run: cd mcp && pytest -q
       - name: pytest (evals, including the E5-1 dataset contract)
         run: pytest evals/tests -q
+      - name: ruff (synthetic seed job)
+        run: ruff check seed evals/tests/test_seed.py
       - name: pytest (WSO2 projection adapter)
         run: cd api && pytest tests/test_fhir_projection.py -q
       - name: mypy (mcp, reported only until the existing errors are fixed)
@@ -145,6 +147,18 @@ jobs:
       - name: Playwright (P-014 end to end, real stack)
         working-directory: web
         run: npm run test:e2e
+      - name: Seed twenty synthetic patients twice
+        run: |
+          docker compose --profile seed run --build --rm seed
+          docker compose --profile seed run --rm seed
+      - name: Seeded waiting room (desktop and mobile emulation)
+        working-directory: web
+        run: npx playwright test --config playwright.seed.config.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: seed-browser-evidence
+          path: .playwright-mcp/seed/browser/
       - name: Stack logs
         if: failure()
         run: docker compose logs --no-color --tail 200

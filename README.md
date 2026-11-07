@@ -22,6 +22,19 @@ The nurse UI is the only published port: `http://127.0.0.1:3000` (add `-d` to ru
 `--profile web` the stack starts but nothing is published. Hardware: 8 GB RAM is enough with the default hosted
 model; a local model needs 16 GB or more.
 
+### Load the synthetic waiting room
+
+With `DEMO_MODE=1` and `DATA_CLASSIFICATION=synthetic`, run:
+
+```sh
+docker compose --profile seed run --build --rm seed
+```
+
+This loads the 20 invented E5-1 patients and their first readings. Rerunning preserves
+existing visits, arrival times and staff decisions without duplicating resources.
+It does not run the model or approve proposals. Later evaluation readings remain in
+the fixtures. See [`seed/README.md`](seed/README.md) for retry behaviour and review limits.
+
 ### `.env` values
 
 | Variable | What |
