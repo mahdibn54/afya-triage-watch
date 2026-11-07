@@ -169,6 +169,7 @@ jobs:
           path: web/playwright-report
 
   mcp-conformance:
+    name: MCP application regression checks
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -178,35 +179,49 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "22" }
       - run: pip install -e "mcp[dev]" -e "api[dev]"
-      - name: Start afya-mcp behind the offline test issuer
+      - name: Test conformance drivers and fail-closed report gate
+        run: python -m pytest scripts/tests/test_conformance_setup.py -q
+      - name: Start actual MCP app behind the offline test issuer
         run: |
           PYTHONPATH=mcp nohup python -m uvicorn conformance_app:app --app-dir scripts --port 9100 > conformance-server.log 2>&1 &
           for i in $(seq 1 30); do curl -fs http://localhost:9100/healthz && break; sleep 1; done
           curl -fs http://localhost:9100/healthz
-      - name: Official MCP conformance, server (three mounts), 2026-07-28
+      - name: Record full official server results without failure waivers
         id: server
         continue-on-error: true
         run: |
           rc=0
           for m in read act ui; do
+            code=0
             npx -y @modelcontextprotocol/conformance@0.2.0-alpha.12 server --url http://localhost:9100/$m/mcp \
-              --requirements 2026-07-28 --expected-failures docs/conformance/expected-failures.yaml \
-              -o conformance-out/server-$m || rc=1
+              --requirements 2026-07-28 -o conformance-out/server-$m || code=$?
+            # 1 is the raw suite's non-conformance result, not a pass. The report gate below checks every result.
+            if [ "$code" -gt 1 ]; then rc=1; fi
           done
           exit $rc
-      - name: Official MCP conformance, api client, 2026-07-28
+      - name: Record full official client results without failure waivers
         id: client
         if: always()
         continue-on-error: true
         run: |
+          code=0
           PYTHONPATH=api npx -y @modelcontextprotocol/conformance@0.2.0-alpha.12 client \
             --command "python scripts/conformance_client.py" --requirements 2026-07-28 \
-            --expected-failures docs/conformance/expected-failures.yaml -o conformance-out/client
-      - name: Require both conformance legs to pass their documented baseline
+            -o conformance-out/client || code=$?
+          test "$code" -le 1
+      - name: Probe actual Afya tools and known SDK error handling
+        if: always()
+        run: python scripts/conformance_probe.py --output conformance-out/probes.json
+      - name: Gate application scope and publish honest coverage report
         if: always()
         run: |
+          python scripts/conformance_scope.py --root conformance-out
           test "${{ steps.server.outcome }}" = success
           test "${{ steps.client.outcome }}" = success
       - if: always()
         uses: actions/upload-artifact@v4
-        with: { name: mcp-conformance, path: conformance-out }
+        with:
+          name: mcp-application-regression-evidence
+          path: |
+            conformance-out
+            conformance-server.log

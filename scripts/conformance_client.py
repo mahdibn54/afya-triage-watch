@@ -1,12 +1,13 @@
-"""Client under test for the official MCP conformance tool (E13-4): the api's own client stack, nothing else.
+"""Client under test for the official MCP conformance tool (E13-4): the SDK transport and OAuth-provider stack used by the api.
 
 Run by `conformance client --command "<python> scripts/conformance_client.py"`: the tool starts a mock server (and, for
 the authorization scenarios, a mock authorization server), appends its URL and sets MCP_CONFORMANCE_SCENARIO and, where a
 scenario needs it, MCP_CONFORMANCE_CONTEXT. This uses what afya_api.mcp_client uses for afya-mcp: the SDK `Client` in
 `mode="auto"` over `streamable_http_client`, with `ClientCredentialsOAuthProvider` + `MemoryTokens` when the scenario
-hands out client credentials. The api implements no other OAuth flow (no authorization code, no PKCE, no dynamic or
-CIMD registration: its callers are services), so scenarios that need those are not applicable and are recorded as
-expected failures in docs/conformance/expected-failures.yaml, never as passes.
+hands out client credentials. This driver does not exercise McpGateway's issuer configuration, per-mount policy or JSON-result parsing.
+Those are covered by application tests and the real-stack smoke script. The api implements no other OAuth flow (no authorization code, no PKCE, no dynamic or
+CIMD registration: its callers are services), so scenarios that need those are recorded as
+not assessed by docs/conformance/application-profile.yaml, never as passes.
 Run: PYTHONPATH=api python scripts/conformance_client.py <server-url>
 """
 from __future__ import annotations
@@ -41,10 +42,21 @@ async def main(url: str) -> None:
                                               client_secret=ctx["client_secret"], scope=ctx.get("scope"))
     async with http_client(auth) as http, Client(streamable_http_client(url, http_client=http), mode="auto",
                                                  cache=None) as client:
-        for tool in (await client.list_tools()).tools:
-            # twice: plain strings, then values that need Base64 in an Mcp-Param header (non-ASCII, padding, newline)
-            for text in ("x", " h\u00e9llo\nw "):
-                await client.call_tool(tool.name, sample(tool.input_schema, text))
+        await exercise(client, os.environ.get("MCP_CONFORMANCE_SCENARIO", ""))
+
+
+async def exercise(client: Client, scenario: str) -> None:
+    tools = (await client.list_tools()).tools
+    if scenario == "json-schema-2020-12-preservation":
+        # Upstream requires the received schema verbatim, not generated sample arguments.
+        # Do not reconstruct, normalize or fix keywords: this must expose SDK parsing loss.
+        focal = next(t for t in tools if t.name == "json_schema_2020_12_tool")
+        await client.call_tool("json_schema_echo", {"schema": focal.input_schema})
+        return
+    for tool in tools:
+        # Plain strings, then values requiring Base64 in an Mcp-Param header.
+        for text in ("x", " h\u00e9llo\nw "):
+            await client.call_tool(tool.name, sample(tool.input_schema, text))
 
 
 if __name__ == "__main__":

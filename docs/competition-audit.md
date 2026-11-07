@@ -1,3 +1,5 @@
+> Current conformance setup: [docs/conformance/README.md](conformance/README.md). The historical broad failure waiver is retired. The client schema-preservation failure was a driver bug, corrected without an SDK update. Application regression results are separated from unchanged official full-suite failures; one genuine unknown-prompt SDK issue remains visible.
+
 # Agent and MCP competition audit
 
 Audited source revision: `28215e1`. Scope: technical implementation and evidence against the
@@ -209,3 +211,10 @@ The integration was rebased over Mahdi's concurrent provider/evaluation commits 
 Final merged API verification passed **218/218** tests against the same disposable database after correcting the stale notice assertion; evals passed **69/69** and the unchanged MCP suite passed **319/319**.
 
 The final production-image layout check passed on desktop and iPhone emulation: long proposal text fits its container and does not overlap colour badges. Both screenshots were inspected (`.playwright-mcp/final-layout-*.png`); the full six-workflow evidence remains separately under Group A.
+
+
+## Conformance setup correction
+
+Dheker requested correction after the earlier explanation blurred application scope and official full conformance. See the current conformance README for exact source references, commands, coverage decisions and results. Official raw outcomes remain server 13 PASS / 2 WARN / 35 FAIL per mount; corrected client 9 PASS / 30 FAIL. Scoped application scenarios: 9 per mount and 9 client; not assessed: 41 per mount and 30 client. Two fixture checks inside server-stateless remain explicitly not assessed. All wire-schema failures stay gated across the full raw output. Actual catalogue/invalid-input probes pass 6 checks; one unknown-prompt error is reproduced as 3 KNOWN_FAILURE probes. CI accepts only the exact narrow known-error baseline and shows it in the summary; it is not a full conformance pass.
+
+Setup verification: 16 harness tests, 46 MCP authentication/discovery tests and 7 API MCP-client tests passed. A deliberate assertion regression made the application report exit 1. Desktop/iPhone report screenshots were inspected, including expanded scope decisions and overflow checks. No production UI or clinical code changed.

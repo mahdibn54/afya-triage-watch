@@ -16,7 +16,10 @@ def scenarios(out: Path) -> dict[str, list[dict]]:
     for checks in sorted(out.rglob("checks.json")):   # client runs nest the auth scenarios under auth/
         d = checks.parent
         name = re.sub(r"^server-|-\d{4}-\d\d-\d\dT.*$", "", d.name)
-        result[f"{d.parent.name}/{name}" if d.parent != out else name] = json.loads(checks.read_text())
+        key = f"{d.parent.name}/{name}" if d.parent != out else name
+        if key in result:
+            raise ValueError(f"Duplicate scenario output: {key}; use a fresh result directory")
+        result[key] = json.loads(checks.read_text(encoding="utf-8"))
     return result
 
 

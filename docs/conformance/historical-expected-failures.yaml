@@ -1,3 +1,4 @@
+# HISTORICAL ONLY. Not used by current CI. See application-profile.yaml and README.md.
 # Expected failures of the official MCP conformance tool (@modelcontextprotocol/conformance 0.2.0-alpha.12) against
 # afya-mcp (/read, /act, /ui; identical on all three) and against the api's MCP client, requirement set 2026-07-28.
 # Every entry is a documented, justified failure: see docs/conformance/final-2026-07-28.md for the triage. None of

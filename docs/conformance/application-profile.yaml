@@ -1,0 +1,355 @@
+# Application-specific scope only. Never use this as an official SDK tier or certification result.
+tool: '@modelcontextprotocol/conformance@0.2.0-alpha.12'
+protocol: '2026-07-28'
+upstream_commit: f44482ba17df816d3176962a11cdf36aec9bda00
+description: Afya application regression profile, not the official full conformance requirement set. Raw official
+  results are retained without an expected-failures waiver.
+server:
+  caching:
+    scope: applicable
+    reason: Exercises the installed server transport or catalogue without requiring an example clinical tool.
+  completion-complete:
+    scope: not_offered
+    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
+      a pass.
+  dns-rebinding-protection:
+    scope: applicable
+    reason: Exercises the installed server transport or catalogue without requiring an example clinical tool.
+  http-custom-header-server-validation:
+    scope: not_exercised
+    reason: No Afya tool declares x-mcp-header; this scenario cannot exercise that rule.
+  http-header-validation:
+    scope: applicable
+    reason: Exercises the installed server transport or catalogue without requiring an example clinical tool.
+  input-required-result-basic-elicitation:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  input-required-result-basic-list-roots:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  input-required-result-basic-sampling:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  input-required-result-capability-check:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  input-required-result-ignore-extra-params:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  input-required-result-missing-input-response:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  input-required-result-multi-round:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  input-required-result-multiple-input-requests:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  input-required-result-non-tool-request:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  input-required-result-request-state:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  input-required-result-result-type:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  input-required-result-tampered-state:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  input-required-result-unsupported-methods:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  input-required-result-validate-input:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  json-schema-2020-12:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  prompts-get-embedded-resource:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  prompts-get-simple:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  prompts-get-with-args:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  prompts-get-with-image:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  prompts-list:
+    scope: applicable
+    reason: Exercises the installed server transport or catalogue without requiring an example clinical tool.
+  resources-list:
+    scope: applicable
+    reason: Exercises the installed server transport or catalogue without requiring an example clinical tool.
+  resources-read-binary:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  resources-read-text:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  resources-templates-read:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  sep-2164-resource-not-found:
+    scope: applicable
+    reason: Exercises the installed server transport or catalogue without requiring an example clinical tool.
+  server-sse-multiple-streams:
+    scope: applicable
+    reason: Exercises the installed server transport or catalogue without requiring an example clinical tool.
+  server-stateless:
+    scope: applicable
+    reason: Exercises the installed server transport or catalogue without requiring an example clinical tool.
+    excluded_checks:
+      sep-2575-server-rejects-undeclared-capability: Requires the framework diagnostic tool test_missing_capability;
+        Afya does not offer it. Not assessed, not passed.
+      sep-2575-missing-capability-http-400: Requires the framework diagnostic tool test_missing_capability; Afya
+        does not offer it. Not assessed, not passed.
+  tasks-capability-negotiation:
+    scope: not_offered
+    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
+      a pass.
+  tasks-dispatch-and-envelope:
+    scope: not_offered
+    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
+      a pass.
+  tasks-lifecycle:
+    scope: not_offered
+    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
+      a pass.
+  tasks-mrtr-composition:
+    scope: not_offered
+    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
+      a pass.
+  tasks-mrtr-input:
+    scope: not_offered
+    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
+      a pass.
+  tasks-request-headers:
+    scope: not_offered
+    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
+      a pass.
+  tasks-request-state-removal:
+    scope: not_offered
+    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
+      a pass.
+  tasks-required-task-error:
+    scope: not_offered
+    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
+      a pass.
+  tasks-status-notifications:
+    scope: not_offered
+    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
+      a pass.
+  tasks-wire-fields:
+    scope: not_offered
+    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
+      a pass.
+  tools-call-audio:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  tools-call-embedded-resource:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  tools-call-error:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  tools-call-image:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  tools-call-mixed-content:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  tools-call-simple-text:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  tools-call-with-progress:
+    scope: fixture_dependent
+    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
+      tool response is not a successful execution of the fixture.
+  tools-list:
+    scope: applicable
+    reason: Exercises the installed server transport or catalogue without requiring an example clinical tool.
+client:
+  auth/authorization-server-migration:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/basic-cimd:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/client-credentials-basic:
+    scope: applicable
+    reason: Exercises the real SDK client stack; the driver implements this scenario contract.
+  auth/client-credentials-jwt:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/dpop:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/dpop-nonce:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/enterprise-managed-authorization:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/iss-normalized:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/iss-not-advertised:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/iss-supported:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/iss-supported-missing:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/iss-unexpected:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/iss-wrong-issuer:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/metadata-default:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/metadata-issuer-mismatch:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/metadata-var1:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/metadata-var2:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/metadata-var3:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/offline-access-not-supported:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/offline-access-scope:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/pre-registration:
+    scope: applicable
+    reason: Exercises the real SDK client stack; the driver implements this scenario contract.
+  auth/resource-mismatch:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/scope-from-scopes-supported:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/scope-from-www-authenticate:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/scope-omitted-when-undefined:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/scope-retry-limit:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/scope-step-up:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/token-endpoint-auth-basic:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/token-endpoint-auth-none:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/token-endpoint-auth-post:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  auth/wif-jwt-bearer:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  http-custom-headers:
+    scope: applicable
+    reason: Exercises the real SDK client stack; the driver implements this scenario contract.
+  http-invalid-tool-headers:
+    scope: applicable
+    reason: Exercises the real SDK client stack; the driver implements this scenario contract.
+  http-standard-headers:
+    scope: applicable
+    reason: Exercises the real SDK client stack; the driver implements this scenario contract.
+  json-schema-2020-12-preservation:
+    scope: applicable
+    reason: Exercises the real SDK client stack; the driver implements this scenario contract.
+  json-schema-ref-no-deref:
+    scope: applicable
+    reason: Exercises the real SDK client stack; the driver implements this scenario contract.
+  request-metadata:
+    scope: applicable
+    reason: Exercises the real SDK client stack; the driver implements this scenario contract.
+  sep-2322-client-request-state:
+    scope: not_exercised
+    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
+      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+  tools_call:
+    scope: applicable
+    reason: Exercises the real SDK client stack; the driver implements this scenario contract.
+known_probe_failures:
+  unknown-prompt-error:
+    actual_code: -32603
+    reason: SDK 2.3.0 returns Internal server error for an unknown prompt, instead of Invalid params (-32602). A
+      passing probe requires removing this baseline.
