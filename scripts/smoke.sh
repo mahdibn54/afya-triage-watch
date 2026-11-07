@@ -3,7 +3,7 @@
 # Everything runs through `docker compose exec`: no service publishes a host port, so there is nothing to curl.
 set -u
 cd "$(dirname "$0")/.."
-set -a; . ./.env; set +a
+set -a; . "${AFYA_ENV_FILE:-./.env}"; set +a
 
 FAILS=0
 ok()   { echo "PASS  $1"; }
@@ -440,7 +440,7 @@ sys.exit(0 if len(flags) == 1 and colour == ["ORANGE"] else 1)
 PY
 
 echo "== host exposure"
-PUB=$(docker ps --filter "label=com.docker.compose.project=afya" --format '{{.Names}} {{.Ports}}' | grep -E '0\.0\.0\.0|\[::\]|127\.0\.0\.1' || true)
+PUB=$(docker ps --filter "label=com.docker.compose.project=${COMPOSE_PROJECT_NAME:-afya}" --format '{{.Names}} {{.Ports}}' | grep -E '0\.0\.0\.0|\[::\]|127\.0\.0\.1' || true)
 # With the web profile up, the only allowed one is the web UI on the loopback (127.0.0.1:3000).
 OTHER=$(printf '%s\n' "$PUB" | grep -vE '^afya-web-1 127\.0\.0\.1:3000->3000/tcp$' | grep . || true)
 if [ -z "$PUB" ]; then ok "no service publishes a host port (web profile off)"

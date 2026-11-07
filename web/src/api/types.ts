@@ -58,7 +58,9 @@ export interface paths {
         };
         /**
          * Get Proposals
-         * @description status=pending (default), superseded (not yet reviewed) or all. Oldest first.
+         * @description status=pending (default), superseded (not yet reviewed) or all. Optional visit_id filter. Oldest first, except
+         *     status=all: newest first. limit (1..1000) keeps the first rows of that order; default 500 for status=all, none
+         *     for pending and superseded.
          */
         get: operations["get_proposals_proposals_get"];
         put?: never;
@@ -314,6 +316,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout
+         * @description Clear the demo session, including expired/invalid cookies. Audit a recognized signed-in person.
+         */
+        post: operations["logout_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/queue": {
         parameters: {
             query?: never;
@@ -536,7 +558,7 @@ export interface components {
              * Code
              * @enum {string}
              */
-            code: "remeasure" | "no_chart" | "not_reviewed" | "instruction_like_text" | "vitals_due" | "clinician_reminded" | "model_unavailable" | "fhir_unavailable" | "data_incomplete" | "agent_failed";
+            code: "remeasure" | "no_chart" | "not_reviewed" | "instruction_like_text" | "vitals_due" | "clinician_reminded" | "model_unavailable" | "fhir_unavailable" | "data_incomplete" | "agent_failed" | "command_abandoned";
             /** Notification Id */
             notification_id?: string | null;
             /** At */
@@ -998,6 +1020,8 @@ export interface operations {
         parameters: {
             query?: {
                 status?: "pending" | "superseded" | "all";
+                visit_id?: string | null;
+                limit?: number | null;
             };
             header?: never;
             path?: never;
@@ -1953,6 +1977,80 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MeOut"];
                 };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    logout_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                afya_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Unauthorized */
             401: {

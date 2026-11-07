@@ -10,8 +10,10 @@ test("approval gates remain visible on desktop and mobile", async ({ page }, inf
   await login.focus();
   await expect(login).toBeFocused();
   await login.click();
+  await page.getByTestId("demo-director").getByRole("button", { name: /Demo director/ }).click();
   await page.getByTestId("demo-load").click();
   await expect(page.getByText("P-014 scenario loaded")).toBeVisible({ timeout: 30_000 });
+  await page.getByTestId("demo-director").getByRole("button", { name: /Demo director/ }).click();
   const queue = await (await page.request.get("/api/queue")).json();
   const visit = queue.patients.find((p: { patient_label: string }) => p.patient_label === "P-014").visit_id;
   const row = page.getByTestId(`row-${visit}`);
@@ -27,6 +29,7 @@ test("approval gates remain visible on desktop and mobile", async ({ page }, inf
 
   await page.request.post("/api/login-as", { data: { user_id: "mgr-k" } });
   await page.goto("/");
+  await expect(page.getByTestId("demo-director")).toHaveCount(0);
   await page.getByTestId(`review-${visit}`).click();
   await expect(page.getByTestId("read-only")).toBeVisible();
   await expect(page.getByTestId("approve")).toHaveCount(0);

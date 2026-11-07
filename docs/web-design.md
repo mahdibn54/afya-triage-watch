@@ -70,3 +70,7 @@ Playwright for one end-to-end test of the P-014 flow (also used to rehearse the 
 - Nothing on screen suggests a diagnosis or treatment. The UI never calls it "AI triage".
 - The manager sees no approve button anywhere.
 - The demo director and "sign in as…" exist only when `DEMO_MODE=1`, with a visible DEMO badge.
+
+## Session and notice integration follow-up
+
+Keep the demo director collapsed initially and hide it entirely for managers. The user menu retains demo role switching only when `me.demo` is true and offers Sign out for all roles, with a pending state and actionable retry error. Successful logout clears cached patient data and reloads sign-in. Render `command_abandoned` as `The confirmed second look was not recorded`; direct staff to review the patient and record a fresh reading. An unfinished agent check likewise needs staff review and a new reading, rather than promising an automatic restart.

@@ -92,3 +92,25 @@ def test_session_user_is_the_audit_actor_and_manager_is_refused(demo, conn, visi
     row = conn.execute("SELECT actor, auth FROM audit_log WHERE kind = 'record_vitals_refused' AND visit_id = %s "
                        "ORDER BY id DESC LIMIT 1", (visit,)).fetchone()
     assert row is not None and (row["actor"], row["auth"]) == ("mgr-k", "demo_switcher")
+
+
+def test_logout_clears_the_cookie_and_audits_the_person(demo, conn):
+    demo.post("/login-as", json={"user_id": "nurse-a"}).raise_for_status()
+    response = demo.post("/logout")
+    assert response.status_code == 204 and response.content == b""
+    cookie = response.headers["set-cookie"]
+    assert "Max-Age=0" in cookie and "HttpOnly" in cookie and "SameSite=strict" in cookie and "Path=/" in cookie
+    assert demo.get("/me").status_code == 401
+    assert demo.get("/queue").status_code == 401
+    row = conn.execute("SELECT actor, auth, payload FROM audit_log WHERE kind='logout' ORDER BY id DESC LIMIT 1"
+                       ).fetchone()
+    assert (row["actor"], row["auth"], row["payload"]) == ("nurse-a", "demo_switcher", {"role": "nurse"})
+    assert demo.post("/logout").status_code == 204
+
+
+def test_logout_clears_an_invalid_cookie_without_recording_a_false_actor(demo, conn):
+    demo.cookies.set(session.COOKIE, "invalid-session")
+    before = conn.execute("SELECT count(*) AS n FROM audit_log WHERE kind='logout'").fetchone()["n"]
+    response = demo.post("/logout")
+    assert response.status_code == 204 and "Max-Age=0" in response.headers["set-cookie"]
+    assert conn.execute("SELECT count(*) AS n FROM audit_log WHERE kind='logout'").fetchone()["n"] == before

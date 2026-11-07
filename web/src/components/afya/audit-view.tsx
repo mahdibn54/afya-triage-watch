@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 const KIND: Record<string, { text: string; tone?: "ok" | "bad" | "agent" }> = {
   login: { text: "Signed in (demo switcher)" },
+  logout: { text: "Signed out" },
   vitals_recorded: { text: "Recorded vitals" },
   vitals_refused: { text: "Vitals refused: re-measure", tone: "bad" },
   proposal_created: { text: "Suggested a second look", tone: "agent" },
@@ -19,6 +20,7 @@ const KIND: Record<string, { text: string; tone?: "ok" | "bad" | "agent" }> = {
   approve_refused: { text: "Confirm refused", tone: "bad" },
   reject_refused: { text: "Reject refused", tone: "bad" },
   command_done: { text: "Flag and colour written to the record", tone: "ok" },
+  command_abandoned: { text: "Confirmed flag was not recorded", tone: "bad" },
   notification_acknowledged: { text: "Dismissed a notice" },
   agent_step: { text: "Agent step", tone: "agent" },
   record_vitals: { text: "Tool: record vitals" },

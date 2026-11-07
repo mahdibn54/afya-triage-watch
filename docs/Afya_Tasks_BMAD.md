@@ -635,3 +635,8 @@ Technical competition audit of `28215e1`: [competition-audit.md](competition-aud
 >
 > Kind regards,
 > Mahdi Ben Amor
+
+
+### B integration follow-up after E13 (2026-11-07)
+
+E0-6/E13-4: installed the supplied conformance CI job, including readiness, both-leg outcome gates and report upload; synchronized its template. Documented expected failures remain explicit, not certification. E8-2: migrated Group A Compose/CI from the removed static token to the real OAuth client, issuer, trusted CA and auth network. E6-2/E7-6: added audited browser logout with retry handling, cleared query state, hid manager demo controls and made the director collapsed initially. E7-8/E7-10: regenerated the contract and rendered `command_abandoned`, with actionable failed-check wording. Existing story statuses and ownership stay unchanged; remaining E0-6 typing/branch-protection work is separate. Verification evidence is recorded in the competition audit.

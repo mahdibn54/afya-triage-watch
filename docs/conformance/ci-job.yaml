@@ -1,5 +1,5 @@
-# Ready-to-paste GitHub Actions job for .github/workflows/ci.yml (jobs: section). Owned by Dheker; Mahdi does not edit .github/.
-# Pinned official tool (alpha: no stable release covers 2026-07-28 yet). Green only for docs/conformance/expected-failures.yaml.
+# Job installed in .github/workflows/ci.yml; keep this handoff template synchronized.
+# Matches documented expected failures; not full conformance or certification.
   mcp-conformance:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -14,7 +14,10 @@
         run: |
           PYTHONPATH=mcp nohup python -m uvicorn conformance_app:app --app-dir scripts --port 9100 > conformance-server.log 2>&1 &
           for i in $(seq 1 30); do curl -fs http://localhost:9100/healthz && break; sleep 1; done
+          curl -fs http://localhost:9100/healthz
       - name: Official MCP conformance, server (three mounts), 2026-07-28
+        id: server
+        continue-on-error: true
         run: |
           rc=0
           for m in read act ui; do
@@ -24,10 +27,18 @@
           done
           exit $rc
       - name: Official MCP conformance, api client, 2026-07-28
+        id: client
+        if: always()
+        continue-on-error: true
         run: |
           PYTHONPATH=api npx -y @modelcontextprotocol/conformance@0.2.0-alpha.12 client \
             --command "python scripts/conformance_client.py" --requirements 2026-07-28 \
             --expected-failures docs/conformance/expected-failures.yaml -o conformance-out/client
+      - name: Require both conformance legs to pass their documented baseline
+        if: always()
+        run: |
+          test "${{ steps.server.outcome }}" = success
+          test "${{ steps.client.outcome }}" = success
       - if: always()
         uses: actions/upload-artifact@v4
         with: { name: mcp-conformance, path: conformance-out }

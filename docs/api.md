@@ -14,7 +14,7 @@ FastAPI on `api:8080`. The Next.js app calls `/api/...` and its proxy strips the
 | IDs | `visit_id` is the bare FHIR Encounter id (`v014`). Observation ids are always the full reference (`Observation/1057`). `proposal_id`, `command_id`, `notification_id` are UUIDs. `run_id` is URL-safe (letters, digits, `:` `-` `_` `.`). |
 | Colours | `RED` `ORANGE` `YELLOW` `GREEN`. The UI also shows a label and a shape (■ ▲ ● ○), never colour alone. |
 | Roles | `nurse`, `clinician`, `manager`. A manager reads only. `agent` and `system` exist in the database but never sign in. |
-| Auth | Everything except `/healthz`, `/login-as` and `/demo/users` needs the session cookie: `401` otherwise. |
+| Auth | Everything except `/healthz`, `/login-as`, `/logout` and `/demo/users` needs the session cookie: `401` otherwise. |
 | Errors | Always `{ "error": { "code": string, "message": string } }`. Codes: `unauthorized` 401, `forbidden` 403, `not_found` 404, `conflict` 409, `invalid` 422 (adds `problems[]`), `unavailable` 503. FastAPI's own validation errors are mapped to `invalid`. The same body for an unknown path (404 `not_found`) and a wrong method (405 `invalid`, with `Allow`). Any unexpected failure (database down, a bug) is `503 unavailable` with a generic message and no details; the cause is logged server-side only. |
 | Text | Quotes, complaints and rationale are plain text. Never `dangerouslySetInnerHTML`. |
 | Offsets | `quote_span` is `{ start, end }`, half-open, counted in Unicode code points of the **original** `complaint` the card shows (not the NFKC, case-folded copy the sign check uses). The UI slices with `Array.from(complaint).slice(start, end).join("")`. |
@@ -30,6 +30,7 @@ Every endpoint below is built (`api/afya_api/routes_*.py`). The tests are in `ap
 | GET | `/healthz` | anyone | done: liveness, model readiness (`model`), `trace_gaps` (see below) |
 | POST | `/login-as` | anyone, `DEMO_MODE=1` only | done (`routes_session.py`) |
 | GET | `/demo/users` | anyone, `DEMO_MODE=1` only | done |
+| POST | `/logout` | anyone | done: clear browser session; audit a recognized actor |
 | GET | `/me` | signed in | done |
 | GET | `/queue` | signed in | done (afya-mcp `queue_state`, not audited) |
 | POST | `/vitals` | nurse, clinician | done: reading, complaint, agent run |
@@ -63,6 +64,10 @@ the fixed rules.
 worked. `refused` is `null` or why a call would not be made (`no_api_key`, `data_not_synthetic`: the remote provider is
 used only while `DATA_CLASSIFICATION=synthetic`). `breaker` is `closed`, `open` or `half_open`. `trace_gaps` counts agent
 trace rows that could not be written since start (0 is healthy).
+
+### POST /logout
+
+Returns `204` with an expired HttpOnly, SameSite=Strict session cookie at `/`. Recognized signed-in staff get an append-only `logout` audit entry. Missing, expired or invalid cookies can also be cleared without inventing an audit actor. A database failure returns `503`; the UI keeps the session and offers a retry. This clears this browser session; it is not server-side revocation of copied stateless cookies.
 
 ## 3. Vital-sign inputs
 

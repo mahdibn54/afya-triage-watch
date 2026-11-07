@@ -20,7 +20,7 @@ jobs:
         run: |
           mkdir -p .playwright-mcp/group-a
           cp .env.example .env
-          for v in PG_SUPERUSER_PASSWORD AFYA_OWNER_PASSWORD AFYA_APP_PASSWORD SESSION_SECRET AFYA_MCP_TOKEN; do
+          for v in PG_SUPERUSER_PASSWORD AFYA_OWNER_PASSWORD AFYA_APP_PASSWORD SESSION_SECRET AFYA_MCP_CLIENT_SECRET; do
             sed -i "s|^$v=.*|$v=$(openssl rand -hex 24)|" .env
           done
           sed -i 's|^MODEL_ENABLED=.*|MODEL_ENABLED=0|; s|^DEMO_MODE=.*|DEMO_MODE=1|' .env
@@ -112,7 +112,7 @@ jobs:
       - name: .env with random secrets, model off
         run: |
           cp .env.example .env
-          for v in PG_SUPERUSER_PASSWORD AFYA_OWNER_PASSWORD AFYA_APP_PASSWORD SESSION_SECRET; do
+          for v in PG_SUPERUSER_PASSWORD AFYA_OWNER_PASSWORD AFYA_APP_PASSWORD SESSION_SECRET AFYA_MCP_CLIENT_SECRET; do
             sed -i "s|^$v=.*|$v=$(openssl rand -hex 24)|" .env
           done
           sed -i 's|^MODEL_ENABLED=.*|MODEL_ENABLED=0|; s|^DEMO_MODE=.*|DEMO_MODE=1|' .env
@@ -167,3 +167,46 @@ jobs:
         with:
           name: playwright-report
           path: web/playwright-report
+
+  mcp-conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: pip install -e "mcp[dev]" -e "api[dev]"
+      - name: Start afya-mcp behind the offline test issuer
+        run: |
+          PYTHONPATH=mcp nohup python -m uvicorn conformance_app:app --app-dir scripts --port 9100 > conformance-server.log 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://localhost:9100/healthz && break; sleep 1; done
+          curl -fs http://localhost:9100/healthz
+      - name: Official MCP conformance, server (three mounts), 2026-07-28
+        id: server
+        continue-on-error: true
+        run: |
+          rc=0
+          for m in read act ui; do
+            npx -y @modelcontextprotocol/conformance@0.2.0-alpha.12 server --url http://localhost:9100/$m/mcp \
+              --requirements 2026-07-28 --expected-failures docs/conformance/expected-failures.yaml \
+              -o conformance-out/server-$m || rc=1
+          done
+          exit $rc
+      - name: Official MCP conformance, api client, 2026-07-28
+        id: client
+        if: always()
+        continue-on-error: true
+        run: |
+          PYTHONPATH=api npx -y @modelcontextprotocol/conformance@0.2.0-alpha.12 client \
+            --command "python scripts/conformance_client.py" --requirements 2026-07-28 \
+            --expected-failures docs/conformance/expected-failures.yaml -o conformance-out/client
+      - name: Require both conformance legs to pass their documented baseline
+        if: always()
+        run: |
+          test "${{ steps.server.outcome }}" = success
+          test "${{ steps.client.outcome }}" = success
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: mcp-conformance, path: conformance-out }

@@ -59,6 +59,22 @@ client with a hash of `AFYA_MCP_CLIENT_SECRET`. Nothing else to configure. The a
 mount with only that mount's scope (`afya:read`, `afya:act`, `afya:ui`). Rotate all of it with
 `docker compose down && docker volume rm afya_authdata afya_authca`. Design and limits: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Protocol conformance (official MCP conformance tool, alpha, protocol 2026-07-28, with documented expected failures; not AAIF certification, not clinical validation): [`docs/conformance/final-2026-07-28.md`](docs/conformance/final-2026-07-28.md).
 
+### Migrating an older checkout
+
+Remove the obsolete `AFYA_MCP_TOKEN` from your local `.env` and set a fresh, random `AFYA_MCP_CLIENT_SECRET`. Use the updated Compose services, including `auth-init` and `auth`; the API and Group A runner discover the issuer, trust its mounted CA and request scoped tokens automatically. Do not paste an access token into tests or browser configuration. The borrowed WSO2 read connection keeps its legacy transport and never receives these credentials.
+
+If an authorization server already exists and you change the client secret, refresh its hash and reload both services (keep the same Compose project and environment file):
+
+```sh
+docker compose run --rm --no-deps auth-init
+docker compose restart auth
+docker compose up -d --no-deps --force-recreate api
+```
+
+The existing CA and signing key stay in their volumes. The API obtains new short-lived tokens automatically.
+
+The MCP connections still use HTTP on the private Docker network; the authorization server uses HTTPS. This is a documented transport limitation, not full production OAuth compliance. The web demo switcher remains separate from service OAuth. Staff can sign out from the user menu; managers have no demo scenario controls.
+
 ### Model provider
 
 The model only maps warning signs from the nurse's free text and investigates with read-only tools; scores, colours and

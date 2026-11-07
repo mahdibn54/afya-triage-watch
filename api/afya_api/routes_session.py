@@ -6,7 +6,7 @@ DEMO_MODE=1 only: /login-as and /demo/users answer 404 otherwise, before anythin
 from __future__ import annotations
 
 from afya_mcp import workflow
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 
 from . import session
 from .deps import User, current_user, demo_mode, get_conn
@@ -48,3 +48,18 @@ def list_demo_users() -> list[UserOut]:
 @router.get("/me", response_model=MeOut, responses=ERROR_RESPONSES)
 def me(user: User = Depends(current_user)) -> MeOut:
     return MeOut(id=user.id, name=user.name, role=user.role, demo=demo_mode())
+
+
+@router.post("/logout", status_code=204, response_class=Response, responses=ERROR_RESPONSES)
+def logout(afya_session: str | None = Cookie(default=None), conn=Depends(get_conn)) -> Response:
+    """Clear the demo session, including expired/invalid cookies. Audit a recognized signed-in person."""
+    try:
+        uid = session.user_id_from(afya_session)
+    except session.SessionUnavailable:
+        uid = None
+    user = session.load_user(uid) if uid else None
+    if user is not None:
+        workflow._audit(conn, "logout", user["id"], None, {"role": user["role"]})
+    response = Response(status_code=204)
+    response.delete_cookie(session.COOKIE, path="/", secure=session.cookie_secure(), httponly=True, samesite="strict")
+    return response

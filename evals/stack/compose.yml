@@ -28,11 +28,15 @@ services:
       AFYA_MCP_READ_URL: http://afya-mcp:9000/read/mcp
       AFYA_MCP_ACT_URL: http://afya-mcp:9000/act/mcp
       AFYA_MCP_UI_URL: http://afya-mcp:9000/ui/mcp
-      AFYA_MCP_TOKEN: ${AFYA_MCP_TOKEN:?set AFYA_MCP_TOKEN in .env}
+      AFYA_AUTH_ISSUER: https://auth.afya.internal:9091
+      AFYA_AUTH_CA_FILE: /auth-ca/ca.crt
+      AFYA_MCP_CLIENT_ID: afya-api
+      AFYA_MCP_CLIENT_SECRET: ${AFYA_MCP_CLIENT_SECRET:?set AFYA_MCP_CLIENT_SECRET in .env}
       WSO2_MCP_URL: http://wso2-fhir-mcp:8000/mcp
       RULES_DIR: /rules
     volumes:
       - ./rules:/rules:ro
       - ./evals/stack:/tests:ro
       - ./.playwright-mcp/group-a:/artifacts
-    networks: [app, mcp, web, fhir_ro]
+      - authca:/auth-ca:ro
+    networks: [app, mcp, web, fhir_ro, auth]

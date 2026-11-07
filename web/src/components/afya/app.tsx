@@ -97,7 +97,7 @@ export function Shell({ me }: { me: Me }) {
           </div>
         </div>
       </header>
-      <main className={cn("mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 sm:px-6", me.demo && "pb-64")}>
+      <main className={cn("mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 sm:px-6", me.demo && me.role !== "manager" && "pb-20")}>
         {view === "board" && <Board me={me} openVisit={openVisit} onOpen={setOpenVisit} onRecord={setRecordFor} />}
         {view === "audit" && <AuditView />}
       </main>

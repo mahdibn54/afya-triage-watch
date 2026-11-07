@@ -10,7 +10,7 @@ test("twenty seeded patients are usable on desktop and mobile", async ({ page },
   await expect(login).toBeFocused();
   await login.click();
   await expect(page.locator('[data-testid^="row-"]').filter({ hasText: "SYN-" })).toHaveCount(20, { timeout: 60_000 });
-  await page.getByTestId("demo-director").getByRole("button", { name: /Demo director/ }).click();
+  await expect(page.getByTestId("demo-director").getByRole("button", { name: /Demo director/ })).toHaveAttribute("aria-expanded", "false");
   const response = await page.request.get("/api/queue");
   expect(response.ok()).toBeTruthy();
   const queue = await response.json();

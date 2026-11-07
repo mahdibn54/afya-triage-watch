@@ -7,8 +7,8 @@ This report is evidence, not a second backlog. Dates and personal eligibility ar
 
 ## E8-2 repair follow-up
 
-The two harness regressions below have been repaired. Compose now passes the required server token to `group-a`,
-Group A CI generates a fresh token, and the nurse audit INSERT explicitly sets `auth=demo_switcher`. The test also
+The two harness regressions below have been repaired. The historical repair passed the required server token to `group-a`;
+its OAuth replacement is described below. Group A CI generated a fresh token, and the nurse audit INSERT explicitly sets `auth=demo_switcher`. The test also
 verifies that auth remains unchanged after refused mutations. No clinical code, permissions or constraints changed.
 
 Fresh disposable project `afya-e8-2-fix`, local marker `73ee041+e82-fix`: the checked-in harness passed **25/25**
@@ -22,10 +22,11 @@ as historical audit evidence and are superseded for the harness by this follow-u
 
 ### Assigned implementation follow-up: Mahdi
 
-Dheker explicitly assigned the following work to **Mahdi (M)**. All four items are planned, not implemented or
-verified complete. The source of truth for ownership, dependencies and status is **E13-1 through E13-4** in the
-[existing project backlog](Afya_Tasks_BMAD.md). This instruction authorizes the scope addition; it does not claim
-that the competition mandates the newest protocol or that AAIF has certified the application.
+Mahdi implemented E13-1 through E13-4 in commits `8194b18` through `c68d69f`. The original findings below remain historical evidence; the current implementation uses SDK `mcp==2.3.0`, current discovery and an OAuth service client with scoped, per-mount tokens. See [the current conformance report](conformance/final-2026-07-28.md). This does not imply AAIF certification.
+
+Dheker's integration follow-up replaces stale static-token configuration in Group A and CI with the OAuth issuer, CA mount, client ID and secret. The CI conformance job now runs all three server mounts and the real API client driver, preserves reports and fails on baseline changes. A readiness check and a final gate prevent skipped/failed legs from being reported green.
+
+A fresh official-tool rerun (`0.2.0-alpha.12`, requirements `2026-07-28`) matches the documented expected failures: each server mount **13 PASS, 2 WARN, 35 FAIL**, client **8 PASS, 31 FAIL**. Baseline commands exit zero; these are not all-passing conformance results. The issuer uses HTTPS; MCP transport remains internal HTTP. Live-model and clinical validation claims are unchanged.
 
 | Backlog story | Assigned work | Plain-English purpose |
 |---|---|---|
@@ -191,3 +192,14 @@ The synthetic set's 14 held-out cases have rules-only outcomes. Preserve these d
    input/output record, including borrowed reads. Preserve clinical gating and avoid logging sensitive free text.
 4. E10-2/E10-1/E0-3: reconcile provider documentation and chart permission/licensing evidence. Finish remaining
    submission artifacts separately; no extra product features are needed for this audit.
+
+
+## Verified integration after Mahdi's E13 implementation
+
+Disposable Compose project `afya-e8-2-oauth-ui`, source `c68d69f` plus this integration: **25/25 Group A**, **3/3 inside-WSO2 isolation**, **206/206 API** and **319/319 MCP** tests passed with real PostgreSQL and no database skips. API and MCP suites run in separate Python processes because their existing top-level `conftest` modules collide when collected together. Local eval unit tests passed **64/64**. No paid/live model calls were made.
+
+All **6/6** desktop/mobile Group A browser workflows passed: nurse confirmation gates, manager read-only controls and API denial, keyboard focus, logout failure/retry, post-logout access denial and notice rendering. Notice test inputs are explicit UI fixtures; successful logout and permission checks use the real API. Screenshots and JUnit are retained under ignored `.playwright-mcp/group-a/`; conformance raw reports are under `.playwright-mcp/conformance-integration/`. Typecheck, lint and the production web build passed. A strict premium UI scan recorded existing form/textarea policy findings outside these changes; the scan is not claimed all-green.
+
+The real-stack smoke suite also passed: issuer TLS trust, protected-resource metadata, missing/forged/wrong-audience tokens, insufficient scope, invalid target, current discovery, legacy WSO2 isolation, persistence and approval-to-FHIR. Its deliberate HAPI restart interrupted an extra browser run; that interruption is retained separately from successful product checks. scripts/smoke.sh now accepts an explicit environment file and checks exposure for the selected Compose project.
+
+After the restart completed, the additional P-014 browser check passed, as did both seeded desktop/mobile checks. The final UI build passed. Manager/logout screenshots were recaptured after waiting for real patient rows to load.

@@ -14,8 +14,8 @@ import { cn } from "@/lib/utils";
 export function DemoDirector({ me, onOpen }: { me: Me; onOpen: (visitId: string | null) => void }) {
   const { load, next } = useDemo();
   const queue = useQueue();
-  const [open, setOpen] = useState(true);
-  if (!me.demo) return null;
+  const [open, setOpen] = useState(false);
+  if (!me.demo || me.role === "manager") return null;
 
   const p014 = queue.data?.patients.find((p) => p.patient_label === DEMO_LABEL);
   const busy = load.isPending || next.isPending;

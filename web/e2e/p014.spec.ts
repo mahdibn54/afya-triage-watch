@@ -26,6 +26,7 @@ test("P-014: vitals, suggestion, manager refused, nurse confirms ORANGE", async 
   await expect(page.getByRole("heading", { name: "Waiting room" })).toBeVisible();
 
   // Load the scenario: P-014 starts YELLOW with no suggestion.
+  await page.getByTestId("demo-director").getByRole("button", { name: /Demo director/ }).click();
   await page.getByTestId("demo-load").click();
   await expect(page.getByText("P-014 scenario loaded")).toBeVisible({ timeout: 30_000 });
   const visit = await p014Visit(page);

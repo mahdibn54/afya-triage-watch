@@ -46,3 +46,9 @@ npm run typecheck      # every place that has to follow the change
 
 Poll every 3 s · complaint quotes are plain text (never `dangerouslySetInnerHTML`) · a visible DEMO badge next to
 "sign in as…" · a manager sees no approve button · SATS colours always with a label and a shape.
+
+## Session and role controls
+
+The user menu offers Sign out to every signed-in role. Successful `POST /logout` clears the cookie and query cache and reloads the sign-in screen; failures keep the session and show a retry message. The demo role switcher appears only in demo mode. The demo director starts collapsed and is hidden for managers; the API independently refuses manager writes. Notices include `command_abandoned` and explain what staff can do next.
+
+`npx playwright test --config playwright.group-a.config.ts` verifies these flows and notice fixtures in desktop and mobile emulation, saving screenshots under the configured Group A artifact directory. Notice fixtures verify presentation, not backend failure generation.

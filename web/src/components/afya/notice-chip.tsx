@@ -17,6 +17,7 @@ const ICON: Record<NoticeCode, React.ComponentType<{ className?: string }>> = {
   fhir_unavailable: DatabaseZap,
   data_incomplete: FileQuestion,
   agent_failed: CircleAlert,
+  command_abandoned: CircleAlert,
 };
 
 export const TONE = {

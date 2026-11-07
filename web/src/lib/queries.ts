@@ -68,6 +68,19 @@ export function useLoginAs() {
   });
 }
 
+export function useLogout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<void>("/logout", { method: "POST" }),
+    onSuccess: async () => {
+      await qc.cancelQueries();
+      qc.clear();
+      // A fresh page drops open patient panels and all in-memory data from the previous session.
+      window.location.replace("/");
+    },
+  });
+}
+
 export function useQueue(enabled = true) {
   return useQuery({
     queryKey: keys.queue,

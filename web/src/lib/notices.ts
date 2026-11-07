@@ -54,7 +54,13 @@ export const NOTICE: Record<NoticeCode, { title: string; body: string; tone: "in
   agent_failed: {
     short: "Check not finished",
     title: "The watch agent could not finish a check",
-    body: "A reading was saved, but the agent's run for it stopped before the end. Look at this patient yourself; the run is picked up again when the service restarts.",
+    body: "A reading was saved, but the watch agent could not finish checking it. Review the patient yourself and record a new reading to start a fresh check.",
+    tone: "warn",
+  },
+  command_abandoned: {
+    short: "Flag not recorded",
+    title: "The confirmed second look was not recorded",
+    body: "Your confirmation expired or the record could not be updated. Review the patient and record a new reading for a fresh suggestion to confirm.",
     tone: "warn",
   },
   data_incomplete: {
