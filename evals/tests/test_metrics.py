@@ -207,6 +207,15 @@ def test_disagreement_between_runs():
     assert metrics.disagreeing_cases([]) == (0, 0, [])
 
 
+def test_case_level_majority():
+    assert metrics.majority([True, True, False]) and not metrics.majority([True, False])
+    exp = {"proposal": False, "to_colour": None, "signs": []}
+    runs = [trial(case="x", i=i, expected=exp, proposal=card() if i < 3 else None) for i in range(5)]   # 3 of 5 false alerts
+    one = [trial(case="y", i=i, expected=exp, proposal=card() if i < 2 else None) for i in range(5)]    # 2 of 5
+    c = metrics.case_counts(runs + one)
+    assert c["false_alerts"] == (1, 2) and c["outcome_correct"] == (1, 2) and c["sensitivity"] == (0, 0)
+
+
 def test_summarize_and_report_build():
     pos = {"proposal": True, "to_colour": "ORANGE", "signs": ["SOB_ACUTE"]}
     ts = [trial(case="p", proposal=card(signs=["SOB_ACUTE"]), expected=pos, trace=GOOD, tokens_in=1000, tokens_out=50,
@@ -218,10 +227,13 @@ def test_summarize_and_report_build():
     assert x["sign_precision"] == (1, 1) and x["sign_recall"] == (1, 1) and x["ungated_actions"] == 0
     assert x["runs_disagree"][:2] == (1, 1) and x["tool_order_violations"] == (0, 3)
     assert x["speed"]["tokens_in_median"] == 1000 and x["speed"]["cost_usd_total"] == 0
+    c = x["case_level"]       # n = cases; case "n" has a tie (1 of 2 runs wrong): not a majority, so not a false alert
+    assert c["outcome_correct"] == (1, 2) or c["outcome_correct"] == (2, 2)
+    assert c["sensitivity"] == (1, 1) and c["false_alerts"] == (0, 1)
     for t in ts:
         t.update({"group": "B", "batch": "b", "code_commit": "abc", "_file": "f.jsonl", "_line": 1, "run_id": "1:2", "tags": []})
     md = report.build(ts)
-    for head in ("Runs in the logs", "Rules-only baseline", "Per case", "Worst case"):
+    for head in ("Runs in the logs", "Headline, case level", "Trial level, secondary", "Rules-only baseline", "Per case", "Worst case"):
         assert head in md
     assert "1/2 (50%" in md   # false alerts k/n with its interval
 

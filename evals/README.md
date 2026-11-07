@@ -14,9 +14,9 @@ Group A's isolated real-stack suite, fault injection, desktop/mobile browser che
 ## Commands (repository root)
 
 ```sh
-eval "$(sh evals/stack_env.sh)"      # container IPs and DB URL for this boot; needs .env and the running stack
+eval "$(sh evals/stack_env.sh)"      # IPs and URLs for this boot, derived from `docker compose ps` and the compose project label (nothing hard-coded); needs .env and the running stack
 make eval                            # groups B and C on evals/cases/m_fixtures, then the tables
-make eval CASES=evals/fixtures/synthetic MODELS=qwen3:8b RUNS=5      # another case set, another model list
+make eval CASES=evals/fixtures/synthetic MODELS=qwen/qwen3-30b-a3b-instruct-2507 RUNS=5      # OpenRouter model (a tag with a slash; OPENROUTER_API_KEY in your shell/.env, DATA_CLASSIFICATION=synthetic)
 make eval-tables                     # offline: rebuild the tables in EVALS.md from evals/runs/*.jsonl
 make eval-test                       # unit tests of Wilson intervals and the metrics
 ```

@@ -1,7 +1,7 @@
 # API contract (E0-5)
 
-**Status: agreed. Proposed by B, all open questions in section 9 accepted by M.** Section 9 records the answers. Until
-then the UI is built against the example JSON in this file.
+**Status: agreed and implemented.** B proposed the contract, M accepted all open questions; the answers are in the
+backlog's Decisions log (`docs/Afya_Tasks_BMAD.md`, entries "API contract Q1 to Q13"), see section 9 for the pointer.
 
 FastAPI on `api:8080`. The Next.js app calls `/api/...` and its proxy strips the `/api` prefix (so `/api/queue` reaches
 `api:8080/queue`). JSON everywhere. The signed-in user always comes from the session cookie, never from a request body.
@@ -10,7 +10,7 @@ FastAPI on `api:8080`. The Next.js app calls `/api/...` and its proxy strips the
 
 | Topic | Rule |
 |---|---|
-| Times | ISO 8601 with an offset, for example `2026-11-06T08:50:00+00:00`. |
+| Times | ISO 8601 with an offset (`YYYY-MM-DDThh:mm:ss+00:00`). The examples below show a time as a placeholder such as `<Day 1 08:50:00>`; the real value is the full ISO string. |
 | IDs | `visit_id` is the bare FHIR Encounter id (`v014`). Observation ids are always the full reference (`Observation/1057`). `proposal_id`, `command_id`, `notification_id` are UUIDs. `run_id` is URL-safe (letters, digits, `:` `-` `_` `.`). |
 | Colours | `RED` `ORANGE` `YELLOW` `GREEN`. The UI also shows a label and a shape (■ ▲ ● ○), never colour alone. |
 | Roles | `nurse`, `clinician`, `manager`. A manager reads only. `agent` and `system` exist in the database but never sign in. |
@@ -23,26 +23,46 @@ FastAPI on `api:8080`. The Next.js app calls `/api/...` and its proxy strips the
 
 ## 2. Endpoints
 
-"Backend today" says what already exists in `mcp/afya_mcp/` or `db/schema.sql` (checked against the code on the day this was written).
+Every endpoint below is built (`api/afya_api/routes_*.py`). The tests are in `api/tests/`.
 
-| Method | Path | Who | Backend today |
+| Method | Path | Who | Status |
 |---|---|---|---|
-| POST | `/login-as` | anyone, `DEMO_MODE=1` only | done (E6-2): `routes_session.py`, signed cookie in `session.py` |
-| GET | `/demo/users` | anyone, `DEMO_MODE=1` only | done (E6-2) |
-| GET | `/me` | signed in | done (E6-1a) |
-| GET | `/queue` | signed in | done (E6-1a): afya-mcp `queue_state` on `/ui` (not audited) |
-| POST | `/vitals` | nurse, clinician | partial: `services.record_vitals` ready; complaint and starting the agent run missing (Q1) |
-| GET | `/proposals` | signed in | partial: `workflow.open_proposals` returns few fields; the card needs the payload (Q4, Q5) |
-| POST | `/proposals/{id}/approve` | nurse, clinician | partial: `workflow.approve_proposal` ready; colour override and `signs_kept` missing (Q6) |
-| POST | `/proposals/{id}/reject` | nurse, clinician | to build: no reject function yet (Q6) |
-| POST | `/proposals/{id}/acknowledge` | nurse, clinician | ready: `workflow.acknowledge` |
-| POST | `/notifications/{id}/acknowledge` | nurse, clinician | grant ready: `afya_app` may update `acknowledged_at` only |
-| GET | `/audit` | signed in (manager too) | done (E6-1a): SELECT on `audit_log` |
-| GET | `/visits/{id}/timeline` | signed in | partial: `compute_tews` per reading; raw values come from FHIR (Q5) |
-| GET | `/runs/{run_id}/trace` | signed in | to build (E6-5) from `audit_log` |
-| GET | `/proposals/{id}/gates` | signed in | to build (E6-5); the data exists |
-| POST | `/demo/scenario` | nurse, clinician, `DEMO_MODE=1` only | to build (E6-6) |
-| POST | `/demo/scenario/next` | nurse, clinician, `DEMO_MODE=1` only | to build (E6-6) |
+| GET | `/healthz` | anyone | done: liveness, model readiness (`model`), `trace_gaps` (see below) |
+| POST | `/login-as` | anyone, `DEMO_MODE=1` only | done (`routes_session.py`) |
+| GET | `/demo/users` | anyone, `DEMO_MODE=1` only | done |
+| GET | `/me` | signed in | done |
+| GET | `/queue` | signed in | done (afya-mcp `queue_state`, not audited) |
+| POST | `/vitals` | nurse, clinician | done: reading, complaint, agent run |
+| GET | `/proposals` | signed in | done: full card payload, `status`, `visit_id`, `limit` filters |
+| POST | `/proposals/{id}/approve` | nurse, clinician | done: colour override, `signs_kept`, reason |
+| POST | `/proposals/{id}/reject` | nurse, clinician | done |
+| POST | `/proposals/{id}/acknowledge` | nurse, clinician | done |
+| POST | `/notifications/{id}/acknowledge` | nurse, clinician | done |
+| GET | `/audit` | signed in (manager too) | done |
+| GET | `/visits/{id}/timeline` | signed in | done |
+| GET | `/runs/{run_id}/trace` | signed in | done |
+| GET | `/proposals/{id}/gates` | signed in | done |
+| POST | `/demo/scenario` | nurse, clinician, `DEMO_MODE=1` only | done |
+| POST | `/demo/scenario/next` | nurse, clinician, `DEMO_MODE=1` only | done |
+| GET | `/openapi.json`, `/docs` | anyone, `DEMO_MODE=1` only | done (404 otherwise; no `/redoc`) |
+
+### GET /healthz
+No session needed, no secrets in the answer. The api is up whether or not the model is; without it the agent runs on
+the fixed rules.
+
+<!-- example: GET /healthz -->
+```json
+{
+  "status": "ok",
+  "model": { "provider": "openrouter", "model": "qwen/qwen3-30b-a3b-instruct-2507", "ready": false,
+             "refused": "no_api_key", "breaker": "closed", "warmed_up": null, "last": null },
+  "trace_gaps": 0
+}
+```
+`model.ready` is true when the model may be called, its circuit breaker is `closed` and the last call (or the warm-up)
+worked. `refused` is `null` or why a call would not be made (`no_api_key`, `data_not_synthetic`: the remote provider is
+used only while `DATA_CLASSIFICATION=synthetic`). `breaker` is `closed`, `open` or `half_open`. `trace_gaps` counts agent
+trace rows that could not be written since start (0 is healthy).
 
 ## 3. Vital-sign inputs
 
@@ -117,7 +137,7 @@ row (the screens poll it every few seconds).
 <!-- example: GET /queue -->
 ```json
 {
-  "as_of": "2026-11-06T08:52:10+00:00",
+  "as_of": "<Day 1 08:52:10>",
   "site_rule_source": "provisional site rule, to review with nurse",
   "truncated": false,
   "notices": [],
@@ -127,21 +147,21 @@ row (the screens poll it every few seconds).
       "patient_id": "p014",
       "patient_label": "P-014",
       "confirmed_colour": "YELLOW",
-      "arrived_at": "2026-11-06T08:00:00+00:00",
+      "arrived_at": "<Day 1 08:00:00>",
       "minutes_waited": 52,
       "target_minutes": 60,
       "over_target_minutes": 0,
       "over_target": false,
       "last_reading": {
         "observation_id": "Observation/1057",
-        "effective": "2026-11-06T08:50:00+00:00",
+        "effective": "<Day 1 08:50:00>",
         "tews": 6,
         "colour": "ORANGE"
       },
       "recheck": {
         "rule": "site rule",
         "interval_minutes": 30,
-        "due_at": "2026-11-06T09:20:00+00:00",
+        "due_at": "<Day 1 09:20:00>",
         "overdue": false,
         "overdue_minutes": 0
       },
@@ -154,28 +174,28 @@ row (the screens poll it every few seconds).
       "patient_id": "p007",
       "patient_label": "P-007",
       "confirmed_colour": "ORANGE",
-      "arrived_at": "2026-11-06T08:30:00+00:00",
+      "arrived_at": "<Day 1 08:30:00>",
       "minutes_waited": 22,
       "target_minutes": 10,
       "over_target_minutes": 12,
       "over_target": true,
       "last_reading": {
         "observation_id": "Observation/1049",
-        "effective": "2026-11-06T08:35:00+00:00",
+        "effective": "<Day 1 08:35:00>",
         "tews": 5,
         "colour": "ORANGE"
       },
       "recheck": {
         "rule": "site rule",
         "interval_minutes": 15,
-        "due_at": "2026-11-06T08:50:00+00:00",
+        "due_at": "<Day 1 08:50:00>",
         "overdue": true,
         "overdue_minutes": 2
       },
       "pending_proposals": 0,
       "flags": ["second_look"],
       "notices": [
-        { "code": "vitals_due", "notification_id": "0b6d2c1e-5f3a-4b7d-8e19-2a4c6d8f0b13", "at": "2026-11-06T08:50:30+00:00" }
+        { "code": "vitals_due", "notification_id": "0b6d2c1e-5f3a-4b7d-8e19-2a4c6d8f0b13", "at": "<Day 1 08:50:30>" }
       ]
     },
     {
@@ -183,7 +203,7 @@ row (the screens poll it every few seconds).
       "patient_id": "p021",
       "patient_label": "P-021",
       "confirmed_colour": "YELLOW",
-      "arrived_at": "2026-11-06T08:40:00+00:00",
+      "arrived_at": "<Day 1 08:40:00>",
       "minutes_waited": 12,
       "target_minutes": null,
       "over_target_minutes": null,
@@ -192,7 +212,7 @@ row (the screens poll it every few seconds).
       "recheck": {
         "rule": "site rule",
         "interval_minutes": 30,
-        "due_at": "2026-11-06T09:10:00+00:00",
+        "due_at": "<Day 1 09:10:00>",
         "overdue": false,
         "overdue_minutes": 0
       },
@@ -275,7 +295,7 @@ code from the trigger. `rationale` (at most 300 characters) is the model's text 
     "trigger": "colour_rise",
     "status": "pending",
     "reviewed": false,
-    "created_at": "2026-11-06T08:50:41+00:00",
+    "created_at": "<Day 1 08:50:41>",
     "age_minutes": 1,
     "reminder_due": false,
     "decided_by": null,
@@ -380,7 +400,7 @@ Dismisses one notice. No body. `200 { "notification_id": ..., "acknowledged": tr
 Notices appear in `/queue` (per patient, or top level) and in proposals. The UI owns the wording.
 
 | Code | Meaning | Comes from |
-|---|---|---|---|
+|---|---|---|
 | `remeasure` | an impossible value was refused | notification `remeasure` |
 | `no_chart` | no SATS chart for this patient yet | queue (chart selection) |
 | `not_reviewed` | superseded proposal nobody reviewed | proposal `status: superseded`, `reviewed: false` |
@@ -388,6 +408,7 @@ Notices appear in `/queue` (per patient, or top level) and in proposals. The UI 
 | `vitals_due` | the site re-check interval has passed | notification `vitals_due` |
 | `clinician_reminded` | the clinician on duty was reminded of a pending proposal | notification `clinician_reminder` |
 | `model_unavailable` | the language model is down; scoring and proposals continue | notification `model_unavailable` |
+| `agent_failed` | the agent run for a visit stopped on an unexpected error; scoring and the nurse's own triage are unaffected, record a new reading to start a fresh run | notification `agent_failed` (nurse, fixed text, one per failed run) |
 | `command_abandoned` | a flag the nurse confirmed was not written (the approval expired or the executor kept failing): nothing reached the record; recording a new reading gives a fresh proposal | notification `command_abandoned` (per visit, only for approvals less than a day old) |
 | `fhir_unavailable` | the FHIR server could not be reached (Q12); `/queue` then has no patients and this notice at top level | queue (`get_queue_state`) |
 | `data_incomplete` | a visit lacks data the queue needs (no patient, unknown colour, no arrival time) | queue (added by M, not in B's first list) |
@@ -402,17 +423,17 @@ combined. Rows are the `afya.audit_log` columns. `payload` holds IDs, codes and 
 ```json
 [
   {
-    "id": 412, "at": "2026-11-06T08:53:06+00:00", "kind": "command_done", "actor": "nurse-a",
+    "id": 412, "at": "<Day 1 08:53:06>", "kind": "command_done", "actor": "nurse-a",
     "auth": "demo_switcher", "visit_id": "v014", "run_id": null,
     "payload": { "command_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7", "proposal_id": "b1f0c3a2-7d4e-4f8a-9c21-5e6a0d3b8f14", "obs_id": "Observation/1057", "colour": "ORANGE", "attempts": 1 }
   },
   {
-    "id": 411, "at": "2026-11-06T08:53:05+00:00", "kind": "proposal_approved", "actor": "nurse-a",
+    "id": 411, "at": "<Day 1 08:53:05>", "kind": "proposal_approved", "actor": "nurse-a",
     "auth": "demo_switcher", "visit_id": "v014", "run_id": null,
     "payload": { "proposal_id": "b1f0c3a2-7d4e-4f8a-9c21-5e6a0d3b8f14", "command_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7", "obs_id": "Observation/1057" }
   },
   {
-    "id": 409, "at": "2026-11-06T08:52:30+00:00", "kind": "approve_refused", "actor": "mgr-k",
+    "id": 409, "at": "<Day 1 08:52:30>", "kind": "approve_refused", "actor": "mgr-k",
     "auth": "demo_switcher", "visit_id": null, "run_id": null,
     "payload": { "proposal_id": "b1f0c3a2-7d4e-4f8a-9c21-5e6a0d3b8f14", "reason": "role" }
   }
@@ -431,7 +452,7 @@ Readings oldest first. `values[input].points` is `null` for an input that is sho
   "readings": [
     {
       "obs_id": "Observation/1042",
-      "at": "2026-11-06T08:05:00+00:00",
+      "at": "<Day 1 08:05:00>",
       "values": {
         "resp_rate": { "value": 22, "unit": "/min", "points": 2 },
         "heart_rate": { "value": 105, "unit": "/min", "points": 1 },
@@ -446,7 +467,7 @@ Readings oldest first. `values[input].points` is `null` for an input that is sho
     },
     {
       "obs_id": "Observation/1057",
-      "at": "2026-11-06T08:50:00+00:00",
+      "at": "<Day 1 08:50:00>",
       "values": {
         "resp_rate": { "value": 26, "unit": "/min", "points": 2 },
         "heart_rate": { "value": 112, "unit": "/min", "points": 2 },
@@ -466,30 +487,33 @@ Readings oldest first. `values[input].points` is `null` for an input that is sho
 ### GET /runs/{run_id}/trace  (agent trace, W5)
 Ordered steps of one agent run. `server` is `ours` (afya-mcp) or `borrowed` (the WSO2 FHIR server) for tool steps and
 `null` for model, decision and gate steps. Tool names are the real ones: ours `compute_tews` `check_deterioration`
-`get_queue_state`; borrowed `search` `read`. `args_summary` and `result_summary` are short and carry no free text.
+`get_queue_state`; borrowed `search` `read`. `args_summary` and `result_summary` are short and carry no free text. On `model` steps `cost_usd` is the billed cost
+reported by OpenRouter for the call (0 for a local Ollama model, `null` on non-model steps); the provider that served the
+call (`served_by`, for example `Nebius`) is kept in the step's `agent_step` audit payload (`model.served_by`, read it with
+`GET /audit?run_id=`), not in this response.
 
 <!-- example: GET /runs/{run_id}/trace -->
 ```json
 [
-  { "step": 1, "at": "2026-11-06T08:50:02+00:00", "kind": "tool", "server": "ours", "name": "compute_tews",
+  { "step": 1, "at": "<Day 1 08:50:02>", "kind": "tool", "server": "ours", "name": "compute_tews",
     "args_summary": "observation_id=Observation/1057", "result_summary": "scored: TEWS 6, ORANGE",
     "latency_ms": 38.2, "tokens_in": null, "tokens_out": null, "cost_usd": null, "cited_ids": ["Observation/1057"] },
-  { "step": 2, "at": "2026-11-06T08:50:03+00:00", "kind": "tool", "server": "ours", "name": "check_deterioration",
+  { "step": 2, "at": "<Day 1 08:50:03>", "kind": "tool", "server": "ours", "name": "check_deterioration",
     "args_summary": "visit_id=v014", "result_summary": "checked: YELLOW to ORANGE, propose",
     "latency_ms": 61.5, "tokens_in": null, "tokens_out": null, "cost_usd": null,
     "cited_ids": ["Observation/1042", "Observation/1057"] },
-  { "step": 3, "at": "2026-11-06T08:50:11+00:00", "kind": "model", "server": null, "name": "map_signs",
+  { "step": 3, "at": "<Day 1 08:50:11>", "kind": "model", "server": null, "name": "map_signs",
     "args_summary": "complaint, 66 characters", "result_summary": "1 current sign, 1 other mention",
     "latency_ms": 8200, "tokens_in": 540, "tokens_out": 96, "cost_usd": 0, "cited_ids": [] },
-  { "step": 4, "at": "2026-11-06T08:50:30+00:00", "kind": "tool", "server": "borrowed", "name": "search",
+  { "step": 4, "at": "<Day 1 08:50:30>", "kind": "tool", "server": "borrowed", "name": "search",
     "args_summary": "type=Observation, encounter=Encounter/v014", "result_summary": "2 readings",
     "latency_ms": 120, "tokens_in": null, "tokens_out": null, "cost_usd": null,
     "cited_ids": ["Observation/1042", "Observation/1057"] },
-  { "step": 5, "at": "2026-11-06T08:50:41+00:00", "kind": "decision", "server": null, "name": "submit_decision",
+  { "step": 5, "at": "<Day 1 08:50:41>", "kind": "decision", "server": null, "name": "submit_decision",
     "args_summary": "proposed ORANGE", "result_summary": "proposal created",
     "latency_ms": null, "tokens_in": null, "tokens_out": null, "cost_usd": null,
     "cited_ids": ["Observation/1042", "Observation/1057"] },
-  { "step": 6, "at": "2026-11-06T08:50:42+00:00", "kind": "gate", "server": null, "name": "paused_for_nurse",
+  { "step": 6, "at": "<Day 1 08:50:42>", "kind": "gate", "server": null, "name": "paused_for_nurse",
     "args_summary": "waiting for a nurse or clinician", "result_summary": "no change to the queue",
     "latency_ms": null, "tokens_in": null, "tokens_out": null, "cost_usd": null, "cited_ids": [] }
 ]
@@ -510,13 +534,13 @@ marked done and `audited` the time of its audit row; both are written in one tra
 <!-- example: GET /proposals/{id}/gates -->
 ```json
 [
-  { "gate": "proposed", "at": "2026-11-06T08:50:41+00:00", "by": "agent", "refused": [] },
-  { "gate": "paused", "at": "2026-11-06T08:50:42+00:00", "by": null, "refused": [] },
-  { "gate": "confirmed", "at": "2026-11-06T08:53:05+00:00", "by": "nurse-a",
-    "refused": [{ "by": "mgr-k", "role": "manager", "at": "2026-11-06T08:52:30+00:00" }] },
-  { "gate": "claimed", "at": "2026-11-06T08:53:05+00:00", "by": "nurse-a", "refused": [] },
-  { "gate": "written", "at": "2026-11-06T08:53:06+00:00", "by": "nurse-a", "refused": [] },
-  { "gate": "audited", "at": "2026-11-06T08:53:06+00:00", "by": "nurse-a", "refused": [] }
+  { "gate": "proposed", "at": "<Day 1 08:50:41>", "by": "agent", "refused": [] },
+  { "gate": "paused", "at": "<Day 1 08:50:42>", "by": null, "refused": [] },
+  { "gate": "confirmed", "at": "<Day 1 08:53:05>", "by": "nurse-a",
+    "refused": [{ "by": "mgr-k", "role": "manager", "at": "<Day 1 08:52:30>" }] },
+  { "gate": "claimed", "at": "<Day 1 08:53:05>", "by": "nurse-a", "refused": [] },
+  { "gate": "written", "at": "<Day 1 08:53:06>", "by": "nurse-a", "refused": [] },
+  { "gate": "audited", "at": "<Day 1 08:53:06>", "by": "nurse-a", "refused": [] }
 ]
 ```
 
@@ -538,22 +562,9 @@ No body. Adds the scenario's next reading (for P-014 the one that raises the sco
 { "obs_id": "Observation/1057" }
 ```
 
-## 9. Open questions for M
+## 9. Open questions (answered)
 
-Each has B's proposal. **Mahdi accepted all of Q1 to Q13** (Q6 with the any-level override above); the answers are in the last column and in the backlog (E0-5 Notes).
-
-| # | Question | B's proposal | Answer (M) |
-|---|---|---|---|
-| Q1 | The backend has no place for the **complaint**: `record_vitals` takes no complaint and nothing stores it. The architecture fixes the limit (500 characters, NFKC-normalised, only `map_signs` sees it) but not where it is stored. | Store it with the reading in Postgres (not in FHIR, so it never reaches the model as FHIR text). | **Answer: accepted (stored in Postgres next to the reading, table `afya.readings`, never in FHIR).** |
-| Q2 | `patient_label` | B puts it on the Patient as identifier system `urn:afya:label` in the seed (E5-1, E2-6); the API reads it. No names anywhere. | **Answer: accepted (`patient_label` read from Patient.identifier `urn:afya:label`).** |
-| Q3 | `get_queue_state` has no `patient_label`, no `last_reading.tews`/`colour`, no `flags`, and notices are free-text strings. | Add them in the API or the tool; `notices` become codes from section 6. | **Answer: accepted (`get_queue_state` returns `patient_label`, `last_reading.tews`/`colour`, `flags`, notices as codes).** |
-| Q4 | `insert_proposal` validates only `to_colour` and `cited_obs_ids`. The card also needs `current_colour`, `tews_before/after`, `reasons`, `evidence`, `complaint`, `signs`, `rationale`, `notices` (incl. `instruction_like_text`). | Put them in `payload` with exactly the names above and validate them in `_check_payload`. | **Answer: accepted (field names as listed, validated in `workflow._check_payload`).** |
-| Q5 | `compute_tews` returns points and record ids but **not the raw values** (`check_deterioration.changes` neither). | The timeline and `evidence` read values from the FHIR Observation (`observation_values`). | **Answer: accepted (values read from the FHIR Observation, E6-5).** |
-| Q6 | Architecture section 7: "the nurse can untick a sign or override the colour with a reason", but `approve_proposal(conn, proposal_id, user_id)` has no colour, `signs_kept` or reason, and there is no `reject_proposal`. May the override be lower than proposed? | Add `colour`, `signs_kept`, `override_reason` (audited); add `reject_proposal` with the same role check. | **Answer: accepted, with one decision: the nurse or clinician may override the colour to ANY level, including lower than proposed, with a mandatory reason; the agent itself still never proposes a downgrade.** |
-| Q7 | Notice names: the backlog says `clinician_reminded`, the database says `clinician_reminder`. | The API translates to `clinician_reminded`. | **Answer: accepted (API translates `clinician_reminder` to `clinician_reminded`).** |
-| Q8 | `run_id` / thread id is `visit:obs_id`; the observation id contains a slash if given as a reference. | Use `v014:1057` (bare id), URL-safe. | **Answer: accepted (`run_id` = `<visit_id>:<bare observation id>`).** |
-| Q9 | `proposals.obs_id` is stored as given (bare or `Observation/…`). | The API always returns `Observation/<id>`; `ref_id` already accepts both. | **Answer: accepted (API always returns `Observation/<id>`).** |
-| Q10 | Error body shape. | As in section 1. | **Answer: accepted.** |
-| Q11 | Architecture Appendix B names the model-facing WSO2 tools `fhir_search` and `fhir_read`; the live WSO2 server calls them `search` and `read`. Which name does the trace show? | The real server's name (`search`, `read`) with `server: "borrowed"`; the wrapper name only in the model prompt. | **Answer: accepted (real names `search` and `read`, `server: "borrowed"`).** |
-| Q12 | Architecture section 10: "FHIR down: retry 3 times, then warn the nurse". The backlog's 7 notice codes have none for it. | Add `fhir_unavailable` to the notice list (the UI shows it like `model_unavailable`), or reuse a top-level notice. | **Answer: accepted (`fhir_unavailable` added to the notice codes).** |
-| Q13 | `agent_action`, `missing_input`, `signs_verdict`, `rationale_source` come from `submit_decision` and `map_signs` (Appendix B) and must be kept in the proposal payload (with Q4). | As in the `/proposals` example. | **Answer: accepted (kept in the proposal payload with Q4).** |
+Q1 to Q13 (complaint storage, `patient_label`, queue fields, proposal payload, raw values, colour override to any level
+with a reason, notice names, `run_id` format, observation id form, error body, borrowed tool names, `fhir_unavailable`,
+decision fields) were all accepted by M. The questions and answers are in the backlog's Decisions log
+(`docs/Afya_Tasks_BMAD.md`, "API contract Q1 to Q13"); the contract above already reflects them.

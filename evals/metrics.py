@@ -212,6 +212,43 @@ def disagreeing_cases(trials: Sequence[Trial]) -> tuple[int, int, list[str]]:
     return len(bad), len(multi), bad
 
 
+# ---- case level (the headline unit: the case is the independent sample, trials are repeats of it) ----
+
+def _by_case(trials: Iterable[Trial]) -> dict[str, list[Trial]]:
+    g: dict[str, list[Trial]] = defaultdict(list)
+    for t in trials:
+        g[t["case_id"]].append(t)
+    return g
+
+
+def majority(flags: Sequence[bool]) -> bool:
+    """True when strictly more than half of the runs are True (a tie, e.g. 2 of 4, counts as False)."""
+    return 2 * sum(flags) > len(flags)
+
+
+def case_counts(trials: Sequence[Trial]) -> dict[str, tuple[int, int]]:
+    """Headline k/n with n = number of cases. A case is correct / a miss / a false alert / under-called when the
+    majority of its runs are. Sensitivity and misses are over cases that expect a proposal, false alerts over the
+    rest."""
+    cases = _by_case(trials)
+    pos = {c: ts for c, ts in cases.items() if ts[0]["expected"]["proposal"]}
+    neg = {c: ts for c, ts in cases.items() if not ts[0]["expected"]["proposal"]}
+
+    def k(group: dict[str, list[Trial]], fn: Any) -> int:
+        return sum(majority([bool(fn(t)) for t in ts]) for ts in group.values())
+
+    return {
+        "outcome_correct": (k(cases, outcome_correct), len(cases)),
+        "sensitivity": (k(pos, outcome_correct), len(pos)),
+        "missed": (k(pos, missed), len(pos)),
+        "under_called": (k(pos, under_called), len(pos)),
+        "false_alerts": (k(neg, false_alert), len(neg)),
+        "run_failures": (k(cases, lambda t: bool(t.get("error")) or t.get("run_status") == "failed"), len(cases)),
+        "ungated_cases": (sum(any(ungated_count(t) for t in ts) for ts in cases.values()), len(cases)),
+        "tool_order_cases": (sum(any(tool_order_violations(t) for t in ts) for ts in cases.values()), len(cases)),
+    }
+
+
 # ---- cost and speed ----
 
 def summarize_speed(trials: Sequence[Trial]) -> dict[str, Any]:
@@ -240,6 +277,7 @@ def summarize(trials: Sequence[Trial]) -> dict[str, Any]:
     d_bad, d_multi, d_ids = disagreeing_cases(trials)
     order = {t["trial_id"]: tool_order_violations(t) for t in trials}
     return {
+        "case_level": case_counts(trials),
         "trials": len(trials), "cases": len({t["case_id"] for t in trials}),
         "outcome_correct": (sum(outcome_correct(t) for t in trials), len(trials)),
         "sensitivity": (sum(outcome_correct(t) for t in pos), len(pos)),
@@ -259,7 +297,7 @@ def summarize(trials: Sequence[Trial]) -> dict[str, Any]:
         "notice_missing": (sum(bool(notice_missing(t)) for t in trials),
                            sum(1 for t in trials if t["expected"].get("notices") and got_proposal(t))),
         "tool_order_violations": (sum(bool(v) for v in order.values()), len(trials)),
-        "runs_disagree": (d_bad, d_multi, d_ids),
+        "runs_disagree": (d_bad, d_multi, d_ids),      # cases, so already case level; report.py adds the interval
         "run_failures": (sum(bool(t.get("error")) or t.get("run_status") == "failed" for t in trials), len(trials)),
         "model_unavailable": (sum(bool(t.get("model_unavailable")) for t in trials), len(trials)),
         "speed": summarize_speed(trials),

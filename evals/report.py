@@ -57,6 +57,25 @@ def inventory(trials: list[dict[str, Any]]) -> str:
                    "raw log"], rows)
 
 
+def headline_table(trials: list[dict[str, Any]]) -> str:
+    """The headline: k/n with n = number of cases (a case counts when the majority of its runs do)."""
+    g: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
+    for t in trials:
+        g[(t["set"], t["split"], t["model"])].append(t)
+    rows = []
+    for (s, sp, m), ts in sorted(g.items(), key=lambda kv: (kv[0][0], kv[0][1], _cond_order(kv[0][2]))):
+        c = metrics.summarize(ts)["case_level"]
+        rows.append([f"`{s}`/{sp}", f"`{m}`", str(len({t['case_id'] for t in ts})), kn(c["outcome_correct"]),
+                     kn(c["sensitivity"]), kn(c["missed"]), kn(c["under_called"]), kn(c["false_alerts"]),
+                     kn(c["ungated_cases"]), kn(c["tool_order_cases"]), kn(c["run_failures"])])
+    return _table(["set/split", "condition", "cases", "cases with the labelled outcome",
+                   "sensitivity (cases expecting a proposal where one was made at the right colour)",
+                   "missed (no proposal)", "proposal at a lower colour",
+                   "false alerts (cases expecting none where one was made)",
+                   "cases with an ungated action", "cases with a tool-order violation", "cases with a failed run"],
+                  rows)
+
+
 def main_table(trials: list[dict[str, Any]]) -> str:
     g: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
     for t in trials:
@@ -64,7 +83,6 @@ def main_table(trials: list[dict[str, Any]]) -> str:
     rows = []
     for (s, sp, m), ts in sorted(g.items(), key=lambda kv: (kv[0][0], kv[0][1], _cond_order(kv[0][2]))):
         x = metrics.summarize(ts)
-        tp, fp, fn = x["sign_tp_fp_fn"]
         rows.append([f"`{s}`/{sp}", f"`{m}`", str(x["trials"]), kn(x["outcome_correct"]), kn(x["sensitivity"]),
                      kn(x["false_alerts"]), str(x["ungated_actions"]), kn(x["rationale_word_violations"]),
                      kn(x["citations_on_card_valid"]), kn(x["sign_precision"]), kn(x["sign_recall"]),
@@ -86,12 +104,12 @@ def model_extras_table(trials: list[dict[str, Any]]) -> str:
         d_bad, d_multi, d_ids = x["runs_disagree"]
         rows.append([f"`{s}`", f"`{m}`", kn(x["model_rationale_shown"]), kn(x["model_rationale_replaced"]),
                      kn(x["model_bad_citations"]), kn(x["forbidden_sign_hits"]), kn(x["notice_missing"]),
-                     kn(x["model_unavailable"]), f"{d_bad}/{d_multi}" + (f" ({', '.join(d_ids)})" if d_ids else "")])
+                     kn(x["model_unavailable"]), kn((d_bad, d_multi)) + (f" ({', '.join(d_ids)})" if d_ids else "")])
     return _table(["set", "model", "model's own rationale shown on the card (of proposals)",
                    "model rationale replaced by the wording filter (of rationales written)",
                    "trials where the model cited an id no tool returned (of model decisions)",
                    "trials with a forbidden sign kept", "expected notice missing", "model unavailable in the run",
-                   "cases whose repeated runs disagree (of cases with 2+ runs)"], rows)
+                   "cases whose repeated runs disagree (of cases with 2+ runs, case level)"], rows)
 
 
 def speed_table(trials: list[dict[str, Any]]) -> str:
@@ -171,8 +189,9 @@ def build(trials: list[dict[str, Any]]) -> str:
     if not trials:
         return "No runs logged yet. `make eval` writes them to `evals/runs/`."
     parts = [("Runs in the logs", inventory(trials)),
-             ("Outcome, safety and sign metrics (k/n with Wilson 95% intervals)", main_table(trials)),
-             ("Rules-only baseline next to the models", baseline_table(trials)),
+             ("Headline, case level (k/n with Wilson 95% intervals, n = cases)", headline_table(trials)),
+             ("Trial level, secondary (n = trials; repeated runs are not independent)", main_table(trials)),
+             ("Rules-only baseline next to the models (trial level)", baseline_table(trials)),
              ("Model-only behaviour and agreement between repeated runs", model_extras_table(trials)),
              ("Tokens, latency and cost", speed_table(trials)),
              ("Per case: runs with the labelled outcome", per_case_table(trials)),
