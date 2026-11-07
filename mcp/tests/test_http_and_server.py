@@ -4,6 +4,7 @@ import pytest
 from starlette.testclient import TestClient
 
 from afya_mcp.fhir import FhirNotFound, FhirRejected, FhirUnavailable, HttpFhir
+from oauth_fixture import bearer, mint
 
 
 def client(handler):
@@ -53,14 +54,12 @@ def test_conditional_create_header_and_bundle_parsing():
     assert seen["query"] == {"_sort": "-date"}
 
 
-TOKEN = "test-token-" + "0" * 16
-AUTH = {"Authorization": f"Bearer {TOKEN}"}
 LIST = {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
 SSE = {"Accept": "application/json, text/event-stream"}
 
 
 def _tools(c, mount):
-    r = c.post(f"/{mount}/mcp", json=LIST, headers={**SSE, **AUTH})
+    r = c.post(f"/{mount}/mcp", json=LIST, headers={**SSE, **bearer(mint(mount))})
     assert r.status_code == 200, r.text
     return {t["name"]: t["inputSchema"] for line in r.text.splitlines() if line.startswith("data:")
             for t in __import__("json").loads(line[5:])["result"]["tools"]}
@@ -69,19 +68,15 @@ def _tools(c, mount):
 def test_mounts_split_read_and_act_and_check_the_host(monkeypatch):
     # One TestClient: a session manager can only run once per process.
     from afya_mcp.server import app
-    monkeypatch.setenv("AFYA_MCP_TOKEN", TOKEN)
     with TestClient(app, base_url="http://afya-mcp:9000") as c:
-        assert c.get("/healthz").text == "ok"   # E12-3: the only open path
-        # E12-3: no token, a wrong token or another scheme -> 401 on every mount, before the MCP layer
+        assert c.get("/healthz").text == "ok"   # open, like the RFC 9728 metadata (test_auth.py)
+        # E13-3: no token, a wrong token or another scheme -> 401 on every mount, before the MCP layer
+        token = mint("act")
         for mount in ("act", "ui", "read"):
-            for headers in ({}, {"Authorization": "Bearer wrong"}, {"Authorization": TOKEN},
-                            {"Authorization": f"Basic {TOKEN}"}):
+            for headers in ({}, {"Authorization": "Bearer wrong"}, {"Authorization": token},
+                            {"Authorization": f"Basic {token}"}):
                 r = c.post(f"/{mount}/mcp", json=LIST, headers={**SSE, **headers})
-                assert r.status_code == 401 and r.headers["www-authenticate"] == "Bearer", (mount, headers)
-        # a token-less server refuses everything (fail closed)
-        monkeypatch.setenv("AFYA_MCP_TOKEN", "")
-        assert c.post("/act/mcp", json=LIST, headers={**SSE, "Authorization": "Bearer "}).status_code == 401
-        monkeypatch.setenv("AFYA_MCP_TOKEN", TOKEN)
+                assert r.status_code == 401 and r.headers["www-authenticate"].startswith("Bearer"), (mount, headers)
         read, act, ui = _tools(c, "read"), _tools(c, "act"), _tools(c, "ui")
         assert set(read) == {"compute_tews", "check_deterioration", "get_queue_state"}
         assert set(act) == {"record_vitals", "raise_recheck_flag", "notify_staff", "seed_demo_visit"}
@@ -95,5 +90,5 @@ def test_mounts_split_read_and_act_and_check_the_host(monkeypatch):
         for schema in act.values():
             assert "actor" in schema["required"]
         # the Host check is kept (DNS rebinding) but it is not authentication: the token is
-        r = c.post("http://evil.example:9000/read/mcp", json=LIST, headers={**SSE, **AUTH})
+        r = c.post("http://evil.example:9000/read/mcp", json=LIST, headers={**SSE, **bearer(mint("read"))})
         assert r.status_code == 421

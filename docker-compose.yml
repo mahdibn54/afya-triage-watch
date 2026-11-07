@@ -107,22 +107,64 @@ services:
     # E12-3: its own network with the api only. It is not on "mcp", so it cannot reach afya-mcp's mounts.
     networks: [fhir_ro, borrowed]
 
+  # ---------- authorization (E13-3) ----------
+  # OAuth 2.1 authorization server for afya-mcp: Authelia (Apache-2.0, ~60 MB RAM), pinned by digest. Service
+  # identities only (client_credentials); RFC 8414 metadata, RFC 8707 resource indicators, RFC 9068 JWT access
+  # tokens. Internal network "auth" only (api, afya-mcp), HTTPS with a local CA. Config: auth/configuration.yml.
+  # One-shot: local CA, server certificate, signing key, internal secrets, client-secret digest (auth/init.sh).
+  auth-init:
+    image: authelia/authelia:4.39.28@sha256:bd97cff4fcbf715b5ff1f9ae286afbe6033afce385302520b0368122d43a6f54
+    entrypoint: ["sh", "/auth/init.sh"]
+    environment:
+      AFYA_MCP_CLIENT_SECRET: ${AFYA_MCP_CLIENT_SECRET:?set AFYA_MCP_CLIENT_SECRET in .env}
+    volumes:
+      - ./auth:/auth:ro
+      - authdata:/data
+      - authca:/ca
+    network_mode: none
+    restart: "no"
+
+  auth:
+    image: authelia/authelia:4.39.28@sha256:bd97cff4fcbf715b5ff1f9ae286afbe6033afce385302520b0368122d43a6f54
+    depends_on:
+      auth-init: { condition: service_completed_successfully }
+    user: "8000:8000"   # files prepared by auth-init; the image's root default is not needed
+    environment:
+      X_AUTHELIA_CONFIG: /auth/configuration.yml
+      X_AUTHELIA_CONFIG_FILTERS: template
+    volumes:
+      - ./auth:/auth:ro
+      - authdata:/data
+    networks:
+      auth:
+        aliases: [auth.afya.internal]   # the issuer's host name (it must sit under the configured cookie domain)
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider --no-check-certificate https://127.0.0.1:9091/api/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
   # ---------- our code ----------
   # Our MCP server: /read/mcp (model-facing tools) and /act/mcp (executor only).
   afya-mcp:
     build: ./mcp
     depends_on:
       db-init: { condition: service_completed_successfully }
+      auth: { condition: service_healthy }
     environment:
       DATABASE_URL: postgresql://afya_app:${AFYA_APP_PASSWORD}@postgres:5432/afya
       FHIR_BASE_URL: http://hapi:8080/fhir   # internal, write-capable URL
       RULES_DIR: /rules
       DEMO_MODE: ${DEMO_MODE:-1}   # seed_demo_visit refuses unless 1
-      # E12-3: every mount but /healthz needs "Authorization: Bearer <this>" (the api sends it)
-      AFYA_MCP_TOKEN: ${AFYA_MCP_TOKEN:?set AFYA_MCP_TOKEN in .env}
+      # E13-3: protected resource. Every mount needs a JWT access token from this issuer, for that mount
+      # (audience <base>/<mount>/mcp) with its scope. Holds no client secret; fetches only the issuer's public keys.
+      AFYA_AUTH_ISSUER: https://auth.afya.internal:9091
+      AFYA_MCP_RESOURCE_BASE: http://afya-mcp:9000
+      AFYA_AUTH_CA_FILE: /auth-ca/ca.crt
     volumes:
       - ./rules:/rules:ro
-    networks: [fhir_rw, mcp, app]
+      - authca:/auth-ca:ro
+    networks: [fhir_rw, mcp, app, auth]
 
   # E2-6: explicit one-shot loader; never run automatically with the application.
   seed:
@@ -151,13 +193,18 @@ services:
       lg-init: { condition: service_completed_successfully }
       afya-mcp: { condition: service_started }
       wso2-fhir-mcp: { condition: service_started }
+      auth: { condition: service_healthy }
     environment:
       DATABASE_URL: postgresql://afya_app:${AFYA_APP_PASSWORD}@postgres:5432/afya
       AFYA_MCP_READ_URL: http://afya-mcp:9000/read/mcp
       AFYA_MCP_ACT_URL: http://afya-mcp:9000/act/mcp
       AFYA_MCP_UI_URL: http://afya-mcp:9000/ui/mcp   # read-only data for the screens (timeline, demo)
       RULES_DIR: /rules                              # site.yaml: clinician reminder limits for /proposals
-      AFYA_MCP_TOKEN: ${AFYA_MCP_TOKEN:?set AFYA_MCP_TOKEN in .env}   # bearer token for afya-mcp (E12-3)
+      # E13-3: OAuth 2.1 client credentials for afya-mcp (one token per mount, its scope only; never sent to WSO2)
+      AFYA_AUTH_ISSUER: https://auth.afya.internal:9091
+      AFYA_AUTH_CA_FILE: /auth-ca/ca.crt
+      AFYA_MCP_CLIENT_ID: afya-api
+      AFYA_MCP_CLIENT_SECRET: ${AFYA_MCP_CLIENT_SECRET:?set AFYA_MCP_CLIENT_SECRET in .env}
       WSO2_MCP_URL: http://wso2-fhir-mcp:8000/mcp                      # on the "borrowed" network
       # E5-11: open-weights model on Ollama Cloud (default), OpenRouter, or a local Ollama (MODEL_PROVIDER=ollama).
       MODEL_PROVIDER: ${MODEL_PROVIDER:-ollama_cloud}
@@ -178,9 +225,10 @@ services:
       WATCH_INTERVAL_SECONDS: ${WATCH_INTERVAL_SECONDS:-60}
     volumes:
       - ./rules:/rules:ro
+      - authca:/auth-ca:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    networks: [app, mcp, borrowed, web]
+    networks: [app, mcp, borrowed, web, auth]
 
   # Nurse UI (Next.js production build, web/Dockerfile).
   web:
@@ -204,7 +252,8 @@ services:
 
 networks:
   app: { internal: true }       # postgres, db-init, lg-init, afya-mcp, api
-  mcp: { internal: true }       # api <-> afya-mcp (bearer token, E12-3)
+  mcp: { internal: true }       # api <-> afya-mcp (OAuth access tokens, E13-3)
+  auth: { internal: true }      # api, afya-mcp <-> auth (the authorization server); not WSO2, not the web UI
   borrowed: { internal: true }  # api <-> wso2-fhir-mcp only (E12-3: WSO2 runs with authorization disabled)
   fhir_ro: { internal: true }   # wso2-fhir-mcp <-> gateway  (WSO2 cannot resolve "hapi")
   fhir_rw: { internal: true }   # gateway, afya-mcp <-> hapi
@@ -214,3 +263,5 @@ volumes:
   pgdata:
   hapidata:
   ollama:
+  authdata:   # authorization server: private keys, secrets, SQLite (auth-init and auth only)
+  authca:     # the local CA certificate (public), trusted by api and afya-mcp

@@ -18,3 +18,6 @@ CLAUDE.md
 
 # local browser verification output
 .playwright-mcp/
+
+# local CA certificate copied by evals/stack_env.sh (public, but machine-specific)
+/.afya/

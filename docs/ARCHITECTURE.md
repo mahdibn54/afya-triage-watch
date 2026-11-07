@@ -24,14 +24,34 @@ calls, then `submit_decision`) → `proposal` → `paused` (LangGraph `interrupt
 
 | Server | Why |
 |---|---|
-| **afya-mcp (built)**: `/read/mcp` for the model, `/ui` for the api, `/act/mcp` for the executor only | Scoring, queue state and every write need our rules and our audit. Write tools are never offered to the model. Every mount needs a bearer token (`AFYA_MCP_TOKEN`), only `/healthz` is open. |
+| **afya-mcp (built)**: `/read/mcp` for the model, `/ui` for the api, `/act/mcp` for the executor only | Scoring, queue state and every write need our rules and our audit. Write tools are never offered to the model. Every mount is an OAuth 2.1 protected resource (see "Service authorization"); only `/healthz` and the protected-resource metadata are open. |
 | **WSO2 FHIR MCP (borrowed, Apache-2.0)** | Generic FHIR `search`/`read`. Not worth rebuilding; made safe by a GET-only nginx gateway in front of HAPI. |
 
 ## Networks and data layer
 
 Only the UI is published (`127.0.0.1:3000`). Internal networks: `app` (Postgres, afya-mcp, api), `mcp` (api to afya-mcp),
-`borrowed` (api and WSO2 only: WSO2 runs without authorization and cannot reach afya-mcp), `fhir_ro` (WSO2 and the gateway),
-`fhir_rw` (afya-mcp, gateway, HAPI), `web` (UI and api).
+`auth` (api, afya-mcp and the authorization server), `borrowed` (api and WSO2 only: WSO2 runs without authorization and
+cannot reach afya-mcp or the authorization server), `fhir_ro` (WSO2 and the gateway), `fhir_rw` (afya-mcp, gateway, HAPI),
+`web` (UI and api).
+
+## Service authorization (MCP OAuth 2.1, E13-3)
+
+afya-mcp follows the MCP authorization profile of protocol 2026-07-28. Its callers are services (the api and the host-side
+eval harness), never a browser, so they use the OAuth 2.1 **client-credentials** grant with a pre-registered confidential
+client (`afya-api`). Authorization code with PKCE is for a user's browser or app acting through MCP; there is none here.
+The nurse signs in to the api, not to MCP, and her approval stays a separate application gate (role check, single-use
+command) in front of every write: an access token never replaces it.
+
+| Piece | Choice |
+|---|---|
+| Authorization server | Authelia 4.39.28 (Apache-2.0), pinned by digest, service `auth` on the internal `auth` network, HTTPS with a local CA (`auth/init.sh`), about 60 MB RAM. RFC 8414 metadata, RFC 8707 resource indicators, RFC 9068 JWT access tokens, 5-minute lifetime. Nobody signs in to it. |
+| Resources and scopes | One protected resource per mount: `http://afya-mcp:9000/read/mcp` (`afya:read`), `/act/mcp` (`afya:act`), `/ui/mcp` (`afya:ui`). RFC 9728 metadata at `/.well-known/oauth-protected-resource/<mount>/mcp`. |
+| Resource server | `mcp/afya_mcp/auth.py`: the SDK's bearer middleware and metadata routes with a JWKS verifier (signature, exact issuer, audience = the mount, expiry, `typ` at+jwt, asymmetric algorithms only). 401 `invalid_token` or 403 `insufficient_scope`, with `resource_metadata` and `scope`. Every request needs a token, `server/discover` included. |
+| Client | `api/afya_api/mcp_client.py`: the SDK's `ClientCredentialsOAuthProvider` per mount, asking for that mount's resource and scope only, credentials sent only to the configured issuer. The model-facing read path therefore only ever holds an `afya:read` token for `/read/mcp`; `afya:act` tokens exist only on the fixed-code `/act` path (executor after approval, saving vitals, notices). |
+| Never | a token in a URL or a log; any afya credential sent to WSO2; a client secret in afya-mcp. |
+
+Known limit: afya-mcp itself stays plain HTTP on the internal `mcp` network (no published port), while OAuth 2.1 asks for
+TLS wherever bearer tokens travel; tokens are short-lived and bound to one mount. TLS on afya-mcp is the next step.
 
 Postgres holds proposals, single-use commands, readings with the complaint, agent checkpoints and the audit log. FHIR (HAPI)
 holds the clinical record: one reading is one Observation; the confirmed colour is `Encounter.priority`.

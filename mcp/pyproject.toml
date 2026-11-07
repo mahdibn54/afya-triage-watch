@@ -36,4 +36,4 @@ packages = ["afya_mcp"]
 select = ["E", "F", "I"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["afya_mcp", "fake_fhir", "fake_store"]
+known-first-party = ["afya_mcp", "fake_fhir", "fake_store", "oauth_fixture"]

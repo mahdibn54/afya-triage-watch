@@ -7,14 +7,15 @@ Three mounts on one port (9000):
   /ui/mcp    read-only data for the api's screens (visit_timeline, queue_state, demo_visit); the model's client
              never connects here either, and it is not audited (it changes nothing).
 Every call is audited (audit.py, E4-8).
-E12-3: every mount needs `Authorization: Bearer $AFYA_MCP_TOKEN` (the api and the host-side eval gateway send it);
-only /healthz is open. Without AFYA_MCP_TOKEN every mount answers 401 (fail closed). The Host check below is not
-authentication: any client can set Host itself.
+E13-3 (replaces the E12-3 shared token): each mount is an OAuth 2.1 protected resource (auth.py). Every request needs a
+JWT access token from the authorization server, issued for that mount (audience) with that mount's scope (afya:read,
+afya:act, afya:ui). Open without a token: /healthz and the RFC 9728 metadata at /.well-known/oauth-protected-resource/*.
+Without AFYA_AUTH_ISSUER every mount answers 401 (fail closed). The Host and Origin checks below are not
+authentication: any client can set both itself.
 """
 from __future__ import annotations
 
 import contextlib
-import hmac
 import importlib.metadata
 import os
 from functools import lru_cache
@@ -28,7 +29,7 @@ from starlette.applications import Starlette
 from starlette.responses import PlainTextResponse
 from starlette.routing import Mount, Route
 
-from . import audit, db, rules, services
+from . import audit, auth, db, rules, services
 from .db import PgVisitStore
 from .fhir import FhirRejected, FhirUnavailable, HttpFhir
 
@@ -246,29 +247,6 @@ async def demo_visit(label: str) -> dict:
     return await _run(lambda: services.demo_visit(_fhir(), label))
 
 
-class BearerToken:
-    """Pure ASGI middleware (it does not buffer the MCP streams): every path but /healthz needs the bearer token."""
-
-    OPEN = ("/healthz",)
-
-    def __init__(self, app: Any) -> None:
-        self.app = app
-
-    async def __call__(self, scope: dict, receive: Any, send: Any) -> None:
-        if scope["type"] != "http" or scope.get("path") in self.OPEN:
-            return await self.app(scope, receive, send)
-        expected = os.environ.get("AFYA_MCP_TOKEN", "")
-        given = b""
-        for name, value in scope.get("headers", []):
-            if name == b"authorization":
-                given = value
-                break
-        if expected and hmac.compare_digest(given, b"Bearer " + expected.encode()):
-            return await self.app(scope, receive, send)
-        resp = PlainTextResponse("unauthorized", status_code=401, headers={"WWW-Authenticate": "Bearer"})
-        await resp(scope, receive, send)
-
-
 async def health(_request):
     return PlainTextResponse("ok")
 
@@ -282,13 +260,19 @@ async def lifespan(_app):
         yield
 
 
+def _mount(name: str, server: MCPServer) -> Mount:
+    """E13-3: the mount's MCP app behind the OAuth resource-server checks for its own audience and scope."""
+    return Mount(f"/{name}", app=auth.Protected(
+        server.streamable_http_app(stateless_http=True, transport_security=_security()), name))
+
+
 app = Starlette(
     routes=[
         Route("/healthz", health),
-        Mount("/read", app=read.streamable_http_app(stateless_http=True, transport_security=_security())),
-        Mount("/act", app=act.streamable_http_app(stateless_http=True, transport_security=_security())),
-        Mount("/ui", app=ui.streamable_http_app(stateless_http=True, transport_security=_security())),
+        *auth.metadata_routes(),
+        _mount("read", read),
+        _mount("act", act),
+        _mount("ui", ui),
     ],
     lifespan=lifespan,
 )
-app.add_middleware(BearerToken)

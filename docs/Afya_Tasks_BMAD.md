@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 68 done · 10 drafted · 17 to do · 0 blocked · 95 stories
+**Progress:** 69 done · 9 drafted · 17 to do · 0 blocked · 95 stories
 
 ---
 
@@ -376,7 +376,7 @@ Audit context: [competition-audit.md](competition-audit.md).
 |---|---|---|---|---|---|---|
 | E13-1 | [x] | Upgrade own MCP client/server integration to the current protocol | M | TBD | TBD | E12-3 |
 | E13-2 | [x] | Implement current MCP server discovery | M | TBD | TBD | E13-1 |
-| E13-3 | [~] | Implement standardized MCP OAuth authorization flow | M | TBD | TBD | E13-1 |
+| E13-3 | [x] | Implement standardized MCP OAuth authorization flow | M | TBD | TBD | E13-1 |
 | E13-4 | [~] | Official MCP conformance tests and versioned reports | M | TBD | TBD | E13-1, E13-2, E13-3 |
 
 **E13-1** · Acceptance: verify and record the current official protocol revision and a compatible SDK; review the
@@ -432,8 +432,65 @@ protected-resource/authorization-server discovery, appropriate scoped tokens and
 Use the required PKCE and resource binding for applicable browser authorization flows; keep tokens out of URLs/logs
 and never forward own-server credentials to WSO2. Test missing, invalid, expired, wrong-audience and insufficient-scope
 tokens, plus successful authorized calls. Clinician session role checks and confirmation remain separate and required
-before clinical writes. Update configuration/run docs; preserve the isolated model-off test path. Notes: assigned by
-Dheker; exact provider/flow not selected and implementation pending.
+before clinical writes. Update configuration/run docs; preserve the isolated model-off test path. Notes: done; the shared
+static token `AFYA_MCP_TOKEN` is removed (no fallback). **Verified from official sources:** MCP authorization for
+2026-07-28 ([authorization](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization),
+[server discovery](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/authorization-server-discovery),
+[client registration](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration),
+[security considerations](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations)):
+the server MUST serve RFC 9728 metadata with `authorization_servers` and signal it via `WWW-Authenticate: resource_metadata`
+on 401, MUST validate that tokens were issued for it (RFC 8707 audience), 401 for invalid/expired, 403 `insufficient_scope`
+(SHOULD carry `scope`), a token on every HTTP request, never in the query; clients MUST send `resource`, discover the AS via
+RFC 8414 (or OIDC discovery) and check its `issuer` exactly; every AS endpoint MUST be HTTPS; PKCE S256 applies to the
+authorization-code flow; `client_credentials` clients are recognised (step-up MAY be skipped); pre-registration is a
+listed registration mechanism. Discovery (`server/discover`) has no auth exemption, so it needs a token like any request
+(kept from E13-2); the public discovery surface is the RFC 9728 document. **SDK `mcp` 2.3.0 support used, not hand-rolled:**
+server `BearerAuthBackend` (with `resource_server_url`), `RequireAuthMiddleware` (401/403 + `resource_metadata`),
+`create_protected_resource_routes`, `AccessToken`/`TokenVerifier`; client `ClientCredentialsOAuthProvider` (401 -> RFC 9728
+-> RFC 8414 -> token with `resource` -> retry, credentials sent only to the configured `issuer`). The SDK has no JWT
+verifier, so `JwtVerifier` uses PyJWT (an SDK dependency) with the issuer's JWKS. **Design:** the callers of afya-mcp are
+services (api, host eval harness), never a browser, and the nurse signs in to the api, not to MCP, so the flow is OAuth 2.1
+`client_credentials` with one pre-registered confidential client `afya-api` (`client_secret_basic`); authorization code +
+PKCE does not apply (no user agent or user acting through MCP); nurse/clinician confirmation stays the separate application
+gate in front of every write. **Authorization server: Authelia 4.39.28** (Apache-2.0, Go, ~60-70 MB RAM measured, image
+pinned by digest `sha256:bd97cff4…6f54`), chosen because it implements RFC 8707 for `client_credentials` (resource ->
+`aud`, unknown resource -> `invalid_target`, fixed in 4.39.23 [#12973](https://github.com/authelia/authelia/issues/12973)),
+RFC 9068 JWT access tokens (`typ` at+jwt), RFC 8414 + OIDC discovery and static YAML clients; Ory Hydra (v26.2.0, also
+Apache-2.0 and light) was rejected because it has no RFC 8707 `resource` support (fosite PR
+[#879](https://github.com/ory/fosite/pull/879) closed unmerged; only its own `audience` parameter) and needs a bootstrap
+job for clients; Keycloak not needed (heavier). Compose: one-shot `auth-init` (`auth/init.sh`: local CA, server cert,
+signing key, internal secrets, PBKDF2 digest of `AFYA_MCP_CLIENT_SECRET`, nothing printed) and `auth` (uid 8000, HTTPS
+`https://auth.afya.internal:9091`, `auth/configuration.yml`, 5-minute tokens) on a new internal network `auth` (api,
+afya-mcp; not WSO2, not web); volumes `authdata` (private) and `authca` (public CA cert, read-only in api/afya-mcp).
+**Resource server** (`mcp/afya_mcp/auth.py`, wired in `server.py`): one protected resource per mount,
+`http://afya-mcp:9000/{read,act,ui}/mcp` with scope `afya:read`/`afya:act`/`afya:ui`; metadata at
+`/.well-known/oauth-protected-resource/<mount>/mcp` (issuer advertised exactly, no trailing slash); token check: signature
+via JWKS from the issuer's RFC 8414 metadata over TLS (issuer in the metadata must match), exact `iss`, `aud` = the mount,
+`exp`/`iat`/`sub` required, `typ` at+jwt, RS256/PS256/ES256 only (no HS*, no none); challenges add `scope` and drop the
+error code when no credentials were sent (RFC 6750 §3.1); Host/Origin checks unchanged and after auth; fail closed without
+`AFYA_AUTH_ISSUER`; refusals log only the exception class. afya-mcp holds no client secret. **Client**
+(`api/afya_api/mcp_client.py`): one SDK provider per mount (`scope` and `resource` of that mount only, in-memory token
+store, reused until expiry); WSO2 gets no auth object at all. Least privilege: the model-facing investigate path only ever
+holds an `afya:read` token for `/read/mcp`; `afya:act` tokens only on the fixed-code `/act` path. **Host eval gateway**
+(`evals/host_gateway.py`, `evals/stack_env.sh`): URLs keep the service names (resource, issuer and TLS name must match);
+`EVAL_RESOLVE` maps names to container IPs in the transport (SNI/Host keep the name); local CA copied to git-ignored
+`.afya/auth-ca.crt`. `scripts/conformance_app.py` is now a throwaway offline issuer (in-memory key, per-mount token,
+`AFYA_CONFORMANCE_AUTH=off` for the auth scenarios of E13-4). **Known limit (recorded deviation):** afya-mcp itself stays
+plain HTTP on the internal `mcp` network (no published port), though OAuth 2.1 wants TLS wherever bearer tokens travel;
+mitigated by 5-minute, per-mount audience-bound tokens; TLS on afya-mcp is a follow-up. **Tests:** `mcp/tests/test_auth.py`
+(30: metadata per mount, missing token, 12 invalid kinds incl. bad signature, tampered, expired, wrong audience/issuer, no
+aud/exp, typ JWT, HS256, alg none; other schemes and query tokens; insufficient scope 403; read token refused on act/ui;
+success per mount; scp list; clock skew; Host/Origin after auth; no token in logs; RFC 8414 issuer mismatch; JWKS path),
+`mcp/tests/oauth_fixture.py` (local key pair, offline), discovery and server tests moved to tokens,
+`api/tests/test_mcp_client.py` (per-mount providers, real SDK flow against a mock resource + AS: `resource`, `scope`, Basic
+auth, token reuse, refused token, credentials only to the configured issuer), `evals/tests/test_host_gateway.py` (3).
+mcp 318, api 204, evals 64 passed, ruff clean. `scripts/smoke.sh` SMOKE OK after `docker compose up -d --build` (new
+checks: AS metadata over HTTPS, untrusted TLS refused, RFC 9728 per mount, 401 with `resource_metadata` and `scope`, forged
+token 401, act token 200, read token on /act and /ui 401, act audience without act scope 403, foreign resource
+`invalid_target`, discover with a token, WSO2 cannot resolve the AS, afya-mcp has no client secret; the api's own OAuth
+client runs the end-to-end P-014 flow). Live host gateway check (`/ui` with an `afya:ui` token, WSO2 search without
+credentials) passed. No token or client secret in any container log. Group A harness and CI (Dheker's) still pass
+`AFYA_MCP_TOKEN` and need the changes listed in the E13-3 Decisions log row.
 
 **E13-4** · Acceptance: establish a baseline on the currently supported protocol before migration where feasible;
 then run the official MCP conformance framework against own server/client behavior for the selected target revision
@@ -490,6 +547,7 @@ Technical competition audit of `28215e1`: [competition-audit.md](competition-aud
 
 | Decision |
 |---|
+| **E13-3 MCP authorization (M):** OAuth 2.1 `client_credentials` for service callers (api, eval harness) against Authelia 4.39.28 (Apache-2.0, pinned by digest; Hydra rejected: no RFC 8707). One protected resource per afya-mcp mount with its own scope (`afya:read`, `afya:act`, `afya:ui`); the model-facing path only ever holds a read token; nurse confirmation stays a separate gate. `AFYA_MCP_TOKEN` removed. **For Dheker (Group A, CI):** in `evals/stack/compose.yml` service `group-a`, replace `AFYA_MCP_TOKEN` by `AFYA_AUTH_ISSUER: https://auth.afya.internal:9091`, `AFYA_AUTH_CA_FILE: /auth-ca/ca.crt`, `AFYA_MCP_CLIENT_ID: afya-api`, `AFYA_MCP_CLIENT_SECRET: ${AFYA_MCP_CLIENT_SECRET:?set AFYA_MCP_CLIENT_SECRET in .env}`, add network `auth` and volume `authca:/auth-ca:ro`; in `.github/workflows/ci.yml` generate `AFYA_MCP_CLIENT_SECRET` (e.g. `openssl rand -hex 32`) instead of `AFYA_MCP_TOKEN`; `evals/stack/README.md` wording. Known limit: afya-mcp stays plain HTTP on the internal network (TLS follow-up). |
 | **E13 assignment (Dheker):** Mahdi owns current MCP protocol migration, discovery, standardized authorization and official conformance testing (E13-1 through E13-4). Explicitly authorized additions to the frozen backlog; all four are to do. Verify the current spec/SDK at implementation time, preserve WSO2 compatibility and clinical gates, and keep protocol conformance distinct from application tests and AAIF certification. No implementation performed by the documentation assignment. |
 | **AAIF/MCP standards review:** [competition-audit.md](competition-audit.md) distinguishes competition stack fit from full protocol conformance. Current installed SDK negotiates `2025-11-25`; official MCP documentation identifies `2026-07-28` as current, and its required discovery request is unsupported in our targeted ASGI check. Static internal bearer auth is not the standardized OAuth discovery/delegation profile. No separate AAIF requirement to replace LangGraph with Goose/A2A was found. No protocol migration, new feature or runtime change authorized by this audit; any follow-up stays subject to the frozen backlog and an explicit scope decision. |
 | **E8-2 harness repair (B):** test clients use the configured server bearer token through Compose, and audit fixtures explicitly declare human `auth`. Tests adapt to the current security contract; production auth, schema constraints and audit-mutation refusal remain unchanged. Local checked-in harness passes 25 real-service + 3 isolation cases and both desktop/mobile approval flows without overrides. |

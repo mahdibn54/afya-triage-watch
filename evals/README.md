@@ -14,7 +14,7 @@ Group A's isolated real-stack suite, fault injection, desktop/mobile browser che
 ## Commands (repository root)
 
 ```sh
-eval "$(sh evals/stack_env.sh)"      # IPs and URLs for this boot, derived from `docker compose ps` and the compose project label (nothing hard-coded); needs .env and the running stack
+eval "$(sh evals/stack_env.sh)"      # IPs and URLs for this boot, derived from `docker compose ps` and the compose project label (nothing hard-coded); needs .env and the running stack. E13-3: also the OAuth client settings, EVAL_RESOLVE (service name -> container address) and the local CA in .afya/
 make eval                            # groups B and C on evals/cases/m_fixtures, then the tables
 make eval CASES=evals/fixtures/synthetic MODELS=qwen/qwen3-30b-a3b-instruct-2507 RUNS=5      # OpenRouter model (a tag with a slash; OPENROUTER_API_KEY in your shell/.env, DATA_CLASSIFICATION=synthetic)
 make eval CASES=evals/fixtures/synthetic MODELS=ollama_cloud:gpt-oss:120b RUNS=5    # Ollama Cloud (prefix ollama_cloud:; OLLAMA_API_KEY from your shell or .env); trials run one at a time and the run stops cleanly at a plan limit (429/402), that trial not written

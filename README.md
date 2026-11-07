@@ -41,12 +41,21 @@ the fixtures. See [`seed/README.md`](seed/README.md) for retry behaviour and rev
 |---|---|
 | `PG_SUPERUSER_PASSWORD`, `AFYA_OWNER_PASSWORD`, `AFYA_APP_PASSWORD` | database passwords, URL-safe: `openssl rand -hex 24` |
 | `SESSION_SECRET` | long random string that signs the session cookie |
-| `AFYA_MCP_TOKEN` | bearer token the api sends to our MCP server, which refuses every call without it (`openssl rand -hex 24`) |
+| `AFYA_MCP_CLIENT_SECRET` | OAuth client secret of the api at the local authorization server (`openssl rand -hex 32`); the api trades it for short-lived access tokens to our MCP server (see below) |
 | `OLLAMA_API_KEY` | Ollama Cloud key (default provider); empty means rules only (see next section) |
 | `OPENROUTER_API_KEY` | only with `MODEL_PROVIDER=openrouter`; empty means rules only |
 | `DATA_CLASSIFICATION` | `synthetic` (default, the only value that allows the hosted model) |
 
 `.env` is git-ignored and holds the only copies of these secrets. Never commit it.
+
+### MCP authorization (OAuth 2.1)
+
+Our MCP server accepts only OAuth 2.1 access tokens (MCP authorization profile, protocol 2026-07-28). `docker compose up`
+also starts the authorization server, Authelia (`auth`, about 60 MB RAM), on an internal network over HTTPS with a local
+CA; a one-shot `auth-init` creates the CA, keys and internal secrets in the `authdata` volume and registers the api's
+client with a hash of `AFYA_MCP_CLIENT_SECRET`. Nothing else to configure. The api gets one short-lived token per MCP
+mount with only that mount's scope (`afya:read`, `afya:act`, `afya:ui`). Rotate all of it with
+`docker compose down && docker volume rm afya_authdata afya_authca`. Design and limits: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ### Model provider
 
@@ -85,7 +94,7 @@ triggers are fixed code, so the whole product works without a model (proposals t
 
 ```bash
 # Python env with the three packages: pip install -e "mcp[dev]" -e "api[dev]" pytest ruff
-eval "$(sh evals/stack_env.sh)"          # exports TEST_DATABASE_URL (the separate afya_test database) and the stack URLs
+eval "$(sh evals/stack_env.sh)"          # exports TEST_DATABASE_URL (the separate afya_test database), the stack URLs and the OAuth client settings
 (cd mcp && pytest) && (cd api && pytest) && pytest evals/tests     # database tests skip when TEST_DATABASE_URL is unreachable
 ruff check mcp api evals
 make eval-test                           # statistics and metrics of the eval harness only
@@ -93,7 +102,8 @@ make eval MODELS=ollama_cloud:gpt-oss:120b   # live eval run (Ollama Cloud key; 
 scripts/smoke.sh                         # against the running stack; must end with SMOKE OK
 ```
 
-Tests never touch the stack's `afya` database. Database tests use `afya_test`.
+Tests never touch the stack's `afya` database. Database tests use `afya_test`. The MCP authorization tests sign their own
+tokens with a local test key: no authorization server or network is needed.
 
 ### Reset the demo database
 
@@ -104,7 +114,8 @@ Tests never touch the stack's `afya` database. Database tests use `afya_test`.
 
 | Part | Role |
 |---|---|
-| `mcp/` afya-mcp (ours) | 6 MCP tools: SATS scoring and queue reads; gated actions behind a separate mount |
+| `mcp/` afya-mcp (ours) | 6 MCP tools: SATS scoring and queue reads; gated actions behind a separate mount; OAuth 2.1 protected resource |
+| `auth/` Authelia (Apache-2.0) | OAuth 2.1 authorization server for our MCP server (service client credentials, per-mount scopes) |
 | WSO2 FHIR MCP (borrowed, Apache-2.0) | lets the agent read standard FHIR health records; reaches HAPI only through a GET-only gateway |
 | `api/` FastAPI + LangGraph | fixed code scores and decides triggers; the model maps warning signs and investigates with read-only tools; a watch loop sends reminders |
 | `db/` PostgreSQL 16 | proposals, single-use commands, agent checkpoints, append-only audit log |

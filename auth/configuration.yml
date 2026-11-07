@@ -1,0 +1,70 @@
+# E13-3: Authelia as the OAuth 2.1 authorization server for afya-mcp (MCP authorization, protocol 2026-07-28).
+# Service identities only (client_credentials): nobody signs in here; the nurse signs in to the api, and her approval
+# stays a separate application gate. Secrets come from files written by auth/init.sh (volume authdata), read with
+# the template filter (X_AUTHELIA_CONFIG_FILTERS=template); nothing secret is in this file.
+server:
+  address: 'tcp://:9091'
+  tls:   # MCP authorization: every authorization server endpoint MUST be served over HTTPS (local CA, auth/init.sh)
+    key: '/data/tls/server.private.pem'
+    certificate: '/data/tls/server.public.crt'
+log:
+  level: 'info'   # Authelia never logs tokens or client secrets at this level
+telemetry:
+  metrics:
+    enabled: false
+ntp:
+  disable_startup_check: true   # internal network without Internet access
+identity_validation:
+  reset_password:
+    jwt_secret: {{ secret "/data/reset.secret" | mquote }}
+authentication_backend:
+  password_reset:
+    disable: true
+  file:
+    path: '/data/users.yml'   # one disabled placeholder user (auth/init.sh)
+access_control:
+  default_policy: 'one_factor'   # unused (no forward-auth); required by Authelia's configuration check
+session:
+  secret: {{ secret "/data/session.secret" | mquote }}
+  cookies:   # the issuer is derived from this URL: https://auth.afya.internal:9091
+    - domain: 'afya.internal'
+      authelia_url: 'https://auth.afya.internal:9091'
+storage:
+  encryption_key: {{ secret "/data/storage.secret" | mquote }}
+  local:
+    path: '/data/db.sqlite3'
+notifier:
+  filesystem:
+    filename: '/data/notification.txt'
+identity_providers:
+  oidc:
+    hmac_secret: {{ secret "/data/hmac.secret" | mquote }}
+    jwks:   # token-signing key, published at /jwks.json (RFC 8414 jwks_uri)
+      - key_id: 'afya-as-1'
+        algorithm: 'RS256'
+        use: 'sig'
+        key: {{ secret "/data/jwk.private.pem" | mindent 10 "|" | msquote }}
+    lifespans:
+      custom:
+        afya_service:
+          access_token: '5m'   # short-lived (MCP security considerations: limits a leaked token)
+    clients:
+      # Pre-registered confidential client used by the api (and the host-side eval harness with the same secret).
+      # It may ask for afya-mcp's three resources (RFC 8707 `resource`, which becomes the token's `aud`) and scopes;
+      # the api asks per mount for that mount's resource and scope only, and afya-mcp checks both on every request.
+      - client_id: 'afya-api'
+        client_name: 'Afya API (service identity)'
+        client_secret: {{ secret "/data/afya-api.digest" | mquote }}
+        public: false
+        authorization_policy: 'one_factor'
+        lifespan: 'afya_service'
+        grant_types: ['client_credentials']
+        response_types: []
+        scopes: ['afya:read', 'afya:act', 'afya:ui']
+        audience:
+          - 'http://afya-mcp:9000/read/mcp'
+          - 'http://afya-mcp:9000/act/mcp'
+          - 'http://afya-mcp:9000/ui/mcp'
+        requested_audience_mode: 'explicit'
+        token_endpoint_auth_method: 'client_secret_basic'
+        access_token_signed_response_alg: 'RS256'   # RFC 9068 JWT access tokens (typ at+jwt), verified via JWKS

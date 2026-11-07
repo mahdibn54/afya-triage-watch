@@ -4,8 +4,13 @@
 /ui/mcp: read-only data for the screens (visit_timeline, demo_visit).
 /read/mcp: the model-facing read-only tools (compute_tews, check_deterioration, get_queue_state), called by the agent
 with the run_id so afya-mcp's audit row lands in the run's trace.
-E12-3: afya-mcp needs `Authorization: Bearer $AFYA_MCP_TOKEN` on every mount; the token is never sent to WSO2 and
-never logged.
+E13-3: OAuth 2.1 client credentials (MCP authorization, 2026-07-28). The api is a confidential service client
+(AFYA_MCP_CLIENT_ID / AFYA_MCP_CLIENT_SECRET, pre-registered at the authorization server AFYA_AUTH_ISSUER). The SDK's
+ClientCredentialsOAuthProvider does the whole flow per mount: 401 -> RFC 9728 metadata -> RFC 8414 metadata of the
+configured issuer only -> token request with the mount's `resource` (RFC 8707) and only that mount's scope -> retry.
+So the read path's token carries afya:read for /read/mcp and nothing else; afya:act tokens exist only on the /act
+path (fixed code: the executor after a nurse's approval, saving vitals, notices). Tokens live in memory, in the
+Authorization header only (never in a URL), are never logged and never sent to WSO2 (no auth on that mount at all).
 E13-1: protocol versions. afya-mcp is called with `mode="auto"` (mcp SDK 2.x: probe `server/discover`, use protocol
 2026-07-28, fall back to the `initialize` handshake if the server is older). The borrowed WSO2 server only speaks the
 older handshake protocols, so it is called with `mode="legacy"` (an explicit supported-version path, no probe).
@@ -16,12 +21,16 @@ from __future__ import annotations
 
 import json
 import os
+import ssl
 from typing import Any, Protocol
 
 import anyio
 import httpx2
 from mcp import Client
+from mcp.client.auth import OAuthFlowError, TokenStorage
+from mcp.client.auth.extensions.client_credentials import ClientCredentialsOAuthProvider
 from mcp.client.streamable_http import streamable_http_client
+from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
 from mcp.types import TextContent
 
 from .fhir_projection import FHIRPATHS, restore_response
@@ -52,11 +61,41 @@ class Gateway(Protocol):
 
 # Per mount: how the SDK negotiates the protocol version (see the module docstring).
 MODES = {"act": "auto", "ui": "auto", "read": "auto", "wso2": "legacy"}
+# E13-3: the one scope each afya-mcp mount needs (least privilege). WSO2 gets no credential at all.
+SCOPES = {"act": "afya:act", "ui": "afya:ui", "read": "afya:read"}
 
 
-def http_client(headers: dict[str, str]) -> httpx2.AsyncClient:
-    """The SDK 2.x transport takes its headers and timeouts from the http client (v1's defaults)."""
-    return httpx2.AsyncClient(headers=headers, timeout=httpx2.Timeout(30, read=300))
+class MemoryTokens(TokenStorage):
+    """Tokens of one mount, in this process's memory only (never written to disk, a log or the database)."""
+
+    def __init__(self) -> None:
+        self.tokens: OAuthToken | None = None
+        self.client: OAuthClientInformationFull | None = None
+
+    async def get_tokens(self) -> OAuthToken | None:
+        return self.tokens
+
+    async def set_tokens(self, tokens: OAuthToken) -> None:
+        self.tokens = tokens
+
+    async def get_client_info(self) -> OAuthClientInformationFull | None:
+        return self.client
+
+    async def set_client_info(self, client_info: OAuthClientInformationFull) -> None:
+        self.client = client_info
+
+
+def tls() -> ssl.SSLContext:
+    """Trust for the authorization server's TLS certificate: the local CA (AFYA_AUTH_CA_FILE) plus the system store."""
+    ctx = ssl.create_default_context()
+    if os.environ.get("AFYA_AUTH_CA_FILE"):
+        ctx.load_verify_locations(cafile=os.environ["AFYA_AUTH_CA_FILE"])
+    return ctx
+
+
+def http_client(auth: httpx2.Auth | None, transport: httpx2.AsyncBaseTransport | None = None) -> httpx2.AsyncClient:
+    """The SDK 2.x transport takes its auth and timeouts from the http client (v1's defaults)."""
+    return httpx2.AsyncClient(auth=auth, verify=tls(), transport=transport, timeout=httpx2.Timeout(30, read=300))
 
 
 class McpGateway:
@@ -66,19 +105,34 @@ class McpGateway:
                      "read": os.environ.get("AFYA_MCP_READ_URL", act.replace("/act/mcp", "/read/mcp")),
                      "wso2": os.environ.get("WSO2_MCP_URL", "http://wso2-fhir-mcp:8000/mcp")}
 
-    def headers(self, mount: str) -> dict[str, str]:
-        """Request headers for a mount: the afya-mcp bearer token, never sent to the borrowed WSO2 server."""
-        token = os.environ.get("AFYA_MCP_TOKEN", "")
-        return {"Authorization": f"Bearer {token}"} if mount != "wso2" and token else {}
+        self._auth: dict[str, ClientCredentialsOAuthProvider] = {}
+
+    def auth(self, mount: str) -> httpx2.Auth | None:
+        """E13-3: the OAuth client of one afya-mcp mount (kept, so its token is reused until it expires); None for
+        the borrowed WSO2 server, which never receives any afya credential. Without client credentials afya-mcp
+        answers 401 and the call fails as unavailable (fail closed)."""
+        if mount not in SCOPES:
+            return None
+        if mount not in self._auth:
+            self._auth[mount] = ClientCredentialsOAuthProvider(
+                server_url=self.urls[mount].rstrip("/"), storage=MemoryTokens(),
+                client_id=os.environ.get("AFYA_MCP_CLIENT_ID", "afya-api"),
+                client_secret=os.environ.get("AFYA_MCP_CLIENT_SECRET", ""),
+                scope=SCOPES[mount], issuer=os.environ.get("AFYA_AUTH_ISSUER", "https://auth.afya.internal:9091"))
+        return self._auth[mount]
+
+    def transport(self) -> httpx2.AsyncBaseTransport | None:
+        """Default transport (the host-side eval gateway maps service names to container addresses here)."""
+        return None
 
     async def _call(self, mount: str, tool: str, args: dict[str, Any]) -> dict[str, Any]:
         url = self.urls[mount].rstrip("/")   # no trailing slash: "/act/mcp/" would be a 307 redirect
         try:
             with anyio.fail_after(30):
-                async with http_client(self.headers(mount)) as http, \
+                async with http_client(self.auth(mount), self.transport()) as http, \
                         Client(streamable_http_client(url, http_client=http), mode=MODES[mount], cache=None) as client:
                     res = await client.call_tool(tool, args)
-        except (OSError, TimeoutError, ExceptionGroup) as e:
+        except (OSError, TimeoutError, ExceptionGroup, httpx2.HTTPError, OAuthFlowError) as e:
             raise McpUnavailable(f"afya-mcp: {type(e).__name__}") from e
         first = res.content[0] if res.content else None
         if first is not None and not isinstance(first, TextContent):
