@@ -39,7 +39,7 @@ def test_treatment_diagnosis_or_unknown_words_fall_back_to_the_code_sentence(tex
 
 
 def test_numbers_and_ids_must_come_from_the_run():
-    assert rationale_text("SpO2 fell from 95 to 80.", CODE, FACTS)[2] == "number not in this run's evidence"
+    assert rationale_text("SpO2 fell from 95 to 80.", CODE, FACTS)[2] == "number not in this run's evidence: 80"
     assert rationale_text("SpO2 fell from 95 to 92.", CODE, FACTS)[1] == "model"
     assert rationale_text("Heart rate rose (Observation/9999).", CODE, FACTS)[2] == \
         "record id not in this run's evidence"

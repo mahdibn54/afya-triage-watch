@@ -193,6 +193,52 @@ def tool_order_violations(t: Trial) -> list[str]:
     return out
 
 
+# ---- model-chosen investigation (E12-5) ----
+
+def investigate_turns(t: Trial) -> int:
+    """Model turns of the investigate loop (trace rows `investigate`, kind model, args "turn N")."""
+    return sum(1 for r in t.get("trace") or [] if r["name"] == "investigate" and r.get("step_kind") == "model"
+               and str(r.get("args") or "").startswith("turn "))
+
+
+def model_reads(t: Trial) -> tuple[int, int]:
+    """(own, borrowed) read-only tool calls the MODEL chose: tool rows after the code's `trigger` step and before
+    `submit_decision`. The graph's own compute_tews / check_deterioration come before the trigger and are not
+    counted. Borrowed = the WSO2 FHIR server (`search`, `read`), own = afya-mcp /read."""
+    rows = t.get("trace") or []
+    names = [r["name"] for r in rows]
+    if "trigger" not in names:
+        return 0, 0
+    start = names.index("trigger") + 1
+    end = names.index("submit_decision") if "submit_decision" in names else len(rows)
+    own = borrowed = 0
+    for r in rows[start:end]:
+        if r.get("step_kind") == "tool" and r["name"] in READ_TOOL_STEPS:
+            if r.get("server") == "borrowed":
+                borrowed += 1
+            else:
+                own += 1
+    return own, borrowed
+
+
+def investigation_summary(trials: Sequence[Trial]) -> dict[str, Any]:
+    """Over the trials whose investigate loop ran (at least one model turn): how many chose a read before deciding,
+    own vs borrowed calls, both kinds, turns, decisions on the first turn and valid model decisions."""
+    loops = [t for t in trials if investigate_turns(t) > 0]
+    reads = [model_reads(t) for t in loops]
+    turns = [float(investigate_turns(t)) for t in loops]
+    n = len(loops)
+    return {
+        "loops": n,
+        "loops_with_reads": (sum(o + b > 0 for o, b in reads), n),
+        "loops_with_own_and_borrowed": (sum(o > 0 and b > 0 for o, b in reads), n),
+        "own_reads": sum(o for o, _ in reads), "borrowed_reads": sum(b for _, b in reads),
+        "turns_median": stats.median(turns), "turns_max": max(turns) if turns else None,
+        "decided_on_turn_1": (sum(investigate_turns(t) == 1 and model_decided(t) for t in loops), n),
+        "valid_model_decisions": (sum(model_decided(t) for t in loops), n),
+    }
+
+
 # ---- agreement across repeated runs ----
 
 def signature(t: Trial) -> tuple[Any, ...]:
@@ -303,4 +349,5 @@ def summarize(trials: Sequence[Trial]) -> dict[str, Any]:
         "run_failures": (sum(bool(t.get("error")) or t.get("run_status") == "failed" for t in trials), len(trials)),
         "model_unavailable": (sum(bool(t.get("model_unavailable")) for t in trials), len(trials)),
         "speed": summarize_speed(trials),
+        "investigation": investigation_summary(trials),
     }

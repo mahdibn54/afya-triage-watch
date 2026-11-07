@@ -184,11 +184,12 @@ def rationale_text(model_text: str | None, code_text: str,
     rest = _ID.sub(" ", text)
     for n in _NUMBER.findall(rest):
         if _number(n.replace(",", ".")) not in facts.numbers:
-            return code_text, "code", "number not in this run's evidence"
+            return code_text, "code", f"number not in this run's evidence: {n[:12]}"
     rest = _NUMBER.sub(" ", rest)
     allowed = VOCABULARY | facts.words
-    if any(w not in allowed for w in _PUNCT.split(rest) if w):
-        return code_text, "code", "word outside the allowed vocabulary"
+    bad = next((w for w in _PUNCT.split(rest) if w and w not in allowed), None)
+    if bad is not None:   # E12-5: the first rejected word is named (as the denylist reason does) to measure the filter
+        return code_text, "code", f"word outside the allowed vocabulary: {bad[:24]}"
     return raw, "model", None
 
 

@@ -608,9 +608,24 @@ class GroqBackend:
         start = time.perf_counter()
         headers = {"Authorization": f"Bearer {self._key}"}
         async with httpx.AsyncClient(base_url=self.s.groq_url, timeout=None, transport=self.transport) as c:
-            r = await _post_with_retry(c, "/chat/completions", body, self.s, headers=headers, sleep=self.sleep,
-                                       on_response=lambda resp: self.rates.update(resp, self.clock()),
-                                       honour_retry_after=True)
+            for attempt in range(2):
+                try:
+                    r = await _post_with_retry(c, "/chat/completions", body, self.s, headers=headers,
+                                               sleep=self.sleep,
+                                               on_response=lambda resp: self.rates.update(resp, self.clock()),
+                                               honour_retry_after=True)
+                    break
+                except httpx.HTTPStatusError as e:
+                    code = _error_code(e.response)
+                    log.warning("groq HTTP %s (%s)", e.response.status_code, code or "no code")
+                    # E12-5: Groq answers 400 `tool_use_failed` when the model's own tool call did not parse or named
+                    # a tool that was not offered (gpt-oss sometimes calls its "commentary" channel): a bad sample, not
+                    # a bad request. One new sample (next seed) with a fixed reminder, then give up.
+                    if attempt == 0 and e.response.status_code == 400 and code == "tool_use_failed":
+                        body = {**body, "seed": int(body.get("seed") or 0) + 1,
+                                "messages": [*body["messages"], {"role": "user", "content": TOOL_REMINDER}]}
+                        continue
+                    raise
         reply = openai_reply(r.json(), self.s.model, start)
         reply.cost_usd, reply.provider = 0.0, "groq"      # free plan: nothing billed
         log.info("groq limits left: tokens/min=%s requests/day=%s", self.rates.tokens_left, self.rates.requests_left)
@@ -639,6 +654,18 @@ def _limit_kind(r: httpx.Response) -> str:
     except Exception:  # noqa: BLE001 - not JSON: a plain rate limit
         msg = ""
     return "daily_limit" if _DAILY.search(msg) else "rate_limited"
+
+
+TOOL_REMINDER = "Your last answer did not call an offered tool. Call one of the offered tools by its exact name."
+
+
+def _error_code(r: httpx.Response) -> str | None:
+    """The provider's machine error code (e.g. `tool_use_failed`), never its message text."""
+    try:
+        code = ((r.json() or {}).get("error") or {}).get("code")
+    except Exception:  # noqa: BLE001
+        return None
+    return code if isinstance(code, str) and re.fullmatch(r"[a-z0-9_]{1,40}", code) else None
 
 
 def status_reason(e: httpx.HTTPStatusError) -> str:

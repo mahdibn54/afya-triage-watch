@@ -1,9 +1,12 @@
 """E5-4: investigate, model call B (architecture section 4 and Appendix B).
 
-A bounded, read-only tool loop: the model gets code-built facts (record ids, TEWS, the per-input changes, the trigger
-decided by code, validated sign CODES; never the complaint or a quote, never FHIR free text) and may call at most
-4 read-only tools, then `submit_decision`. The tools are wrappers that inject the visit and trim results to codes,
-values, units, times and ids:
+A bounded, read-only tool loop: the model gets code-built facts (the trigger decided by code, the current reading's
+id, TEWS, colour and missing inputs, the previous reading's record id, validated sign CODES; never the complaint or
+a quote, never FHIR free text) and may call at most 4 read-only tools, then `submit_decision`. E12-5: the earlier
+readings' values and the per-input changes are NOT pasted into the facts any more: when the case needs them the model
+fetches them itself (borrowed `search`/`read` for the values and times, afya-mcp `check_deterioration` for the band
+changes, `get_queue_state` for the wait and the re-check). Code still decides the trigger, the colour and the card.
+The tools are wrappers that inject the visit and trim results to codes, values, units, times and ids:
 
     fhir_search, fhir_read          -> the borrowed WSO2 server's `search` / `read` (Observations of this visit only)
     get_queue_state, check_deterioration, compute_tews (earlier readings only) -> afya-mcp /read, with the run_id
@@ -29,6 +32,7 @@ from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
+from .decision import LABELS
 from .fhir_projection import LOINC_ALLOW, PANEL, UCUM, UNIT_ALLOW
 from .model import ModelUnavailable
 from .steps import write as write_step
@@ -37,20 +41,56 @@ MAX_CALLS = 4               # read-only tool calls per run
 MAX_TURNS = MAX_CALLS + 1   # model turns: one per tool round, plus the final submit_decision
 RECURSION_LIMIT = 12
 MAX_COUNT = 5
+NUDGE = "Call submit_decision now (or one read-only tool if you still need it). Answer with a tool call only."
 # N1 / security audit: the unit given to the model is a UCUM CODE from this allow-list per LOINC code, never the
 # FHIR `unit` display text (free text anyone with FHIR write access could fill).
 ACTIONS = ("propose", "propose_and_remeasure", "request_missing_value")
 ID = re.compile(r"^(Observation|Encounter)/[A-Za-z0-9.-]{1,64}$")
 NAME = re.compile(r"^[A-Za-z0-9_.-]{1,40}$")
 
-PROMPT = """You review a second-look flag for a triage nurse. Fixed code has ALREADY decided that a proposal will \
-be shown to the nurse (the trigger below). You cannot cancel it and you can never lower the colour.
-You may only: ask for a re-measure (action "propose_and_remeasure"), add one of the listed sign codes as an extra \
-trigger, or ask for a missing value (action "request_missing_value" with missing_input = the input name).
-Otherwise use action "propose".
-Use at most 4 read-only tool calls if they help (earlier readings, the queue), then call submit_decision once.
-Rationale (at most 300 characters): describe only measured changes and SATS signs, with their record ids. Never name a \
-condition, cause, drug, dose or treatment. Cite only record ids that the facts or the tools gave you."""
+# E12-5: the words the rationale guidance shows the model. Every one is on decision.VOCABULARY (tested), so a
+# rationale built from them, the facts' numbers and record ids passes the wording filter; the filter is unchanged.
+RATIONALE_WORDS = ("respiratory rate, heart rate, systolic blood pressure, temperature, SpO2, mobility, consciousness, "
+                   "score, TEWS, colour, RED, ORANGE, YELLOW, GREEN, reading, previous, earlier, current, latest, "
+                   "rose, fell, increased, dropped, changed, stayed, unchanged, higher, lower, band, from, to, and, "
+                   "with, in, at, of, the, warning, sign, reported, missing, value, values, re-measure, please, take, "
+                   "a, second, look")
+RATIONALE_EXAMPLE = ("Heart rate 105 to 112 and temperature 37.2 to 38.6 (Observation/11 to Observation/12): "
+                     "score 3 to 6, YELLOW to ORANGE.")
+RATIONALE_EXAMPLE_SIGN = "Warning sign SOB_ACUTE reported; values unchanged from the previous reading (Observation/11)."
+
+PROMPT = f"""You review a second-look flag for a triage nurse. Fixed code has ALREADY decided that a proposal \
+will be shown (the trigger in the facts) and scored the current reading. You cannot cancel it or lower the colour.
+
+Decide what to add, then call submit_decision once:
+- action "propose": the flag stands as it is.
+- action "propose_and_remeasure": ask for a re-measure when a value may be a one-off (one input jumped while the \
+others stayed, or there is only one earlier reading to compare with) or the re-check is overdue.
+- action "request_missing_value" with missing_input = a name from missing_inputs, when the reading lacks an input.
+- extra_triggers: only codes from validated_sign_codes, when the sign is not already the trigger.
+
+The facts hold the trigger and the current reading's score only, NOT any measured value or earlier score. \
+You have at most 4 read-only tool calls; call the ones you need together in one turn, never repeat a call.
+Tools:
+- fhir_search: the readings of this visit with their measured values and times (the FHIR record). The ONLY source \
+of the measured values your rationale quotes, and of the trend (one reading or several).
+- check_deterioration: the previous reading's score and colour, and which inputs moved into a higher or lower \
+score band, with record ids. No measured values.
+- get_queue_state: minutes waited against the target and whether a re-check is overdue (helps decide a re-measure).
+- fhir_read: one reading by record id (e.g. previous_reading) when you only need that one.
+- compute_tews: the score of an earlier reading a tool returned (the trend over more than two readings).
+When to look, by trigger kind:
+- colour_rise: the facts cannot say which values moved: call fhir_search and check_deterioration together first.
+- nurse_reported: call fhir_search to see whether any value moved; add get_queue_state if a re-measure may help.
+- sign: if previous_reading is null, the facts settle it; otherwise fhir_search shows whether values moved too.
+Do not call a tool whose answer you already have.
+
+Rationale: at most 300 characters, one or two short sentences naming the inputs that changed with their values \
+before and after (as in the example) and the score and colour change, using ONLY these words: {RATIONALE_WORDS}; plus \
+numbers and record ids copied exactly from the facts or tool results (no arithmetic, no other words, no input codes \
+such as heart_rate). Examples: "{RATIONALE_EXAMPLE}" and, for a sign: "{RATIONALE_EXAMPLE_SIGN}" Never name a \
+condition, cause, drug, dose or treatment.
+cited_ids: the record ids your decision relies on, only ids from the facts or tool results."""
 
 
 class DecisionArgs(BaseModel):
@@ -106,8 +146,27 @@ def trim_observation(r: dict[str, Any]) -> dict[str, Any] | None:
     return {"id": f"Observation/{r.get('id')}", "time": r.get("effectiveDateTime"), "values": values}
 
 
+def labelled(row: dict[str, Any] | None) -> dict[str, Any] | None:
+    """E12-5: a trimmed reading with the plain input name next to each LOINC code (fixed code mapping, e.g. 8867-4 ->
+    "heart rate"), so the model can name the input in words the rationale filter accepts."""
+    if row is None:
+        return None
+    return {**row, "values": [{"input": LABELS.get(LOINC_ALLOW.get(v["code"], ""), v["code"]), **v}
+                              for v in row["values"]]}
+
+
 def trim_tews(out: dict[str, Any]) -> dict[str, Any]:
     return {k: out.get(k) for k in ("status", "observation_id", "tews", "colour", "complete", "missing", "points")}
+
+
+def band_change(c: dict[str, Any]) -> dict[str, Any]:
+    """E12-5: one per-input change as the model sees it: the plain input name, the direction of its score band and
+    the two record ids. The point numbers stay with the code: in development runs the model wrote points as if they
+    were measured values ("respiratory rate 2 to 3"), which the number check cannot tell apart."""
+    before, after = c.get("points_before"), c.get("points_after")
+    band = "not in both readings" if before is None or after is None else "higher" if after > before else "lower"
+    return {"input": LABELS.get(c.get("input"), c.get("input")), "score_band": band, "before": c.get("before"),
+            "after": c.get("after")}
 
 
 def trim_deterioration(out: dict[str, Any]) -> dict[str, Any]:
@@ -118,7 +177,8 @@ def trim_deterioration(out: dict[str, Any]) -> dict[str, Any]:
             "latest": {k: out["latest"].get(k) for k in ("observation_id", "tews", "colour", "complete", "missing")},
             "previous": {k: out["previous"].get(k) for k in ("observation_id", "tews", "colour")}
             if out.get("previous") else None,
-            "changes": out.get("changes", []), "trigger": {k: t.get(k) for k in ("kind", "from", "to", "propose")}}
+            "changes": [band_change(c) for c in out.get("changes", [])],
+            "trigger": {k: t.get(k) for k in ("kind", "from", "to", "propose")}}
 
 
 def trim_queue(out: dict[str, Any], visit_id: str) -> dict[str, Any]:
@@ -153,7 +213,7 @@ def read_only_tools(ctx: Any, run_id: str, visit_id: str, obs_id: str, seen: set
                              f"error: {type(e).__name__}", server="borrowed")
             return json.dumps({"error": "search failed"})
         resources = [e.get("resource", {}) for e in bundle.get("entry", [])]
-        rows = [x for x in (trim_observation(r) for r in resources
+        rows = [x for x in (labelled(trim_observation(r)) for r in resources
                            if (r.get("encounter") or {}).get("reference") == f"Encounter/{visit_id}") if x]
         await write_step(run_id, visit_id, "tool", "search", f"type=Observation, encounter=Encounter/{visit_id}",
                          f"{len(rows)} readings", server="borrowed", cited_ids=[r["id"] for r in rows])
@@ -173,7 +233,7 @@ def read_only_tools(ctx: Any, run_id: str, visit_id: str, obs_id: str, seen: set
             await write_step(run_id, visit_id, "tool", "read", f"Observation/{oid}", "refused: not this visit",
                              server="borrowed")
             return json.dumps({"error": "that record is not a reading of this visit"})
-        row = trim_observation(r)
+        row = labelled(trim_observation(r))
         await write_step(run_id, visit_id, "tool", "read", f"Observation/{oid}",
                          "1 reading" if row else "not a reading", server="borrowed",
                          cited_ids=[row["id"]] if row else [])
@@ -210,18 +270,27 @@ def read_only_tools(ctx: Any, run_id: str, visit_id: str, obs_id: str, seen: set
     t = StructuredTool.from_function
     return [
         t(coroutine=fhir_search, name="fhir_search", args_schema=CountArgs,
-          description="Earlier vital-sign readings of this visit (FHIR, read-only), newest first: id, time, values."),
+          description="Borrowed FHIR server, read-only. The readings of this visit, newest first: record id, time, "
+                      "values (input, code, value, unit). Use it to see the earlier values behind a colour rise or "
+                      "reported worsening and whether the change is a trend or one reading. Not useful when the "
+                      "facts say there is no previous reading."),
         t(coroutine=fhir_read, name="fhir_read", args_schema=ObsArgs,
-          description="One reading of this visit by record id (FHIR, read-only): id, time, values."),
+          description="Borrowed FHIR server, read-only. One reading of this visit by record id (e.g. the facts' "
+                      "previous_reading): time and values. Use it when you need that one reading only."),
         t(coroutine=get_queue_state, name="get_queue_state", args_schema=NoArgs,
-          description="This visit in the waiting room: minutes waited vs the SATS target, re-check due, proposals."),
+          description="afya-mcp, read-only. This visit in the waiting room: minutes waited against the SATS target, "
+                      "whether the re-check is overdue, open proposals. Use it when deciding on a re-measure."),
         t(coroutine=check_deterioration, name="check_deterioration", args_schema=NoArgs,
-          description="Latest vs previous reading of this visit with per-input point changes and record ids."),
+          description="afya-mcp, read-only, fixed-code scoring. Previous vs current reading: their scores and "
+                      "colours and which inputs moved into a higher or lower score band, with record ids. No "
+                      "measured values (those are in fhir_search)."),
         t(coroutine=compute_tews, name="compute_tews", args_schema=ObsArgs,
-          description="Score an EARLIER reading of this visit (record id from another tool). Fixed code scores it."),
+          description="afya-mcp, read-only, fixed-code scoring. The score and colour of an EARLIER reading of this "
+                      "visit (a record id from the facts or another tool), to see the trend over more readings."),
         t(coroutine=submit_decision, name="submit_decision", args_schema=DecisionArgs,
-          description="Finish: action, extra_triggers (sign codes from the facts), rationale, cited_ids, "
-                      "missing_input (only with request_missing_value)."),
+          description="Finish (once): action, extra_triggers (codes from validated_sign_codes only), rationale "
+                      "(allowed words only), cited_ids (ids from the facts or tool results), missing_input (only "
+                      "with request_missing_value)."),
     ]
 
 
@@ -248,22 +317,23 @@ class LoopState(TypedDict, total=False):
     messages: Annotated[list[AnyMessage], add_messages]
     turns: int
     reads: int
+    nudged: bool
     stop: str | None
 
 
 def facts_message(facts: dict[str, Any]) -> str:
-    """Code-built facts only: ids, codes and numbers. No complaint, no quote, no FHIR text."""
+    """Code-built facts only: ids, codes and numbers. No complaint, no quote, no FHIR text. E12-5: the trigger and the
+    current reading; for the previous reading only its record id (its values, score and the per-input changes are
+    behind the read tools, fetched when the model needs them)."""
     sc, det, trig = facts["score"], facts["det"], facts["trigger"]
     prev = det.get("previous")
     return json.dumps({
         "visit_id": f"Encounter/{facts['visit_id']}",
+        "trigger": {"kind": trig["kind"], "from": trig["from"], "to": trig["to"]},
         "reading": {"id": sc["observation_id"], "tews": sc["tews"], "colour": sc["colour"],
                     "complete": sc["complete"], "missing_inputs": sc["missing"]},
-        "previous_reading": {"id": prev["observation_id"], "tews": prev["tews"], "colour": prev["colour"]}
-        if prev else None,
         "confirmed_colour": det.get("confirmed_colour"),
-        "changes": det.get("changes", []),
-        "trigger": {"kind": trig["kind"], "from": trig["from"], "to": trig["to"]},
+        "previous_reading": {"id": prev["observation_id"]} if prev else None,
         "validated_sign_codes": facts["sign_codes"],
     }, default=str)
 
@@ -309,11 +379,19 @@ async def investigate(ctx: Any, run_id: str, facts: dict[str, Any]) -> dict[str,
                          latency_ms=reply.latency_ms, tokens_in=reply.tokens_in, tokens_out=reply.tokens_out,
                          cost_usd=reply.cost_usd, model={**info, "load_ms": reply.load_ms, "eval_ms": reply.eval_ms,
                                                            "served_by": reply.provider})
-        return {"messages": [AIMessage(content=reply.content or "", tool_calls=calls)], "turns": turn + 1,
-                "reads": s.get("reads", 0) + reads, "stop": None if calls else "no decision"}
+        msgs: list[AnyMessage] = [AIMessage(content=reply.content or "", tool_calls=calls)]
+        if not calls and not s.get("nudged") and turn + 1 < MAX_TURNS:
+            # E12-5: an answer in text instead of a tool call (seen with gpt-oss): one fixed reminder, still within
+            # the 5 turns; a second one ends the loop with no decision (the code-built proposal stands).
+            return {"messages": [*msgs, HumanMessage(NUDGE)], "turns": turn + 1, "reads": s.get("reads", 0),
+                    "nudged": True, "stop": None}
+        return {"messages": msgs, "turns": turn + 1, "reads": s.get("reads", 0) + reads,
+                "stop": None if calls else "no decision"}
 
     def after_agent(s: LoopState) -> str:
-        return END if s.get("stop") else "tools"
+        if s.get("stop"):
+            return END
+        return "agent" if isinstance(s["messages"][-1], HumanMessage) else "tools"
 
     def after_tools(s: LoopState) -> str:
         if _decision(s["messages"]) is not None or s.get("turns", 0) >= MAX_TURNS:
@@ -324,7 +402,7 @@ async def investigate(ctx: Any, run_id: str, facts: dict[str, Any]) -> dict[str,
     g.add_node("agent", agent)
     g.add_node("tools", tool_node)
     g.add_edge(START, "agent")
-    g.add_conditional_edges("agent", after_agent, ["tools", END])
+    g.add_conditional_edges("agent", after_agent, ["tools", "agent", END])
     g.add_conditional_edges("tools", after_tools, ["agent", END])
     loop = g.compile(checkpointer=False)
     start = [SystemMessage(PROMPT), HumanMessage(facts_message(facts))]

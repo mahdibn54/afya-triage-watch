@@ -26,6 +26,21 @@ def load_trials(runs_dir: str | Path) -> list[dict[str, Any]]:
     return out
 
 
+def cond(t: dict[str, Any]) -> str:
+    """The condition a trial belongs to: its model, plus its batch when the same model ran in more than one batch
+    on the same set (E12-5: two Groq runs at different commits are reported side by side, never merged)."""
+    return t.get("_cond") or t["model"]
+
+
+def label_conditions(trials: list[dict[str, Any]]) -> None:
+    batches: dict[tuple[str, str], set[str]] = defaultdict(set)
+    for t in trials:
+        batches[(t["set"], t["model"])].add(str(t.get("batch")))
+    for t in trials:
+        many = len(batches[(t["set"], t["model"])]) > 1
+        t["_cond"] = f"{t['model']} @ {t.get('batch')}" if many else t["model"]
+
+
 def kn(pair: tuple[int, int]) -> str:
     return stats.fmt_kn(*pair)
 
@@ -35,7 +50,7 @@ def f0(x: float | None, unit: str = "") -> str:
 
 
 def _cond_order(c: str) -> tuple[int, str]:
-    return (1 if c == RULES_ONLY else 0, c)
+    return (1 if c.startswith(RULES_ONLY) else 0, c)
 
 
 def _table(header: list[str], rows: list[list[str]]) -> str:
@@ -61,7 +76,7 @@ def headline_table(trials: list[dict[str, Any]]) -> str:
     """The headline: k/n with n = number of cases (a case counts when the majority of its runs do)."""
     g: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
     for t in trials:
-        g[(t["set"], t["split"], t["model"])].append(t)
+        g[(t["set"], t["split"], cond(t))].append(t)
     rows = []
     for (s, sp, m), ts in sorted(g.items(), key=lambda kv: (kv[0][0], kv[0][1], _cond_order(kv[0][2]))):
         c = metrics.summarize(ts)["case_level"]
@@ -79,7 +94,7 @@ def headline_table(trials: list[dict[str, Any]]) -> str:
 def main_table(trials: list[dict[str, Any]]) -> str:
     g: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
     for t in trials:
-        g[(t["set"], t["split"], t["model"])].append(t)
+        g[(t["set"], t["split"], cond(t))].append(t)
     rows = []
     for (s, sp, m), ts in sorted(g.items(), key=lambda kv: (kv[0][0], kv[0][1], _cond_order(kv[0][2]))):
         x = metrics.summarize(ts)
@@ -97,7 +112,7 @@ def model_extras_table(trials: list[dict[str, Any]]) -> str:
     g: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
     for t in trials:
         if t["model"] != RULES_ONLY:
-            g[(t["set"], t["model"])].append(t)
+            g[(t["set"], cond(t))].append(t)
     rows = []
     for (s, m), ts in sorted(g.items()):
         x = metrics.summarize(ts)
@@ -115,7 +130,7 @@ def model_extras_table(trials: list[dict[str, Any]]) -> str:
 def speed_table(trials: list[dict[str, Any]]) -> str:
     g: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
     for t in trials:
-        g[(t["set"], t["model"])].append(t)
+        g[(t["set"], cond(t))].append(t)
     rows = []
     for (s, m), ts in sorted(g.items(), key=lambda kv: (kv[0][0], _cond_order(kv[0][1]))):
         v = metrics.summarize_speed(ts)
@@ -129,26 +144,49 @@ def speed_table(trials: list[dict[str, Any]]) -> str:
                    "wall ms of the scored run (median / p95)", "cost (local model: $0)"], rows)
 
 
+def investigation_table(trials: list[dict[str, Any]]) -> str:
+    """E12-5: what the model chose to read in the investigate loop (after the code's trigger, before its decision)."""
+    g: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
+    for t in trials:
+        if t["model"] != RULES_ONLY:
+            g[(t["set"], cond(t))].append(t)
+    rows = []
+    for (s, m), ts in sorted(g.items()):
+        x = metrics.investigation_summary(ts)
+        n = x["loops"]
+
+        def per(k: str, x: dict[str, Any] = x, n: int = n) -> str:
+            return "n/a" if not n else f"{x[k]} ({x[k] / n:.1f} per loop)"
+        rows.append([f"`{s}`", f"`{m}`", str(n), kn(x["loops_with_reads"]), per("own_reads"), per("borrowed_reads"),
+                     kn(x["loops_with_own_and_borrowed"]),
+                     f"{f0(x['turns_median'])} / {f0(x['turns_max'])}", kn(x["decided_on_turn_1"]),
+                     kn(x["valid_model_decisions"])])
+    return _table(["set", "model", "investigate loops", "loops with a model-chosen read",
+                   "own reads (afya-mcp /read)", "borrowed reads (WSO2 FHIR)", "loops with own and borrowed reads",
+                   "model turns (median / max)", "decided on turn 1",
+                   "valid model decisions (submit_decision accepted)"], rows)
+
+
 def baseline_table(trials: list[dict[str, Any]]) -> str:
     """Side by side per set: sensitivity and false alerts per visit, models vs the rules-only baseline."""
     g: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
     for t in trials:
-        g[(t["set"], t["model"])].append(t)
+        g[(t["set"], cond(t))].append(t)
     rows = []
     for (s, m), ts in sorted(g.items(), key=lambda kv: (kv[0][0], _cond_order(kv[0][1]))):
         x = metrics.summarize(ts)
-        rows.append([f"`{s}`", f"`{m}`", "1 (deterministic)" if m == RULES_ONLY else "model, repeated",
+        rows.append([f"`{s}`", f"`{m}`", "1 (deterministic)" if m.startswith(RULES_ONLY) else "model, repeated",
                      kn(x["sensitivity"]), kn(x["false_alerts"]), kn(x["missed"]), kn(x["under_called"])])
     return _table(["set", "condition", "runs per case", "sensitivity", "false alerts per visit (negative trials)",
                    "missed (no proposal)", "proposal at a lower colour"], rows)
 
 
 def per_case_table(trials: list[dict[str, Any]]) -> str:
-    conds = sorted({t["model"] for t in trials}, key=_cond_order)
+    conds = sorted({cond(t) for t in trials}, key=_cond_order)
     g: dict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
     meta: dict[tuple[str, str], dict[str, Any]] = {}
     for t in trials:
-        g[(t["set"], t["case_id"], t["model"])].append(t)
+        g[(t["set"], t["case_id"], cond(t))].append(t)
         meta[(t["set"], t["case_id"])] = t
     rows = []
     for (s, cid) in sorted(meta):
@@ -167,7 +205,7 @@ def worst_table(trials: list[dict[str, Any]], top: int = 8) -> str:
     """Lowest outcome rate first, per (case, condition) with at least one trial wrong. Run ids point into the logs."""
     g: dict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
     for t in trials:
-        g[(t["set"], t["case_id"], t["model"])].append(t)
+        g[(t["set"], t["case_id"], cond(t))].append(t)
     cand = []
     for (s, cid, m), ts in g.items():
         wrong = [t for t in ts if not metrics.outcome_correct(t)]
@@ -188,11 +226,14 @@ def worst_table(trials: list[dict[str, Any]], top: int = 8) -> str:
 def build(trials: list[dict[str, Any]]) -> str:
     if not trials:
         return "No runs logged yet. `make eval` writes them to `evals/runs/`."
+    label_conditions(trials)
     parts = [("Runs in the logs", inventory(trials)),
              ("Headline, case level (k/n with Wilson 95% intervals, n = cases)", headline_table(trials)),
              ("Trial level, secondary (n = trials; repeated runs are not independent)", main_table(trials)),
              ("Rules-only baseline next to the models (trial level)", baseline_table(trials)),
              ("Model-only behaviour and agreement between repeated runs", model_extras_table(trials)),
+             ("Model-chosen investigation (reads after the code's trigger, before submit_decision)",
+              investigation_table(trials)),
              ("Tokens, latency and cost", speed_table(trials)),
              ("Per case: runs with the labelled outcome", per_case_table(trials)),
              ("Worst case x condition pairs (candidates for the unfixed-failure section)", worst_table(trials))]

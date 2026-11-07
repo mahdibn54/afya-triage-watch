@@ -278,3 +278,34 @@ def test_notice_missing_only_counts_when_there_is_a_card():
     assert metrics.notice_missing(trial(proposal=card(notices=["instruction_like_text"]), expected=exp)) == []
     assert metrics.notice_missing(trial(proposal=card(), expected=exp)) == ["instruction_like_text"]
     assert metrics.notice_missing(trial(expected=exp)) == []   # no card: not observable
+
+
+def test_model_chosen_reads_own_vs_borrowed_and_turns():
+    """E12-5: reads between the code's trigger and submit_decision are the model's; the graph's own compute_tews and
+    check_deterioration before the trigger are not counted."""
+    def turn(n):
+        return {**step("investigate", "model"), "args": f"turn {n}"}
+    borrowed = {**step("search"), "server": "borrowed"}
+    own = {**step("get_queue_state"), "server": "ours"}
+    rows = [*GOOD[:6], turn(1), borrowed, own, {**step("check_deterioration"), "server": "ours"}, turn(2),
+            GOOD[9], GOOD[10]]
+    deep = trial(case="a", proposal=card(), trace=rows, decision={"model_decision": "ok"})
+    quick = trial(case="b", proposal=card(), trace=[*GOOD[:6], turn(1), GOOD[9], GOOD[10]],
+                  decision={"model_decision": "ok"})
+    none = trial(case="c", trace=GOOD[:6])
+    assert metrics.model_reads(deep) == (2, 1) and metrics.investigate_turns(deep) == 2
+    assert metrics.model_reads(quick) == (0, 0) and metrics.model_reads(none) == (0, 0)
+    x = metrics.investigation_summary([deep, quick, none])
+    assert x["loops"] == 2 and x["loops_with_reads"] == (1, 2) and x["loops_with_own_and_borrowed"] == (1, 2)
+    assert (x["own_reads"], x["borrowed_reads"]) == (2, 1) and x["turns_max"] == 2
+    assert x["decided_on_turn_1"] == (1, 2) and x["valid_model_decisions"] == (2, 2)
+    for t in (deep, quick, none):
+        t.update({"batch": "b", "code_commit": "c", "_file": "f.jsonl", "_line": 1, "run_id": "1:2", "tags": []})
+    assert "Model-chosen investigation" in report.build([deep, quick, none])
+
+
+def test_report_keeps_two_batches_of_one_model_apart():
+    a = trial(case="a", batch="b1", code_commit="c1", _file="f", _line=1, tags=[])
+    b = trial(case="a", i=2, batch="b2", code_commit="c2", _file="g", _line=1, tags=[])
+    md = report.build([a, b])
+    assert "`m @ b1`" in md and "`m @ b2`" in md

@@ -250,3 +250,30 @@ def test_reset_header_durations():
     assert _duration_s("547ms") == pytest.approx(0.547)
     assert _duration_s("1h2m3s") == pytest.approx(3723)
     assert _duration_s("") is None and _duration_s("soon") is None
+
+
+def test_groq_tool_use_failed_gets_one_new_sample_then_gives_up():
+    """E12-5: a 400 `tool_use_failed` is the model's own malformed tool call: one retry with the next seed."""
+    bad = {"error": {"message": "Failed to call a function. failed_generation: ...", "type": "invalid_request_error",
+                     "code": "tool_use_failed"}}
+    sent = []
+    answers = [httpx.Response(400, json=bad), ok(tool_calls=[{"id": "fc_1", "type": "function", "function": {
+        "name": "get_queue_state", "arguments": "{}"}}], headers=LIMIT_HEADERS)]
+    backend = GroqBackend(GQ, transport=httpx.MockTransport(lambda r: sent.append(json.loads(r.content))
+                                                            or answers.pop(0)), api_key=GKEY)
+    tools = [{"type": "function", "function": {"name": "get_queue_state", "parameters": {"type": "object"}}}]
+    reply = run(backend.chat([{"role": "user", "content": "x"}], options=GQ.options("investigate", seed=7),
+                             tools=tools, format=None))
+    assert reply.tool_calls == [{"name": "get_queue_state", "args": {}}] and [b["seed"] for b in sent] == [7, 8]
+    assert sent[1]["messages"][-1] == {"role": "user", "content": model_mod.TOOL_REMINDER}
+    assert len(sent[0]["messages"]) == 1
+    twice = [httpx.Response(400, json=bad), httpx.Response(400, json=bad), ok()]
+    m = Model(GroqBackend(GQ, transport=httpx.MockTransport(lambda r: twice.pop(0)), api_key=GKEY), GQ)
+    with pytest.raises(ModelUnavailable) as e:
+        run(m.call([{"role": "user", "content": "x"}], "investigate", tools=tools))
+    assert e.value.reason == "http_error" and len(twice) == 1
+    other = [httpx.Response(400, json={"error": {"code": "invalid_request_error"}}), ok()]
+    m2 = Model(GroqBackend(GQ, transport=httpx.MockTransport(lambda r: other.pop(0)), api_key=GKEY), GQ)
+    with pytest.raises(ModelUnavailable):
+        run(m2.call([{"role": "user", "content": "x"}], "investigate", tools=tools))
+    assert len(other) == 1          # any other 400 is not retried
