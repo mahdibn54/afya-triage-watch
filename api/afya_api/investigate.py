@@ -57,7 +57,7 @@ RATIONALE_WORDS = ("respiratory rate, heart rate, systolic blood pressure, tempe
                    "a, second, look")
 RATIONALE_EXAMPLE = ("Heart rate 105 to 112 and temperature 37.2 to 38.6 (Observation/11 to Observation/12): "
                      "score 3 to 6, YELLOW to ORANGE.")
-RATIONALE_EXAMPLE_SIGN = "Warning sign SOB_ACUTE reported; values unchanged from the previous reading (Observation/11)."
+RATIONALE_EXAMPLE_SIGN = "Warning sign SOB_ACUTE reported; score 0, GREEN to ORANGE (Observation/12)."
 
 PROMPT = f"""You review a second-look flag for a triage nurse. Fixed code has ALREADY decided that a proposal \
 will be shown (the trigger in the facts) and scored the current reading. You cannot cancel it or lower the colour.
@@ -89,7 +89,8 @@ Rationale: at most 300 characters, one or two short sentences naming the inputs 
 before and after (as in the example) and the score and colour change, using ONLY these words: {RATIONALE_WORDS}; plus \
 numbers and record ids copied exactly from the facts or tool results (no arithmetic, no other words, no input codes \
 such as heart_rate). Examples: "{RATIONALE_EXAMPLE}" and, for a sign: "{RATIONALE_EXAMPLE_SIGN}" Never name a \
-condition, cause, drug, dose or treatment.
+condition, cause, drug, dose or treatment. State only what the facts or a tool result you received show (e.g. \
+say values are unchanged only after fhir_search showed it).
 cited_ids: the record ids your decision relies on, only ids from the facts or tool results."""
 
 

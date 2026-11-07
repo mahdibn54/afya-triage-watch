@@ -175,7 +175,8 @@ def test_rationale_guidance_words_are_all_allowed_and_the_example_passes():
     facts = rationale_facts({"tews": 6}, {"tews": 3}, [105, 112, 37.2, 38.6],
                             ids=["Observation/11", "Observation/12"])
     assert rationale_text(RATIONALE_EXAMPLE, "code", facts) == (RATIONALE_EXAMPLE, "model", None)
-    sign = rationale_facts(ids=["Observation/11"], chart={"signs": {"SOB_ACUTE": {"gloss": "sudden shortness"}}})
+    sign = rationale_facts({"tews": 0}, ids=["Observation/12"],
+                           chart={"signs": {"SOB_ACUTE": {"gloss": "sudden shortness"}}})
     assert rationale_text(RATIONALE_EXAMPLE_SIGN, "code", sign) == (RATIONALE_EXAMPLE_SIGN, "model", None)
     assert RATIONALE_WORDS in PROMPT and RATIONALE_EXAMPLE in PROMPT and RATIONALE_EXAMPLE_SIGN in PROMPT
 

@@ -11,10 +11,17 @@ A LangGraph run starts for every saved reading (`api/afya_api/agent.py`). Fixed 
 (model: warning signs from the complaint) → `trigger` (fixed rules) → `investigate` (model, at most 4 read-only tool
 calls, then `submit_decision`) → `proposal` → `paused` (LangGraph `interrupt`) → `executor` (only after approval).
 
+- **What the model investigates (E12-5).** The investigate prompt hands the model the code-decided trigger, the current
+  reading's id, score, colour and missing inputs, the previous reading's record id and the validated sign codes, not
+  the earlier values or the per-input changes. When the case needs them the model fetches them itself: the borrowed
+  WSO2 `search`/`read` for the readings' values and times (oldest first, the current one marked), afya-mcp
+  `check_deterioration` for which inputs moved band and `get_queue_state` for the wait and the re-check. The prompt says
+  when each tool is worth a call (a colour rise: values and band changes; a sign-only trigger with no earlier reading:
+  none). One fixed reminder if the model answers in text instead of a tool call; at most 4 reads and 5 turns.
 - Scores, colours and triggers come from `mcp/afya_mcp/rules.py` and the chart in `rules/`; the model never computes them.
 - The model can add urgency, never remove it; a colour rise always becomes a proposal. Tools take record IDs, not numbers.
-- Model text is shown only if every number, record id and word passes `decision.rationale_text`; otherwise the code builds
-  the sentence. Any model failure means the `model_unavailable` notice and the run goes on with the rules.
+- Model text is shown only if every number, record id and word passes `decision.rationale_text` (and no value, score or
+  record id is written later-to-earlier); otherwise the code builds the sentence. Any model failure means the `model_unavailable` notice and the run goes on with the rules.
 - **Model provider.** Always an open-weights model; `MODEL_PROVIDER` picks where it runs: `ollama_cloud` (code default,
   `gpt-oss:120b`), `groq` (GroqCloud free plan, `openai/gpt-oss-120b`, the provider of the recorded live run and the
   Groq eval runs), `openrouter` (Qwen3-30B-A3B-Instruct-2507 pinned to one provider, no fallback) or a local `ollama`.
