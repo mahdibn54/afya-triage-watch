@@ -18,6 +18,40 @@ harness lint passed. JUnit and screenshots are under ignored `.playwright-mcp/gr
 updated; these local results do not claim the remote CI run has passed. Original failure counts below are retained
 as historical audit evidence and are superseded for the harness by this follow-up.
 
+## AAIF alignment and MCP protocol-version follow-up
+
+Checked against source revision `b7aa6d7` and the official sources below. AAIF hosts open protocols and projects;
+its project portfolio is not evidence that an application must use every hosted project. The challenge explicitly
+allows LangGraph. No separate AAIF entrant rulebook or requirement to use Goose/A2A was found in the inspected
+AAIF/competition pages. Organizer material describes AAIF involvement; this review does not establish funding terms.
+Sources: [AAIF about](https://aaif.io/about), [AAIF projects](https://aaif.io/projects),
+[healthcare build requirements](https://agentic-africa-challenge.lovable.app/tracks/healthcare).
+
+There is a concrete distinction between using real MCP and claiming full conformance to the current specification:
+
+| Check | Observed result |
+|---|---|
+| Installed official Python SDK | `mcp` 1.30.0; `LATEST_PROTOCOL_VERSION` is `2025-11-25`. The project allows `mcp>=1.9,<2`; a range is not a pin to this installed version. |
+| Older-protocol interoperability | In-process ASGI check: `initialize` negotiates `2025-11-25`, `tools/list` returns the three expected read tools, HTTP 200. Earlier real-container checks also demonstrated working own/borrowed calls. |
+| Invalid Origin | In-process request with valid bearer token, permitted Host and invalid Origin returns HTTP 403. This checks the Origin boundary separately from the Host check. |
+| Current protocol | The official versioning page identifies `2026-07-28` as current. Its discovery specification requires `server/discover`. Our request with that protocol header returns HTTP 400, explicitly listing supported versions through `2025-11-25`. The discovery method on the supported transport version produces JSON-RPC error `-32602`, not a discovery result. |
+| Authorization interoperability | The code uses a shared static service bearer token. It does not provide standard OAuth authorization-server/protected-resource discovery, user-delegated scopes or that OAuth flow. The MCP authorization feature is optional; this custom private-service policy must not be represented as implementation of MCP's OAuth authorization profile. |
+| Official conformance suite | Not run. Application/security tests and targeted ASGI probes are not proof that every normative protocol requirement passes. Neither AAIF certification nor full current-version conformance has been established. |
+
+Protocol sources: [current version and negotiation](https://modelcontextprotocol.io/specification/versioning),
+[current discovery](https://modelcontextprotocol.io/specification/2026-07-28/server/discover),
+[legacy transport security](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports),
+[authorization](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization),
+[official conformance tooling](https://github.com/modelcontextprotocol/conformance/blob/main/README.md).
+Code: [server.py](../mcp/afya_mcp/server.py), [mcp_client.py](../api/afya_api/mcp_client.py),
+[MCP package requirements](../mcp/pyproject.toml).
+
+Conclusion: the implemented agent/MCP architecture fits the published competition stack and AAIF's open ecosystem.
+It is a functioning older-protocol MCP implementation, not verified full current-specification conformance.
+The inspected competition brief does not mandate the newest protocol revision or AAIF certification, so this gap
+alone does not establish competition ineligibility. Any protocol migration or generic-client OAuth interoperability
+work needs an explicit scope decision within the existing backlog; no runtime code was changed by this review.
+
 **Conclusion: most core mechanisms are implemented, but complete technical compliance is not yet established.**
 The outstanding issues are current model-on execution evidence and audit completeness under logging failure.
 The harness regressions found in the original audit are resolved as documented above.
