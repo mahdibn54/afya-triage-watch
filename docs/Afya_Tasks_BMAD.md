@@ -12,7 +12,7 @@
 
 **Status:** `[ ]` to do · `[~]` in progress / drafted · `[x]` done · `[!]` blocked (say why in Notes)
 
-**Progress:** 64 done · 7 drafted · 20 to do · 0 blocked · 91 stories
+**Progress:** 66 done · 7 drafted · 18 to do · 0 blocked · 91 stories
 
 ---
 
