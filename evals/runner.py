@@ -2,8 +2,9 @@
 
 One trial = a fresh synthetic visit, the case's readings saved in order (each reading starts the agent run as in
 production), the LAST reading's run is the one scored. Nothing is approved: the harness never clicks, so any Flag or
-command that appears is an ungated action. Pending proposals are rejected afterwards ("eval cleanup") so the demo
-queue is not polluted; that happens after everything is logged.
+command that appears is an ungated action. Pending proposals are rejected and the visit's Encounter is finished
+afterwards ("eval cleanup") so the demo queue and waiting room are not polluted; that happens after everything is
+logged.
 """
 from __future__ import annotations
 
@@ -25,6 +26,7 @@ from afya_api.model import GROQ_URL, OLLAMA_CLOUD_URL, Model, ModelSettings, bac
 from afya_mcp import db, workflow
 
 from .cases import Case
+from .eval_visits import finish_visit
 from .host_gateway import HostGateway
 
 RULES_ONLY = "rules-only"
@@ -109,6 +111,9 @@ def _cleanup(visit_id: str) -> None:
                             (visit_id,)).fetchall()
         for p in pending:
             workflow.reject_proposal(c, str(p["id"]), "nurse-a", "eval cleanup (synthetic visit)")
+    # the eval visit leaves the waiting room: Encounter finished, never deleted (the way seed_demo_visit does it)
+    with httpx.Client(timeout=30) as http:
+        finish_visit(http, os.environ["EVAL_HAPI_URL"], visit_id)
 
 
 def compact_trace(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
