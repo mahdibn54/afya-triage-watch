@@ -421,9 +421,11 @@ Notices appear in `/queue` (per patient, or top level) and in proposals. The UI 
 
 ## 7. Audit, timeline, trace, gates
 
-### GET /audit?visit_id=&run_id=&kind=&limit=
+### GET /audit?visit_id=&run_id=&kind=&limit=&include_screen_reads=
 Newest first, `limit` default 100, at most 500 (`422` outside 1 to 500). Filters are exact matches and can be
-combined. Rows are the `afya.audit_log` columns. `payload` holds IDs, codes and numbers only.
+combined. Rows of the read-only screen tools (payload `mount` = `ui`: `visit_timeline`, `demo_visit`, written on every
+screen refresh) are left out by default, in SQL, so `limit` counts shown rows; `include_screen_reads=true` adds them,
+and so does asking for their `kind`. They are still written and never deleted. Rows are the `afya.audit_log` columns. `payload` holds IDs, codes and numbers only.
 
 <!-- example: GET /audit -->
 ```json
