@@ -1,10 +1,10 @@
 #!/bin/sh
 # E13-3 one-shot (auth-init): prepares the local authorization server (Authelia) before it starts.
-# Writes only to two volumes: authdata (private: TLS and signing keys, internal secrets, the hashed client secret,
-# Authelia's SQLite store; readable by the auth service only) and authca (the public CA certificate the clients trust).
+# Writes only to three volumes: authdata (private: TLS and signing keys, internal secrets, the hashed client secret,
+# Authelia's SQLite store; readable by the auth service only), authca (public CA certificate), and mcptls (MCP key/cert).
 # Generated once and kept: the local CA, the token-signing key, the internal secrets. Renewed on every start: the
-# server certificate and the client-secret digest (so a new AFYA_MCP_CLIENT_SECRET in .env takes effect).
-# Prints no secret. Rotate everything with: docker compose down && docker volume rm afya_authdata afya_authca
+# service certificates and the client-secret digest (so a new AFYA_MCP_CLIENT_SECRET in .env takes effect).
+# Prints no secret. Rotate everything with: docker compose down && docker volume rm afya_authdata afya_authca afya_mcptls
 set -eu
 : "${AFYA_MCP_CLIENT_SECRET:?set AFYA_MCP_CLIENT_SECRET in .env}"
 D=/data; CA=/ca; HOST=auth.afya.internal; UIDGID=8000:8000

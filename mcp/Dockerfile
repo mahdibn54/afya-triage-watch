@@ -5,4 +5,4 @@ COPY afya_mcp ./afya_mcp
 RUN pip install --no-cache-dir .
 USER 1000
 EXPOSE 9000
-CMD ["uvicorn", "afya_mcp.server:app", "--host", "0.0.0.0", "--port", "9000"]
+CMD ["uvicorn", "afya_mcp.server:app", "--host", "0.0.0.0", "--port", "9000", "--ssl-keyfile", "/mcp-tls/server.private.pem", "--ssl-certfile", "/mcp-tls/server.public.crt"]

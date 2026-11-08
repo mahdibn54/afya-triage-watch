@@ -149,8 +149,6 @@ services:
   # Our MCP server: /read/mcp (model-facing tools) and /act/mcp (executor only).
   afya-mcp:
     build: ./mcp
-    command: ["uvicorn", "afya_mcp.server:app", "--host", "0.0.0.0", "--port", "9000",
-              "--ssl-keyfile", "/mcp-tls/server.private.pem", "--ssl-certfile", "/mcp-tls/server.public.crt"]
     depends_on:
       db-init: { condition: service_completed_successfully }
       auth: { condition: service_healthy }
