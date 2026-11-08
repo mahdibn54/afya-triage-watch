@@ -73,7 +73,7 @@ def seed():
 
 async def check():
     from afya_api.fhir_projection import FHIRPATHS, LOINC_ALLOW
-    from afya_api.investigate import read_only_tools, trim_observation
+    from afya_api.investigate import labelled, read_only_tools, trim_observation
     from afya_api.mcp_client import McpGateway, ToolRefused
     fixture = json.loads(os.environ["WSO2_CHECK_FIXTURE"])
     gw = McpGateway()
@@ -92,9 +92,11 @@ async def check():
                                               fixture["visit_id"], fixture["own"][-1].split("/")[-1], set())}
     search = json.loads(await tools["fhir_search"].ainvoke({"count": 2}))
     assert {r["id"] for r in search["readings"]} == set(fixture["own"])
+    assert [r["id"] for r in search["readings"]] == fixture["own"], "readings must be oldest first"
+    assert [r["is_current"] for r in search["readings"]] == [False, True]
     for row in search["readings"]:
-        assert set(row) == {"id", "time", "values"} and row["time"]
-        assert all(set(v) == {"code", "value", "unit"} for v in row["values"])
+        assert set(row) == {"id", "time", "values", "is_current"} and row["time"]
+        assert all(set(v) == {"input", "code", "value", "unit"} and v["input"] for v in row["values"])
         actual = {LOINC_ALLOW[v["code"]]: v["value"] for v in row["values"]}
         assert actual == fixture["expected"][row["id"]], "code/value association changed"
         assert all(v["unit"] in {"/min", "mm[Hg]", "Cel", "%"} for v in row["values"])
@@ -102,9 +104,10 @@ async def check():
                                                   "response_filter_fhirpaths": list(FHIRPATHS)})
         assert MARKER not in json.dumps(raw_read)
         restored = await gw.wso2("read", {"type": "Observation", "id": row["id"].split("/")[-1]})
-        assert trim_observation(restored) == row
+        reading = {k: v for k, v in row.items() if k != "is_current"}
+        assert labelled(trim_observation(restored)) == reading
         read = json.loads(await tools["fhir_read"].ainvoke({"observation_id": row["id"]}))
-        assert read == {"reading": row}
+        assert read == {"reading": reading}
     refused = json.loads(await tools["fhir_read"].ainvoke({"observation_id": fixture["foreign"]}))
     assert "error" in refused, "another visit's reading was returned"
     empty = await gw.wso2("search", {"type": "Observation", "searchParam": {
