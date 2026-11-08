@@ -701,8 +701,11 @@ class CircuitBreaker:
         self.trial = True       # this caller is the single trial
         return True
 
-    def success(self) -> None:
+    def success(self) -> bool:
+        """Reset the count and close the breaker; True when it had been open (or half-open) until now."""
+        was_open = self.open_until is not None
         self.failures, self.open_until, self.trial = 0, None, False
+        return was_open
 
     def release(self) -> None:
         """The trial ended without telling anything about the model (cancelled, run budget): next caller tries."""
@@ -739,6 +742,7 @@ class Model:
         self.backend, self.s, self.clock, self.enabled = backend, settings or ModelSettings(), clock, enabled
         self.breaker = breaker or CircuitBreaker(self.s.breaker_failures, self.s.breaker_cooldown_s, clock)
         self.on_open: Callable[[str], Awaitable[None]] | None = None
+        self.on_close: Callable[[], Awaitable[None]] | None = None   # the breaker closed again, or the warm-up worked
         self.warming = False          # a warm-up call is loading the model: timeouts meanwhile are not counted
         self.warmed: bool | None = None
         self.last: str | None = None  # "ok" or the reason of the last failure (readiness in /healthz)
@@ -782,6 +786,13 @@ class Model:
                 log.exception("breaker notice failed")
         return ModelUnavailable(reason)
 
+    async def _closed(self) -> None:
+        if self.on_close is not None:
+            try:
+                await self.on_close()
+            except Exception:  # noqa: BLE001 - a notice must never break the run
+                log.exception("breaker recovery notice failed")
+
     async def call(self, messages: list[dict[str, Any]], purpose: str, *, deadline: float | None = None,
                    tools: list[dict[str, Any]] | None = None, format: dict[str, Any] | None = None,
                    seed: int | None = None) -> Reply:
@@ -824,8 +835,10 @@ class Model:
             raise await self._fail("invalid_response") from None
         finally:
             CALL_DEADLINE.reset(token)
-        self.breaker.success()
+        recovered = self.breaker.success()
         self.last = "ok"
+        if recovered:
+            await self._closed()
         log.info("model call %s: model=%s provider=%s tokens=%s/%s cost_usd=%s latency_ms=%s", purpose,
                  reply.model or self.s.model, reply.provider or "-", reply.tokens_in, reply.tokens_out,
                  reply.cost_usd, reply.latency_ms)
@@ -888,6 +901,7 @@ class Model:
             self.warming = False
         self.warmed = True
         log.info("model %s warmed up", self.s.model)
+        await self._closed()      # a notice left from before a restart is stale now
         return True
 
 

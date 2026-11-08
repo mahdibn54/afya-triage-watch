@@ -142,6 +142,11 @@ def _open_notice(kind: str) -> bool:
                             (kind,)).fetchone() is not None
 
 
+def _close_notices(kind: str) -> int:
+    with db.connect() as conn:
+        return workflow.close_notices(conn, kind, "system")
+
+
 def _latest_threads(limit: int) -> list[str]:
     """Run ids (= checkpoint thread ids) of visits' latest readings that have checkpoints, newest first."""
     with db.connect() as conn:
@@ -364,6 +369,8 @@ class Agent:
         self._running: set[str] = set()
         if model.on_open is None:
             model.on_open = self._model_down
+        if model.on_close is None:
+            model.on_close = self._model_back
 
     async def _model_down(self, reason: str) -> None:
         """E5-10: the breaker just opened (2 failures in a row): one fixed-text notice for the nurses, not tied to a
@@ -375,6 +382,15 @@ class Agent:
             await self.gateway.act("notify_staff", {"kind": "model_unavailable", "actor": "agent"})
         except Exception as e:  # noqa: BLE001
             log.warning("model_unavailable notice failed (%s)", type(e).__name__)
+
+    async def _model_back(self) -> None:
+        """The model answers again (breaker closed after being open, or the warm-up worked): the open
+        `model_unavailable` notices are acknowledged by the system actor (audited like a nurse's dismissal). No open
+        notice: nothing happens."""
+        try:
+            await asyncio.to_thread(_close_notices, "model_unavailable")
+        except Exception as e:  # noqa: BLE001
+            log.warning("closing model_unavailable notices failed (%s)", type(e).__name__)
 
     async def _run_failed(self, run_id: str, visit_id: str) -> None:
         """S1: a run that stopped on an error tells the nurses (fixed text, tied to the visit)."""

@@ -97,6 +97,26 @@ def test_timeout_then_breaker_opens_after_two_failures_and_closes_after_five_min
     assert m.breaker.failures == 0 and m.breaker.open_until is None
 
 
+def test_on_close_runs_only_when_the_breaker_was_open_and_closes():
+    clock = Clock()
+    backend = Scripted(httpx.ConnectError("refused"), httpx.ConnectError("refused"), Reply("ok"), Reply("ok"))
+    closed = []
+    m = Model(backend, ModelSettings(call_timeout_s=0.05), clock=clock)
+
+    async def on_close():
+        closed.append(1)
+    m.on_close = on_close
+    for _ in range(2):
+        with pytest.raises(ModelUnavailable):
+            run(m.call([], "map_signs"))
+    assert not closed
+    clock.t += 301
+    run(m.call([], "map_signs"))                           # half-open trial succeeds: recovery
+    assert closed == [1]
+    run(m.call([], "map_signs"))                           # already closed: nothing more
+    assert closed == [1]
+
+
 def test_one_retry_on_invalid_json_with_the_error_included():
     backend = Scripted(Reply("not json"), Reply('{"verdict": "none", "signs": []}'))
     m = Model(backend)

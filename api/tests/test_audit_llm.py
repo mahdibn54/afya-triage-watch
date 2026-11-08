@@ -145,6 +145,29 @@ def test_model_unavailable_notice_is_not_repeated_while_one_is_open(gateway, age
     assert n == 1
 
 
+def test_model_recovery_acknowledges_the_open_notices_with_the_system_actor(gateway, agent, conn):
+    conn.execute("UPDATE notifications SET acknowledged_at = now() WHERE kind = 'model_unavailable' "
+                 "AND acknowledged_at IS NULL")
+    asyncio.run(agent._model_down("timeout"))
+    open_sql = "SELECT count(*) AS n FROM notifications WHERE kind = 'model_unavailable' AND acknowledged_at IS NULL"
+    assert conn.execute(open_sql).fetchone()["n"] == 1
+    before = conn.execute("SELECT count(*) AS n FROM audit_log WHERE kind = 'notification_acknowledged' "
+                          "AND actor = 'system'").fetchone()["n"]
+    asyncio.run(agent._model_back())
+    assert conn.execute(open_sql).fetchone()["n"] == 0
+    rows = conn.execute("SELECT auth FROM audit_log WHERE kind = 'notification_acknowledged' AND actor = 'system'"
+                        ).fetchall()
+    assert len(rows) == before + 1 and rows[-1]["auth"] == "service"
+
+
+def test_model_recovery_without_an_open_notice_does_nothing(gateway, agent, conn):
+    conn.execute("UPDATE notifications SET acknowledged_at = now() WHERE kind = 'model_unavailable' "
+                 "AND acknowledged_at IS NULL")
+    n = conn.execute("SELECT count(*) AS n FROM audit_log").fetchone()["n"]
+    asyncio.run(agent._model_back())
+    assert conn.execute("SELECT count(*) AS n FROM audit_log").fetchone()["n"] == n
+
+
 # ---------- S3: single half-open trial, readiness in /healthz ----------
 
 def test_half_open_lets_exactly_one_trial_through():

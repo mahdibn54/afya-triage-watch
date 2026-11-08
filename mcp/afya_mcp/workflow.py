@@ -286,6 +286,18 @@ def acknowledge_notification(conn: psycopg.Connection[DictRow], notification_id:
     return row is not None
 
 
+def close_notices(conn: psycopg.Connection[DictRow], kind: str, actor: str) -> int:
+    """Acknowledge every open notification of this kind (the cause is gone, e.g. the model answers again), one audit
+    row each, in one transaction. Same effect and audit as a person dismissing them. Returns how many were closed."""
+    with conn.transaction():
+        rows = conn.execute("UPDATE notifications SET acknowledged_at = now() WHERE kind = %s "
+                            "AND acknowledged_at IS NULL RETURNING id, visit_id, kind", (kind,)).fetchall()
+        for row in rows:
+            _audit(conn, "notification_acknowledged", actor, row["visit_id"],
+                   {"notification_id": str(row["id"]), "kind": row["kind"]})
+    return len(rows)
+
+
 def close_reminders(conn: psycopg.Connection[DictRow], proposal_ids: Iterable[Any]) -> int:
     """The clinician reminders of these proposals are acknowledged (the proposal was decided or superseded): the patient
     stops showing "Clinician reminded". Runs inside the caller's transaction."""
