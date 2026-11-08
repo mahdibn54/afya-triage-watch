@@ -1,6 +1,8 @@
+> Current requirements review and TLS/error fixes: [applicability.md](applicability.md). Historical known-error baselines below are superseded; the active profile has no protocol-failure exception.
+
 # MCP application checks and official diagnostic results
 
-The current CI job is **MCP application regression checks**. A green job means the explicitly selected application assertions and the narrow known-error baseline have not regressed. It does **not** mean full MCP conformance, an SDK tier, AAIF certification or clinical validation.
+The current CI job is **MCP application regression checks**. A green job means the selected application assertions and strict supplemental probes passed, with no active protocol-failure waiver. It does **not** mean full MCP conformance, an SDK tier, AAIF certification or clinical validation.
 
 ## Why the old setup was misleading
 
@@ -14,31 +16,33 @@ The old schema-preservation failure was a **driver bug**, not demonstrated SDK d
 
 1. Run the full pinned official server suite against each real Afya mount and the full client suite against our SDK transport/provider driver, **without `--expected-failures`**. Keep all raw FAIL/WARN/SKIPPED outcomes.
 2. Interpret those results using [application-profile.yaml](application-profile.yaml), our explicit application scope. `applicable` checks are gated. `fixture_dependent`, `not_offered` and `not_exercised` are reported as **NOT_ASSESSED**, never as passes or official exemptions.
-3. Gate every wire-schema failure, including those inside fixture-dependent scenarios. Gate new failures inside selected scenarios, including the tested parts of `server-stateless`; only its two named diagnostic-tool checks are excluded.
+3. Gate every wire-schema failure, including those inside fixture-dependent scenarios. Gate new failures inside selected scenarios, including the tested parts of `server-stateless`; only its four named diagnostic-tool checks are excluded.
 4. Probe the actual tool catalogues and missing-required-argument rejection on all mounts. These are supplemental Afya checks, not official scenarios; no patient data, database or FHIR service is needed.
-5. Probe unknown-prompt error handling. SDK 2.3.0 returns `-32603` instead of `-32602` on all three mounts. This is **one unresolved issue reproduced three times**, visibly `KNOWN_FAILURE`, not a pass. Only this exact error is baselined. Another failure or a newly passing result makes CI red until reviewed.
+5. Probe unknown-prompt and unknown-tool handling on every mount. Afya overrides the SDK public methods to return `-32602` for both. The former known-error exception has been removed; all 12 supplemental probes must pass.
 6. Write `application-report.json`, `.md` and `.html`; append the Markdown report to the GitHub Actions summary and upload all raw reports plus the offline-server log.
 
 Missing/duplicate scenario output, unknown scenarios, missing excluded checks, incomplete probes, skipped-only applicable scenarios, invalid check statuses and unexpected failures make the application gate fail. Repeated check IDs inside one scenario are valid upstream behavior: every occurrence is assessed. Do not reuse a result directory between runs.
 
 ## Verified correction
 
-Source before this correction: `ba48e3d`; protocol `2026-07-28`; official tool `@modelcontextprotocol/conformance@0.2.0-alpha.12`, source `f44482ba17df816d3176962a11cdf36aec9bda00`. All official raw commands exit **1**, correctly indicating that the full requirement set did not pass.
+Source before the original driver correction: `ba48e3d`; source before the required-rule follow-up: `043dbdc`; protocol `2026-07-28`; official tool `@modelcontextprotocol/conformance@0.2.0-alpha.12`, source `f44482ba17df816d3176962a11cdf36aec9bda00`. All official raw commands exit **1**, correctly indicating that the full requirement set did not pass.
 
 | Run | Raw PASS / WARN / FAIL | Selected application scenarios passed | Not assessed |
 |---|---|---|---|
-| Each server mount | 13 / 2 / 35 | 9 | 41 |
+| Each server mount | 11 / 2 / 37 | 9 | 41 |
 | Client SDK transport/provider driver | 9 / 0 / 30 | 9 | 30 |
 
-The server's nine include `server-stateless` with two fixture-dependent checks excluded; 23 actual assertions remain in that scenario. These counts are a scoped application result, not a percentage of full conformance. Skipped assertions are never promoted to passes. Supplemental probes: 6 passes and 3 known failures for the single unknown-prompt issue.
+The server's nine include `server-stateless` with four fixture-dependent checks excluded; 21 successful assertions remain in that scenario. These counts are a scoped application result, not a percentage of full conformance. Skipped assertions are never promoted to passes. Supplemental probes: 12 passes, no accepted failures. The [source-reviewed applicability matrix](applicability.md) explains the conditional requirements and the additional fixture-dependent checks.
 
 The client driver uses the same SDK `Client`, HTTP transport, `MemoryTokens` and client-credentials provider class as the API. It does **not** exercise the whole `McpGateway`: configured issuer pinning, per-mount policy, WSO2 credential separation and JSON-result parsing remain application-test/smoke responsibilities. Browser OAuth, other service-auth methods, interactive inputs and unexercised resource/issuer tests remain disclosed coverage gaps, not proof of compliance. The official protocol server run uses an offline issuer and injected tokens; real OAuth protection remains covered by `mcp/tests/test_auth.py`, `api/tests/test_mcp_client.py` and `scripts/smoke.sh`.
 
-The SDK still advertises empty prompt/resource capabilities. This remains a documented limitation rather than evidence that Afya serves prompt/resource fixtures. No production MCP, authentication, agent or clinical code was changed here. A future full SDK conformance exercise needs the upstream-required fixture adapter, kept outside the clinical tool catalogue.
+Empty prompt/resource catalogues are explicitly permitted; the earlier description of them as a capability defect was incorrect. Afya serves the list and unknown-identifier paths correctly without adding reference fixtures. The protected live stack now uses certificate-verified HTTPS; the offline diagnostic wrapper remains loopback HTTP with throwaway tokens and is not production TLS evidence. A future full SDK test exercise would require the upstream fixture adapter, separate from clinical tools.
 
 ## Verification of this setup
 
-The 16 driver/report regression tests passed, including missing data, scope drift, global wire errors, a failure in the tested part of a partially excluded scenario, stale/changed SDK baselines, generic tool failures masquerading as validation failures and duplicate scenario directories. An end-to-end negative control changed a real tools-list assertion to FAILURE and made the report command exit 1. Related offline checks passed: 46 MCP authentication/discovery tests and 7 API MCP-client tests. The generated HTML summary and expanded decisions were checked in desktop and iPhone emulation; screenshots were inspected and page/table overflow checked. Ignored local evidence: `.playwright-mcp/conformance-corrected/`, `conformance-report-*.png` and `conformance-negative-control/`.
+The original 16 driver/report regression tests passed, including missing data, scope drift, global wire errors, a failure in the tested part of a partially excluded scenario, stale/changed SDK baselines, generic tool failures masquerading as validation failures and duplicate scenario directories. An end-to-end negative control changed a real tools-list assertion to FAILURE and made the report command exit 1. Related offline checks passed: 46 MCP authentication/discovery tests and 7 API MCP-client tests. The generated HTML summary and expanded decisions were checked in desktop and iPhone emulation; screenshots were inspected and page/table overflow checked. Ignored local evidence: `.playwright-mcp/conformance-corrected/`, `conformance-report-*.png` and `conformance-negative-control/`.
+
+Required-rule follow-up: all 230 API and 329 MCP tests passed against the disposable PostgreSQL test database, with no database skips; 71 eval tests and 18 conformance harness tests passed. Unknown prompt/tool error regressions were reproduced before the public-hook fix. The metadata tests cover the configured service flow, including OpenID fallback and issuer/resource mismatch refusal. Real TLS/workflow evidence is recorded in the applicability review and competition audit.
 
 ## Reproduce
 
@@ -63,4 +67,4 @@ python scripts/conformance_probe.py --output conformance-out/probes.json
 python scripts/conformance_scope.py --root conformance-out --commit "$(git rev-parse HEAD)"
 ```
 
-The last command is the **application regression gate**; it currently exits 0 with a visible warning about the known SDK error. The [CI job](ci-job.yaml) also checks tool execution failures and retains evidence when a step fails. The old [full-suite report](final-2026-07-28.md) and [historical failure waiver](historical-expected-failures.yaml) are historical only and no longer used by CI.
+The last command is the **application regression gate**; it exits 0 only when the selected assertions and all supplemental probes pass; no known-error waiver is active. The [CI job](ci-job.yaml) also checks tool execution failures and retains evidence when a step fails. The old [full-suite report](final-2026-07-28.md) and [historical failure waiver](historical-expected-failures.yaml) are historical only and no longer used by CI.

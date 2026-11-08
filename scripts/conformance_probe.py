@@ -50,6 +50,11 @@ def run(base: str) -> list[dict]:
                 rejected = arguments_rejected(answer, tool["inputSchema"]["required"])
                 rows.append({"mount": mount, "name": "invalid-tool-arguments", "status": "PASS" if rejected else "FAIL",
                              "detail": f"Missing required inputs to {tool['name']} rejected; no clinical data supplied."})
+                answer = rpc("tools/call", {"name": "afya_nonexistent_tool", "arguments": {}})
+                code = answer.get("error", {}).get("code")
+                rows.append({"mount": mount, "name": "unknown-tool-error", "actual_code": code,
+                             "status": "PASS" if code == -32602 else "FAIL",
+                             "detail": f"Expected -32602 Invalid params, got {code}."})
                 answer = rpc("prompts/get", {"name": "afya_nonexistent_prompt"})
                 code = answer.get("error", {}).get("code")
                 rows.append({"mount": mount, "name": "unknown-prompt-error", "actual_code": code,

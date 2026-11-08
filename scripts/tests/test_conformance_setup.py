@@ -88,12 +88,12 @@ def probes():
     return [{"mount": mount, "name": name, "status": "FAIL" if name == "unknown-prompt-error" else "PASS",
              **({"actual_code": -32603} if name == "unknown-prompt-error" else {})}
             for mount in ("read", "act", "ui")
-            for name in ("catalogue", "invalid-tool-arguments", "unknown-prompt-error")]
+            for name in ("catalogue", "invalid-tool-arguments", "unknown-prompt-error", "unknown-tool-error")]
 
 
 def test_known_sdk_failure_is_visible_and_not_counted_as_a_pass():
     result = assess_probes(probes(), KNOWN)
-    assert result["counts"] == {"PASS": 6, "KNOWN_FAILURE": 3}
+    assert result["counts"] == {"PASS": 9, "KNOWN_FAILURE": 3}
     assert result["errors"] == []
 
 
@@ -130,3 +130,47 @@ def test_generic_tool_failure_is_not_proof_of_argument_validation():
     assert arguments_rejected({"result": {"isError": True, "content": [
         {"text": "1 validation error: visit_id Field required [type=missing]"}]}}, ["visit_id"])
     assert arguments_rejected({"error": {"code": -32602}}, ["visit_id"])
+
+
+def test_current_profile_does_not_waive_protocol_failures():
+    from pathlib import Path
+
+    import yaml
+
+    profile = yaml.safe_load(Path("docs/conformance/application-profile.yaml").read_text())
+    assert profile["known_probe_failures"] == {}
+    data = probes()
+    for probe in data:
+        if probe["name"] == "unknown-prompt-error":
+            probe.update(status="PASS", actual_code=-32602)
+    assert assess_probes(data, profile["known_probe_failures"])["counts"] == {"PASS": 12}
+    data[2].update(status="FAIL", actual_code=-32603)
+    assert assess_probes(data, profile["known_probe_failures"])["errors"]
+
+
+def test_report_command_writes_complete_artifacts_without_failure_baselines(tmp_path, monkeypatch):
+    import json
+    import sys
+
+    import yaml
+
+    from scripts.conformance_scope import main
+
+    root = tmp_path / "results"
+    for run in ("server-read", "server-act", "server-ui", "client"):
+        output = root / run / "catalogue-2026-11-08T00-00-00Z"
+        output.mkdir(parents=True)
+        (output / "checks.json").write_text(json.dumps([check()]))
+    data = probes()
+    for probe in data:
+        if probe["name"] == "unknown-prompt-error":
+            probe.update(status="PASS", actual_code=-32602)
+    (root / "probes.json").write_text(json.dumps(data))
+    profile = tmp_path / "profile.yaml"
+    rules = {"catalogue": {"scope": "applicable", "reason": "real"}}
+    profile.write_text(yaml.safe_dump({"tool": "test", "protocol": "2026-07-28", "server": rules,
+                                      "client": rules, "known_probe_failures": {}}))
+    monkeypatch.setattr(sys, "argv", ["scope", "--root", str(root), "--profile", str(profile)])
+    assert main() == 0
+    assert 'No known protocol failures are accepted' in (root / "application-report.html").read_text()
+    assert 'APPLICATION CHECKS PASSED' in (root / "application-report.md").read_text()

@@ -1,7 +1,7 @@
 """Host-side gateway: the api's McpGateway, reaching the compose containers from the host.
 
 The containers are not published on host ports and the host cannot resolve their service names. E13-3: the URLs stay
-the service names the containers use (http://afya-mcp:9000/<mount>/mcp, https://auth.afya.internal:9091), because
+the service names the containers use (https://afya-mcp:9000/<mount>/mcp, https://auth.afya.internal:9091), because
 OAuth needs them exactly: afya-mcp's protected-resource metadata names its resource with that URL, the authorization
 server's issuer and TLS certificate use its name, and afya-mcp's Host check expects it. Only the TCP connection is
 redirected: EVAL_RESOLVE maps each name to its container address (`evals/stack_env.sh` prints it); the Host header,

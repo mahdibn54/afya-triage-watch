@@ -81,6 +81,8 @@ jobs:
         run: ruff check seed evals/tests/test_seed.py
       - name: pytest (WSO2 projection adapter)
         run: cd api && pytest tests/test_fhir_projection.py -q
+      - name: pytest (MCP service authentication and client transport)
+        run: cd api && pytest tests/test_mcp_client.py -q
       - name: mypy (mcp, reported only until the existing errors are fixed)
         continue-on-error: true
         run: cd mcp && mypy afya_mcp

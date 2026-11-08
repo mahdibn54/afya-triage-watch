@@ -22,6 +22,7 @@ from functools import lru_cache
 from typing import Any
 
 import anyio
+from mcp import MCPError
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
@@ -40,14 +41,15 @@ def _csv(name: str, default: str) -> list[str]:
 
 def _security() -> TransportSecuritySettings:
     """Host and Origin allow-lists (not authentication: any client can set both itself). Containers call us as
-    http://afya-mcp:9000, so list the accepted hosts explicitly. Origin is checked only when a request carries one;
+    https://afya-mcp:9000, so list the accepted hosts explicitly. Origin is checked only when a request carries one;
     browsers are not clients of this server, so only our own and loopback origins are listed (E13-4 baseline: with no
     allowed origin a valid loopback Origin was refused with 403)."""
     return TransportSecuritySettings(
         enable_dns_rebinding_protection=True,
         allowed_hosts=_csv("AFYA_MCP_ALLOWED_HOSTS", "afya-mcp:*,localhost:*,127.0.0.1:*"),
         allowed_origins=_csv("AFYA_MCP_ALLOWED_ORIGINS",
-                             "http://afya-mcp:*,http://localhost:*,http://127.0.0.1:*"))
+                             "https://afya-mcp:*,https://localhost:*,https://127.0.0.1:*,"
+                             "http://localhost:*,http://127.0.0.1:*"))
 
 
 def _version() -> str:
@@ -57,11 +59,29 @@ def _version() -> str:
         return "0+unknown"
 
 
+class AfyaMCPServer(MCPServer):
+    """Use public hooks to return protocol Invalid params for unknown tool/prompt names.
+
+    SDK 2.3.0 maps unknown prompts to Internal server error and unknown tools to execution errors.
+    Keep actual prompt rendering delegated to the SDK; do not rewrite transport responses or SDK internals.
+    """
+
+    async def call_tool(self, name: str, arguments: dict[str, Any], context: Any = None) -> Any:
+        if not any(tool.name == name for tool in await self.list_tools()):
+            raise MCPError(-32602, "Unknown tool")
+        return await super().call_tool(name, arguments, context)
+
+    async def get_prompt(self, name: str, arguments: dict[str, Any] | None = None, context: Any = None) -> Any:
+        if not any(prompt.name == name for prompt in await self.list_prompts()):
+            raise MCPError(-32602, "Unknown prompt")
+        return await super().get_prompt(name, arguments, context)
+
+
 def _server(name: str, title: str, description: str, instructions: str) -> MCPServer:
     """E13-2: identity (name, title, version, description, instructions) is what `server/discover` reports as
     serverInfo. It names the server and its purpose only: never patient data, hosts, paths or credentials."""
-    return MCPServer(name, title=title, description=description, version=_version(), instructions=instructions,
-                     subscriptions=False)   # static tool list: no listChanged, no subscriptions/listen
+    return AfyaMCPServer(name, title=title, description=description, version=_version(), instructions=instructions,
+                         subscriptions=False)   # static tool list: no listChanged, no subscriptions/listen
 
 
 read = _server("afya-read", "Afya Triage Watch (read tools)",

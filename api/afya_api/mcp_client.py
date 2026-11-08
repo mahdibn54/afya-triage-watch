@@ -100,7 +100,7 @@ def http_client(auth: httpx2.Auth | None, transport: httpx2.AsyncBaseTransport |
 
 class McpGateway:
     def __init__(self) -> None:
-        act = os.environ.get("AFYA_MCP_ACT_URL", "http://afya-mcp:9000/act/mcp")
+        act = os.environ.get("AFYA_MCP_ACT_URL", "https://afya-mcp:9000/act/mcp")
         self.urls = {"act": act, "ui": os.environ.get("AFYA_MCP_UI_URL", act.replace("/act/mcp", "/ui/mcp")),
                      "read": os.environ.get("AFYA_MCP_READ_URL", act.replace("/act/mcp", "/read/mcp")),
                      "wso2": os.environ.get("WSO2_MCP_URL", "http://wso2-fhir-mcp:8000/mcp")}

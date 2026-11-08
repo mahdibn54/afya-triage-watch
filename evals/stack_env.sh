@@ -24,7 +24,7 @@ echo "export TEST_DATABASE_URL='postgresql://afya_app:${AFYA_APP_PASSWORD}@${PG}
 # is copied to .afya/auth-ca.crt (git-ignored) so the host trusts the authorization server's HTTPS.
 mkdir -p .afya
 docker cp "$(cid api):/auth-ca/ca.crt" .afya/auth-ca.crt >/dev/null
-echo "export AFYA_MCP_ACT_URL='http://afya-mcp:9000/act/mcp'"
+echo "export AFYA_MCP_ACT_URL='https://afya-mcp:9000/act/mcp'"
 echo "export AFYA_AUTH_ISSUER='https://auth.afya.internal:9091'"
 echo "export AFYA_AUTH_CA_FILE='$(pwd)/.afya/auth-ca.crt'"
 echo "export AFYA_MCP_CLIENT_ID='afya-api'"

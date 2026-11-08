@@ -1,3 +1,5 @@
+> Latest required-rule review: [conformance/applicability.md](conformance/applicability.md). Unknown prompt/tool protocol errors are fixed and protected MCP now uses verified HTTPS. The active profile accepts no protocol failures. Empty prompt/resource lists are permitted by the specification; historical descriptions of those lists as a defect are superseded.
+
 > Current conformance setup: [docs/conformance/README.md](conformance/README.md). The historical broad failure waiver is retired. The client schema-preservation failure was a driver bug, corrected without an SDK update. Application regression results are separated from unchanged official full-suite failures; one genuine unknown-prompt SDK issue remains visible.
 
 # Agent and MCP competition audit

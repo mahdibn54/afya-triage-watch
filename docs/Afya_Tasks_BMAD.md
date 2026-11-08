@@ -652,3 +652,8 @@ E0-6/E13-4: installed the supplied conformance CI job, including readiness, both
 ### Conformance setup review decision (B)
 
 Dheker requested review/correction of the test setup. The job is named MCP application regression checks, with official raw diagnostics kept separately. The old E13-4 CI handoff and expected-failure waiver are superseded by `docs/conformance/ci-job.yaml`, `application-profile.yaml` and the current README. The official requirement set is unchanged; our scope is not an official exemption. Known failures remain visible. Fixing the client echo contract removed a false SDK defect attribution. Existing E13-4/E0-6 statuses and ownership otherwise stay unchanged.
+
+
+### E13 required-rule follow-up (B, explicitly authorized by Dheker)
+
+Dheker asked to fix the remaining protocol error and check which requirements apply. Implemented public SDK overrides for unknown prompt/tool names, with modern/legacy regression tests and valid-call delegation. Reviewed all raw scenario scope entries against the versioned specification; each has an assessment, reason and source links. Empty prompt/resource sets are permitted; unrelated multimedia, Tasks and browser-auth features are not added. Baseline service security still applies: explicit OpenID fallback and issuer/resource mismatch tests were added. Protected MCP transport is now verified HTTPS with a separate service-owned key volume, matching resource audiences, updated API/host-eval/test clients and live TLS refusal checks. The active application profile has no known-error waiver. See `docs/conformance/applicability.md` for evidence and remaining limits; existing E13-4/E0-6 ownership/status counts are unchanged.

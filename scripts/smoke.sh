@@ -23,12 +23,12 @@ mcpx() { dc exec -T -e SMOKE_TOKEN afya-mcp python - "$@"; }
 tok() { dc exec -T -e TOK_MOUNT="$1" -e TOK_SCOPE="${2:-}" -e TOK_RESOURCE="${3:-}" api python - <<'PY'
 import os, httpx2
 m = os.environ["TOK_MOUNT"]; iss = os.environ["AFYA_AUTH_ISSUER"]; ca = os.environ["AFYA_AUTH_CA_FILE"]
-with httpx2.Client(verify=ca, timeout=15) as c:
+with httpx2.Client(verify=ca, timeout=30) as c:
     meta = c.get(iss + "/.well-known/oauth-authorization-server").json()
     assert meta["issuer"] == iss
     r = c.post(meta["token_endpoint"], auth=(os.environ["AFYA_MCP_CLIENT_ID"], os.environ["AFYA_MCP_CLIENT_SECRET"]),
                data={"grant_type": "client_credentials", "scope": os.environ["TOK_SCOPE"] or "afya:" + m,
-                     "resource": os.environ["TOK_RESOURCE"] or f"http://afya-mcp:9000/{m}/mcp"})
+                     "resource": os.environ["TOK_RESOURCE"] or f"https://afya-mcp:9000/{m}/mcp"})
     r.raise_for_status()
     print(r.json()["access_token"])
 PY
@@ -123,31 +123,39 @@ echo "== authorization (E13-3: OAuth 2.1, MCP 2026-07-28)"
 check "authorization server metadata over HTTPS (RFC 8414): exact issuer, client_credentials, S256" dc exec -T api python -c "
 import httpx2,os,sys
 iss=os.environ['AFYA_AUTH_ISSUER']
-m=httpx2.get(iss+'/.well-known/oauth-authorization-server',verify=os.environ['AFYA_AUTH_CA_FILE']).json()
-sys.exit(0 if m['issuer']==iss and 'client_credentials' in m['grant_types_supported'] and 'S256' in m['code_challenge_methods_supported'] and m['jwks_uri'].startswith('https://') else 1)"
+m=httpx2.get(iss+'/.well-known/oauth-authorization-server',verify=os.environ['AFYA_AUTH_CA_FILE'],timeout=30).json()
+sys.exit(0 if m['issuer']==iss and 'client_credentials' in m['grant_types_supported'] and 'S256' in m['code_challenge_methods_supported'] and 'client_secret_basic' in m['token_endpoint_auth_methods_supported'] and m['jwks_uri'].startswith('https://') else 1)"
 refuse "the authorization server refuses an untrusted TLS client (no local CA)" dc exec -T api python -c "
 import httpx2,os
 httpx2.get(os.environ['AFYA_AUTH_ISSUER']+'/.well-known/oauth-authorization-server',verify=True)"
+refuse "protected MCP transport refuses an untrusted TLS client (no local CA)" dc exec -T api python -c "
+import httpx2
+httpx2.get('https://afya-mcp:9000/healthz',verify=True)"
+refuse "MCP listener does not accept plaintext HTTP (no token sent)" dc exec -T api python -c "
+import httpx2
+httpx2.get('http://afya-mcp:9000/healthz').raise_for_status()"
+check "api has no MCP TLS private key" dc exec -T api sh -c '[ ! -e /mcp-tls/server.private.pem ]'
+
 MCP_INIT="{'jsonrpc':'2.0','id':1,'method':'initialize','params':{'protocolVersion':'2025-03-26','capabilities':{},'clientInfo':{'name':'smoke','version':'1'}}}"
 for m in act ui read; do
   check "afya-mcp /$m protected-resource metadata (RFC 9728): resource, issuer, scope afya:$m" dc exec -T api python -c "
 import httpx,sys,os
-r=httpx.get('http://afya-mcp:9000/.well-known/oauth-protected-resource/$m/mcp').json()
-sys.exit(0 if r['resource']=='http://afya-mcp:9000/$m/mcp' and r['authorization_servers']==[os.environ['AFYA_AUTH_ISSUER']] and r['scopes_supported']==['afya:$m'] else 1)"
+r=httpx.get('https://afya-mcp:9000/.well-known/oauth-protected-resource/$m/mcp',verify=os.environ['AFYA_AUTH_CA_FILE'],timeout=30).json()
+sys.exit(0 if r['resource']=='https://afya-mcp:9000/$m/mcp' and r['authorization_servers']==[os.environ['AFYA_AUTH_ISSUER']] and r['scopes_supported']==['afya:$m'] else 1)"
   check "afya-mcp /$m without a token -> 401 with resource_metadata and scope" dc exec -T api python -c "
-import httpx,sys
-r=httpx.post('http://afya-mcp:9000/$m/mcp',headers={'Accept':'application/json, text/event-stream'},json=$MCP_INIT)
+import httpx,sys,os
+r=httpx.post('https://afya-mcp:9000/$m/mcp',headers={'Accept':'application/json, text/event-stream'},json=$MCP_INIT,verify=os.environ['AFYA_AUTH_CA_FILE'],timeout=30)
 w=r.headers.get('www-authenticate','')
-sys.exit(0 if r.status_code==401 and 'resource_metadata=\"http://afya-mcp:9000/.well-known/oauth-protected-resource/$m/mcp\"' in w and 'scope=\"afya:$m\"' in w else 1)"
+sys.exit(0 if r.status_code==401 and 'resource_metadata=\"https://afya-mcp:9000/.well-known/oauth-protected-resource/$m/mcp\"' in w and 'scope=\"afya:$m\"' in w else 1)"
   check "afya-mcp /$m with a forged token -> 401 invalid_token" dc exec -T api python -c "
-import httpx,sys
-r=httpx.post('http://afya-mcp:9000/$m/mcp',headers={'Accept':'application/json, text/event-stream','Authorization':'Bearer eyJhbGciOiJub25lIiwidHlwIjoiYXQrand0In0.e30.'},json=$MCP_INIT)
+import httpx,sys,os
+r=httpx.post('https://afya-mcp:9000/$m/mcp',headers={'Accept':'application/json, text/event-stream','Authorization':'Bearer eyJhbGciOiJub25lIiwidHlwIjoiYXQrand0In0.e30.'},json=$MCP_INIT,verify=os.environ['AFYA_AUTH_CA_FILE'],timeout=30)
 sys.exit(0 if r.status_code==401 and 'invalid_token' in r.headers.get('www-authenticate','') else 1)"
 done
 mcp_status() {  # mcp_status <mount> <expected status>: initialize on afya-mcp's mount with SMOKE_TOKEN
   dc exec -T -e SMOKE_TOKEN api python -c "
 import httpx,sys,os
-r=httpx.post('http://afya-mcp:9000/$1/mcp',headers={'Accept':'application/json, text/event-stream','Authorization':'Bearer '+os.environ['SMOKE_TOKEN']},json=$MCP_INIT)
+r=httpx.post('https://afya-mcp:9000/$1/mcp',headers={'Accept':'application/json, text/event-stream','Authorization':'Bearer '+os.environ['SMOKE_TOKEN']},json=$MCP_INIT,verify=os.environ['AFYA_AUTH_CA_FILE'],timeout=30)
 sys.exit(0 if r.status_code==$2 else 1)"
 }
 export SMOKE_TOKEN; SMOKE_TOKEN=$(tok act | tr -d '\r')
@@ -164,13 +172,23 @@ import httpx,sys,os
 v='2026-07-28'
 m='io.modelcontextprotocol/'
 body={'jsonrpc':'2.0','id':'d','method':'server/discover','params':{'_meta':{m+'protocolVersion':v,m+'clientInfo':{'name':'smoke','version':'1'},m+'clientCapabilities':{}}}}
-r=httpx.post('http://afya-mcp:9000/read/mcp',headers={'Accept':'application/json, text/event-stream','Authorization':'Bearer '+os.environ['SMOKE_TOKEN'],'MCP-Protocol-Version':v,'Mcp-Method':'server/discover'},json=body)
+r=httpx.post('https://afya-mcp:9000/read/mcp',headers={'Accept':'application/json, text/event-stream','Authorization':'Bearer '+os.environ['SMOKE_TOKEN'],'MCP-Protocol-Version':v,'Mcp-Method':'server/discover'},json=body,verify=os.environ['AFYA_AUTH_CA_FILE'],timeout=30)
 res=r.json()['result']
 sys.exit(0 if r.status_code==200 and res['supportedVersions']==[v] and res['_meta'][m+'serverInfo']['name']=='afya-read' else 1)"
-check "WSO2 MCP initialize at /mcp (no afya credential sent)" dc exec -T api python -c "
-import httpx,sys,os
-r=httpx.post(os.environ['WSO2_MCP_URL'],headers={'Accept':'application/json, text/event-stream'},json={'jsonrpc':'2.0','id':1,'method':'initialize','params':{'protocolVersion':'2025-03-26','capabilities':{},'clientInfo':{'name':'smoke','version':'1'}}})
-sys.exit(0 if r.status_code==200 and 'serverInfo' in r.text else 1)"
+check "WSO2 MCP legacy handshake and tool catalogue (no afya credential sent)" dc exec -T api python - <<'PY'
+import asyncio, os
+from mcp import Client
+from mcp.client.streamable_http import streamable_http_client
+from afya_api.mcp_client import http_client
+
+async def run():
+    async with http_client(None) as http, Client(
+        streamable_http_client(os.environ["WSO2_MCP_URL"], http_client=http), mode="legacy"
+    ) as client:
+        assert (await client.list_tools()).tools
+
+asyncio.run(run())
+PY
 
 echo "== HAPI persistence"
 mcpx <<'PY' >/dev/null 2>&1 && ok "seed marker Patient in HAPI" || bad "seed marker Patient in HAPI"
@@ -188,7 +206,7 @@ sys.exit(0 if b.get("total", len(b.get("entry", []))) >= 1 else 1)
 PY
 
 echo "== afya-mcp against real HAPI"
-check "afya-mcp /healthz" dc exec -T afya-mcp python -c "import urllib.request as u;assert u.urlopen('http://127.0.0.1:9000/healthz',timeout=5).read().strip()==b'ok'"
+check "afya-mcp /healthz" dc exec -T afya-mcp python -c "import urllib.request as u,ssl,os;assert u.urlopen('https://afya-mcp:9000/healthz',context=ssl.create_default_context(cafile=os.environ['AFYA_AUTH_CA_FILE']),timeout=5).read().strip()==b'ok'"
 check "api /healthz" dc exec -T api python -c "import urllib.request as u;assert u.urlopen('http://127.0.0.1:8080/healthz',timeout=5).status==200"
 SMOKE_TOKEN=$(tok read | tr -d '\r')
 check "compute_tews on seeded Patient+Encounter+Observation (audited as agent)" mcpx <<'PY'
@@ -213,8 +231,8 @@ obs = vitals_observation(pid, eid, {"resp_rate": 26, "heart_rate": 118, "systoli
 oid = post(obs)
 
 async def main():
-    async with httpx2.AsyncClient(headers={"Authorization": "Bearer " + os.environ["SMOKE_TOKEN"]}) as hc:
-        async with Client(streamable_http_client("http://127.0.0.1:9000/read/mcp", http_client=hc), cache=None) as s:
+    async with httpx2.AsyncClient(verify=os.environ["AFYA_AUTH_CA_FILE"], timeout=httpx2.Timeout(30, read=300), headers={"Authorization": "Bearer " + os.environ["SMOKE_TOKEN"]}) as hc:
+        async with Client(streamable_http_client("https://afya-mcp:9000/read/mcp", http_client=hc), cache=None) as s:
             res = await s.call_tool("compute_tews", {"observation_id": f"Observation/{oid}"})
             print(res.structured_content or res.content)
             return not res.is_error and "scored" in str(res.structured_content or res.content)
@@ -241,8 +259,8 @@ values = {"resp_rate": 16, "heart_rate": 80, "systolic_bp": 120, "temperature": 
           "consciousness": "alert", "trauma": "no"}
 
 async def main():
-    async with httpx2.AsyncClient(headers={"Authorization": "Bearer " + os.environ["SMOKE_TOKEN"]}) as hc:
-        async with Client(streamable_http_client("http://127.0.0.1:9000/act/mcp", http_client=hc), cache=None) as s:
+    async with httpx2.AsyncClient(verify=os.environ["AFYA_AUTH_CA_FILE"], timeout=httpx2.Timeout(30, read=300), headers={"Authorization": "Bearer " + os.environ["SMOKE_TOKEN"]}) as hc:
+        async with Client(streamable_http_client("https://afya-mcp:9000/act/mcp", http_client=hc), cache=None) as s:
             res = await s.call_tool("record_vitals", {"patient_id": pid, "visit_id": eid, "values": values,
                                                       "idempotency_key": "smoke-" + uuid.uuid4().hex,
                                                       "actor": "nurse-a"})
@@ -275,8 +293,8 @@ eid = post({"resourceType": "Encounter", "status": "arrived", "class": {"code": 
             "period": {"start": start}, "priority": {"coding": [{"system": "urn:afya:sats-colour", "code": "ORANGE"}]}})
 
 async def main():
-    async with httpx2.AsyncClient(headers={"Authorization": "Bearer " + os.environ["SMOKE_TOKEN"]}) as hc:
-        async with Client(streamable_http_client("http://127.0.0.1:9000/read/mcp", http_client=hc), cache=None) as s:
+    async with httpx2.AsyncClient(verify=os.environ["AFYA_AUTH_CA_FILE"], timeout=httpx2.Timeout(30, read=300), headers={"Authorization": "Bearer " + os.environ["SMOKE_TOKEN"]}) as hc:
+        async with Client(streamable_http_client("https://afya-mcp:9000/read/mcp", http_client=hc), cache=None) as s:
             res = await s.call_tool("get_queue_state", {})
             return json.loads(res.content[0].text)
 
@@ -313,8 +331,8 @@ async def act(session, tool, args):
     return res.is_error, (json.loads(res.content[0].text) if not res.is_error else res.content[0].text)
 
 async def main():
-    async with httpx2.AsyncClient(headers={"Authorization": "Bearer " + os.environ["SMOKE_TOKEN"]}) as hc:
-        async with Client(streamable_http_client("http://127.0.0.1:9000/act/mcp", http_client=hc), cache=None) as s:
+    async with httpx2.AsyncClient(verify=os.environ["AFYA_AUTH_CA_FILE"], timeout=httpx2.Timeout(30, read=300), headers={"Authorization": "Bearer " + os.environ["SMOKE_TOKEN"]}) as hc:
+        async with Client(streamable_http_client("https://afya-mcp:9000/act/mcp", http_client=hc), cache=None) as s:
             _, saved = await act(s, "record_vitals", {"patient_id": pid, "visit_id": eid, "values": values,
                                                       "idempotency_key": "smoke-" + uuid.uuid4().hex, "actor": "nurse-a"})
             oid = saved["observation_id"].split("/")[1]
@@ -354,8 +372,8 @@ from afya_mcp import db
 visit = "synthetic-smoke-" + uuid.uuid4().hex[:12]
 
 async def main():
-    async with httpx2.AsyncClient(headers={"Authorization": "Bearer " + os.environ["SMOKE_TOKEN"]}) as hc:
-        async with Client(streamable_http_client("http://127.0.0.1:9000/act/mcp", http_client=hc), cache=None) as s:
+    async with httpx2.AsyncClient(verify=os.environ["AFYA_AUTH_CA_FILE"], timeout=httpx2.Timeout(30, read=300), headers={"Authorization": "Bearer " + os.environ["SMOKE_TOKEN"]}) as hc:
+        async with Client(streamable_http_client("https://afya-mcp:9000/act/mcp", http_client=hc), cache=None) as s:
             res = await s.call_tool("notify_staff", {"kind": "vitals_due", "visit_id": visit, "actor": "agent"})
             return json.loads(res.content[0].text)
 
@@ -440,9 +458,9 @@ sys.exit(0 if len(flags) == 1 and colour == ["ORANGE"] else 1)
 PY
 
 echo "== host exposure"
-PUB=$(docker ps --filter "label=com.docker.compose.project=${COMPOSE_PROJECT_NAME:-afya}" --format '{{.Names}} {{.Ports}}' | grep -E '0\.0\.0\.0|\[::\]|127\.0\.0\.1' || true)
+PUB=$(docker ps --filter "label=com.docker.compose.project=${COMPOSE_PROJECT_NAME:-afya}" --format '{{.Label "com.docker.compose.service"}} {{.Ports}}' | grep -E '0\.0\.0\.0|\[::\]|127\.0\.0\.1' || true)
 # With the web profile up, the only allowed one is the web UI on the loopback (127.0.0.1:3000).
-OTHER=$(printf '%s\n' "$PUB" | grep -vE '^afya-web-1 127\.0\.0\.1:3000->3000/tcp$' | grep . || true)
+OTHER=$(printf '%s\n' "$PUB" | grep -vE '^web 127\.0\.0\.1:3000->3000/tcp$' | grep . || true)
 if [ -z "$PUB" ]; then ok "no service publishes a host port (web profile off)"
 elif [ -z "$OTHER" ]; then ok "only the web UI publishes a port, on 127.0.0.1:3000 (web profile on)"
 else bad "published ports: $OTHER"; fi

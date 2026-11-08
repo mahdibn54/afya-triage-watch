@@ -24,11 +24,11 @@ def test_transport_connects_to_the_address_but_keeps_the_name():
 
     async def go():
         async with httpx2.AsyncClient(transport=t) as c:
-            await c.get("http://afya-mcp:9000/read/mcp")
+            await c.get("https://afya-mcp:9000/read/mcp")
             await c.get("https://auth.afya.internal:9091/.well-known/oauth-authorization-server")
             await c.get("http://other:80/x")
     asyncio.run(go())
-    assert seen == [("http://10.0.0.5:9000/read/mcp", "afya-mcp:9000", "afya-mcp"),
+    assert seen == [("https://10.0.0.5:9000/read/mcp", "afya-mcp:9000", "afya-mcp"),
                     ("https://10.0.0.6:9091/.well-known/oauth-authorization-server", "auth.afya.internal:9091",
                      "auth.afya.internal"),
                     ("http://other/x", "other", None)]

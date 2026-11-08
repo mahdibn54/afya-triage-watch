@@ -121,6 +121,7 @@ services:
       - ./auth:/auth:ro
       - authdata:/data
       - authca:/ca
+      - mcptls:/mcp-tls
     network_mode: none
     restart: "no"
 
@@ -148,6 +149,8 @@ services:
   # Our MCP server: /read/mcp (model-facing tools) and /act/mcp (executor only).
   afya-mcp:
     build: ./mcp
+    command: ["uvicorn", "afya_mcp.server:app", "--host", "0.0.0.0", "--port", "9000",
+              "--ssl-keyfile", "/mcp-tls/server.private.pem", "--ssl-certfile", "/mcp-tls/server.public.crt"]
     depends_on:
       db-init: { condition: service_completed_successfully }
       auth: { condition: service_healthy }
@@ -159,11 +162,12 @@ services:
       # E13-3: protected resource. Every mount needs a JWT access token from this issuer, for that mount
       # (audience <base>/<mount>/mcp) with its scope. Holds no client secret; fetches only the issuer's public keys.
       AFYA_AUTH_ISSUER: https://auth.afya.internal:9091
-      AFYA_MCP_RESOURCE_BASE: http://afya-mcp:9000
+      AFYA_MCP_RESOURCE_BASE: https://afya-mcp:9000
       AFYA_AUTH_CA_FILE: /auth-ca/ca.crt
     volumes:
       - ./rules:/rules:ro
       - authca:/auth-ca:ro
+      - mcptls:/mcp-tls:ro
     networks: [fhir_rw, mcp, app, auth]
 
   # E2-6: explicit one-shot loader; never run automatically with the application.
@@ -196,9 +200,9 @@ services:
       auth: { condition: service_healthy }
     environment:
       DATABASE_URL: postgresql://afya_app:${AFYA_APP_PASSWORD}@postgres:5432/afya
-      AFYA_MCP_READ_URL: http://afya-mcp:9000/read/mcp
-      AFYA_MCP_ACT_URL: http://afya-mcp:9000/act/mcp
-      AFYA_MCP_UI_URL: http://afya-mcp:9000/ui/mcp   # read-only data for the screens (timeline, demo)
+      AFYA_MCP_READ_URL: https://afya-mcp:9000/read/mcp
+      AFYA_MCP_ACT_URL: https://afya-mcp:9000/act/mcp
+      AFYA_MCP_UI_URL: https://afya-mcp:9000/ui/mcp   # read-only data for the screens (timeline, demo)
       RULES_DIR: /rules                              # site.yaml: clinician reminder limits for /proposals
       # E13-3: OAuth 2.1 client credentials for afya-mcp (one token per mount, its scope only; never sent to WSO2)
       AFYA_AUTH_ISSUER: https://auth.afya.internal:9091
@@ -271,3 +275,4 @@ volumes:
   ollama:
   authdata:   # authorization server: private keys, secrets, SQLite (auth-init and auth only)
   authca:     # the local CA certificate (public), trusted by api and afya-mcp
+  mcptls:    # protected MCP TLS private key/certificate: auth-init writes, only afya-mcp reads

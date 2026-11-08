@@ -25,9 +25,9 @@ services:
       GROUP_A_PROJECT: ${COMPOSE_PROJECT_NAME}
       GROUP_A_COMMIT: ${GROUP_A_COMMIT:-uncommitted}
       DATABASE_URL: postgresql://afya_app:${AFYA_APP_PASSWORD}@postgres:5432/afya
-      AFYA_MCP_READ_URL: http://afya-mcp:9000/read/mcp
-      AFYA_MCP_ACT_URL: http://afya-mcp:9000/act/mcp
-      AFYA_MCP_UI_URL: http://afya-mcp:9000/ui/mcp
+      AFYA_MCP_READ_URL: https://afya-mcp:9000/read/mcp
+      AFYA_MCP_ACT_URL: https://afya-mcp:9000/act/mcp
+      AFYA_MCP_UI_URL: https://afya-mcp:9000/ui/mcp
       AFYA_AUTH_ISSUER: https://auth.afya.internal:9091
       AFYA_AUTH_CA_FILE: /auth-ca/ca.crt
       AFYA_MCP_CLIENT_ID: afya-api

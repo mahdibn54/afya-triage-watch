@@ -62,9 +62,9 @@ identity_providers:
         response_types: []
         scopes: ['afya:read', 'afya:act', 'afya:ui']
         audience:
-          - 'http://afya-mcp:9000/read/mcp'
-          - 'http://afya-mcp:9000/act/mcp'
-          - 'http://afya-mcp:9000/ui/mcp'
+          - 'https://afya-mcp:9000/read/mcp'
+          - 'https://afya-mcp:9000/act/mcp'
+          - 'https://afya-mcp:9000/ui/mcp'
         requested_audience_mode: 'explicit'
         token_endpoint_auth_method: 'client_secret_basic'
         access_token_signed_response_alg: 'RS256'   # RFC 9068 JWT access tokens (typ at+jwt), verified via JWKS

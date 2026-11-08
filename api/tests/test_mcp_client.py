@@ -74,9 +74,9 @@ def test_afya_mcp_calls_use_one_oauth_client_per_mount_and_wso2_calls_none(monke
     assert auths[4] is None
 
 
-def _flow(handler_log, *, token_status=200):
+def _flow(handler_log, *, token_status=200, metadata_kind="oauth", metadata_issuer=None, metadata_resource=None):
     """A mock afya-mcp /read mount and authorization server, to run the SDK's real client-credentials flow."""
-    resource = "http://afya-mcp:9000/read/mcp"
+    resource = "https://afya-mcp:9000/read/mcp"
     issuer = "https://auth.example"
 
     def handler(request: httpx2.Request) -> httpx2.Response:
@@ -87,13 +87,17 @@ def _flow(handler_log, *, token_status=200):
         if url == resource:
             if request.headers.get("authorization") == "Bearer at-1":
                 return httpx2.Response(200, json={"ok": True})
-            return httpx2.Response(401, headers={"WWW-Authenticate": 'Bearer resource_metadata="http://afya-mcp:9000'
+            return httpx2.Response(401, headers={"WWW-Authenticate": 'Bearer resource_metadata="https://afya-mcp:9000'
                                                  '/.well-known/oauth-protected-resource/read/mcp", scope="afya:read"'})
-        if url == "http://afya-mcp:9000/.well-known/oauth-protected-resource/read/mcp":
-            return httpx2.Response(200, json={"resource": resource, "authorization_servers": [issuer],
+        if url == "https://afya-mcp:9000/.well-known/oauth-protected-resource/read/mcp":
+            return httpx2.Response(200, json={"resource": metadata_resource or resource,
+                                              "authorization_servers": [issuer],
                                               "scopes_supported": ["afya:read"]})
-        if url == f"{issuer}/.well-known/oauth-authorization-server":
-            return httpx2.Response(200, json={"issuer": issuer, "token_endpoint": f"{issuer}/api/oidc/token",
+        if url in {f"{issuer}/.well-known/oauth-authorization-server", f"{issuer}/.well-known/openid-configuration"}:
+            if metadata_kind == "oidc" and url.endswith("oauth-authorization-server"):
+                return httpx2.Response(404)
+            return httpx2.Response(200, json={"issuer": metadata_issuer or issuer,
+                                              "token_endpoint": f"{issuer}/api/oidc/token",
                                               "authorization_endpoint": f"{issuer}/authorize",
                                               "grant_types_supported": ["client_credentials"],
                                               "response_types_supported": ["code"]})
@@ -111,7 +115,7 @@ def test_client_credentials_flow_sends_resource_scope_and_basic_auth_to_the_conf
     scope, client_secret_basic) -> retry with the token in the header; the second call reuses the token."""
     monkeypatch.setenv("AFYA_MCP_CLIENT_SECRET", "s3cret")
     monkeypatch.setenv("AFYA_AUTH_ISSUER", "https://auth.example")
-    monkeypatch.setenv("AFYA_MCP_READ_URL", "http://afya-mcp:9000/read/mcp")
+    monkeypatch.setenv("AFYA_MCP_READ_URL", "https://afya-mcp:9000/read/mcp")
     log: list = []
     g = McpGateway()
 
@@ -122,7 +126,7 @@ def test_client_credentials_flow_sends_resource_scope_and_basic_auth_to_the_conf
     asyncio.run(go())
     token_req = next(r for r in log if r.url.path == "/api/oidc/token")
     form = {k: v[0] for k, v in parse_qs(token_req.content.decode()).items()}
-    assert form == {"grant_type": "client_credentials", "resource": "http://afya-mcp:9000/read/mcp",
+    assert form == {"grant_type": "client_credentials", "resource": "https://afya-mcp:9000/read/mcp",
                     "scope": "afya:read"}
     assert token_req.headers["authorization"] == "Basic " + base64.b64encode(b"afya-api:s3cret").decode()
     calls = [r for r in log if str(r.url) == g.urls["read"]]
@@ -173,3 +177,37 @@ def test_protocol_mode_per_server(monkeypatch):
     with pytest.raises(ToolFailed):
         asyncio.run(g.wso2("search", {"type": "Observation"}))
     assert [m for _u, _h, m in seen] == ["auto", "auto", "auto", "legacy"]
+
+
+def test_service_client_supports_openid_metadata_fallback(monkeypatch):
+    monkeypatch.setenv("AFYA_MCP_CLIENT_SECRET", "s3cret")
+    monkeypatch.setenv("AFYA_AUTH_ISSUER", "https://auth.example")
+    log = []
+    gateway = McpGateway()
+
+    async def go():
+        async with httpx2.AsyncClient(auth=gateway.auth("read"),
+                                     transport=httpx2.MockTransport(_flow(log, metadata_kind="oidc"))) as client:
+            assert (await client.post(gateway.urls["read"], json={})).status_code == 200
+    asyncio.run(go())
+    assert any(r.url.path == "/.well-known/openid-configuration" for r in log)
+    assert any(r.url.path == "/api/oidc/token" for r in log)
+
+
+@pytest.mark.parametrize("mismatch", ["issuer", "resource"])
+def test_service_client_refuses_mismatched_metadata_before_sending_credentials(monkeypatch, mismatch):
+    monkeypatch.setenv("AFYA_MCP_CLIENT_SECRET", "s3cret")
+    monkeypatch.setenv("AFYA_AUTH_ISSUER", "https://auth.example")
+    log = []
+    gateway = McpGateway()
+    changes = {"metadata_issuer": "https://other.example"} if mismatch == "issuer" else {
+        "metadata_resource": "https://other.example/mcp"}
+
+    async def go():
+        async with httpx2.AsyncClient(auth=gateway.auth("read"),
+                                     transport=httpx2.MockTransport(_flow(log, **changes))) as client:
+            await client.post(gateway.urls["read"], json={})
+    with pytest.raises(Exception):
+        asyncio.run(go())
+    assert not any(r.url.path == "/api/oidc/token" for r in log)
+    assert not any(r.headers.get("authorization", "").startswith(("Basic ", "Bearer ")) for r in log)

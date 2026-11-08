@@ -1,4 +1,4 @@
-# Application-specific scope only. Never use this as an official SDK tier or certification result.
+# Source-reviewed application scope; not an official exemption or full-conformance score.
 tool: '@modelcontextprotocol/conformance@0.2.0-alpha.12'
 protocol: '2026-07-28'
 upstream_commit: f44482ba17df816d3176962a11cdf36aec9bda00
@@ -8,119 +8,245 @@ server:
   caching:
     scope: applicable
     reason: Exercises the installed server transport or catalogue without requiring an example clinical tool.
+    assessment: assessed
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/discover
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/transports
   completion-complete:
     scope: not_offered
-    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
-      a pass.
+    reason: Completion is conditional on the completions capability. Afya does not declare it; autocomplete for
+      absent prompt/resource fixtures is not required.
+    assessment: not_required_feature
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/completion#capabilities
   dns-rebinding-protection:
     scope: applicable
     reason: Exercises the installed server transport or catalogue without requiring an example clinical tool.
+    assessment: assessed
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/discover
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/transports
   http-custom-header-server-validation:
     scope: not_exercised
-    reason: No Afya tool declares x-mcp-header; this scenario cannot exercise that rule.
+    reason: Tool-declared custom-header rules apply when x-mcp-header is declared. Afya declares none. Generic HTTP
+      header validation remains applicable.
+    assessment: conditional_not_triggered
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools
   http-header-validation:
     scope: applicable
     reason: Exercises the installed server transport or catalogue without requiring an example clinical tool.
+    assessment: assessed
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/discover
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/transports
   input-required-result-basic-elicitation:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: These reference tools initiate interactive multi-round input. Afya does not request client sampling,
+      elicitation or roots, and its client advertises none. General wire validation still applies; no interactive
+      feature is added.
+    assessment: conditional_not_triggered
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr
   input-required-result-basic-list-roots:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: These reference tools initiate interactive multi-round input. Afya does not request client sampling,
+      elicitation or roots, and its client advertises none. General wire validation still applies; no interactive
+      feature is added.
+    assessment: conditional_not_triggered
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr
   input-required-result-basic-sampling:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: These reference tools initiate interactive multi-round input. Afya does not request client sampling,
+      elicitation or roots, and its client advertises none. General wire validation still applies; no interactive
+      feature is added.
+    assessment: conditional_not_triggered
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr
   input-required-result-capability-check:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: These reference tools initiate interactive multi-round input. Afya does not request client sampling,
+      elicitation or roots, and its client advertises none. General wire validation still applies; no interactive
+      feature is added.
+    assessment: conditional_not_triggered
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr
   input-required-result-ignore-extra-params:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: These reference tools initiate interactive multi-round input. Afya does not request client sampling,
+      elicitation or roots, and its client advertises none. General wire validation still applies; no interactive
+      feature is added.
+    assessment: conditional_not_triggered
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr
   input-required-result-missing-input-response:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: These reference tools initiate interactive multi-round input. Afya does not request client sampling,
+      elicitation or roots, and its client advertises none. General wire validation still applies; no interactive
+      feature is added.
+    assessment: conditional_not_triggered
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr
   input-required-result-multi-round:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: These reference tools initiate interactive multi-round input. Afya does not request client sampling,
+      elicitation or roots, and its client advertises none. General wire validation still applies; no interactive
+      feature is added.
+    assessment: conditional_not_triggered
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr
   input-required-result-multiple-input-requests:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: These reference tools initiate interactive multi-round input. Afya does not request client sampling,
+      elicitation or roots, and its client advertises none. General wire validation still applies; no interactive
+      feature is added.
+    assessment: conditional_not_triggered
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr
   input-required-result-non-tool-request:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: These reference tools initiate interactive multi-round input. Afya does not request client sampling,
+      elicitation or roots, and its client advertises none. General wire validation still applies; no interactive
+      feature is added.
+    assessment: conditional_not_triggered
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr
   input-required-result-request-state:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: These reference tools initiate interactive multi-round input. Afya does not request client sampling,
+      elicitation or roots, and its client advertises none. General wire validation still applies; no interactive
+      feature is added.
+    assessment: conditional_not_triggered
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr
   input-required-result-result-type:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: These reference tools initiate interactive multi-round input. Afya does not request client sampling,
+      elicitation or roots, and its client advertises none. General wire validation still applies; no interactive
+      feature is added.
+    assessment: conditional_not_triggered
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr
   input-required-result-tampered-state:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: These reference tools initiate interactive multi-round input. Afya does not request client sampling,
+      elicitation or roots, and its client advertises none. General wire validation still applies; no interactive
+      feature is added.
+    assessment: conditional_not_triggered
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr
   input-required-result-unsupported-methods:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: These reference tools initiate interactive multi-round input. Afya does not request client sampling,
+      elicitation or roots, and its client advertises none. General wire validation still applies; no interactive
+      feature is added.
+    assessment: conditional_not_triggered
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr
   input-required-result-validate-input:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: These reference tools initiate interactive multi-round input. Afya does not request client sampling,
+      elicitation or roots, and its client advertises none. General wire validation still applies; no interactive
+      feature is added.
+    assessment: conditional_not_triggered
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr
   json-schema-2020-12:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: Tools may return text without implementing the reference image/audio/resource fixtures. Afya must still
+      validate its actual calls and return protocol errors for unknown tool names; application tests and probes
+      cover those rules.
+    assessment: fixture_blocked_rule
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools#error-handling
   prompts-get-embedded-resource:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: The advertised catalogue may be empty under the specification. Afya must list the empty catalogue and
+      handle unknown identifiers correctly; it does not have to implement the reference positive fixtures.
+    assessment: not_required_fixture
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/prompts#capabilities
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/prompts#error-handling
   prompts-get-simple:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: The advertised catalogue may be empty under the specification. Afya must list the empty catalogue and
+      handle unknown identifiers correctly; it does not have to implement the reference positive fixtures.
+    assessment: not_required_fixture
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/prompts#capabilities
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/prompts#error-handling
   prompts-get-with-args:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: The advertised catalogue may be empty under the specification. Afya must list the empty catalogue and
+      handle unknown identifiers correctly; it does not have to implement the reference positive fixtures.
+    assessment: not_required_fixture
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/prompts#capabilities
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/prompts#error-handling
   prompts-get-with-image:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: The advertised catalogue may be empty under the specification. Afya must list the empty catalogue and
+      handle unknown identifiers correctly; it does not have to implement the reference positive fixtures.
+    assessment: not_required_fixture
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/prompts#capabilities
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/prompts#error-handling
   prompts-list:
     scope: applicable
-    reason: Exercises the installed server transport or catalogue without requiring an example clinical tool.
+    reason: The advertised catalogue may be empty under the specification. Afya must list the empty catalogue and
+      handle unknown identifiers correctly; it does not have to implement the reference positive fixtures.
+    assessment: assessed
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/prompts#capabilities
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/prompts#error-handling
   resources-list:
     scope: applicable
-    reason: Exercises the installed server transport or catalogue without requiring an example clinical tool.
+    reason: The advertised catalogue may be empty under the specification. Afya must list the empty catalogue and
+      handle unknown identifiers correctly; it does not have to implement the reference positive fixtures.
+    assessment: assessed
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/resources#capabilities
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/resources#error-handling
   resources-read-binary:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: The advertised catalogue may be empty under the specification. Afya must list the empty catalogue and
+      handle unknown identifiers correctly; it does not have to implement the reference positive fixtures.
+    assessment: not_required_fixture
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/resources#capabilities
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/resources#error-handling
   resources-read-text:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: The advertised catalogue may be empty under the specification. Afya must list the empty catalogue and
+      handle unknown identifiers correctly; it does not have to implement the reference positive fixtures.
+    assessment: not_required_fixture
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/resources#capabilities
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/resources#error-handling
   resources-templates-read:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: The advertised catalogue may be empty under the specification. Afya must list the empty catalogue and
+      handle unknown identifiers correctly; it does not have to implement the reference positive fixtures.
+    assessment: not_required_fixture
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/resources#capabilities
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/resources#error-handling
   sep-2164-resource-not-found:
     scope: applicable
     reason: Exercises the installed server transport or catalogue without requiring an example clinical tool.
+    assessment: assessed
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/discover
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/transports
   server-sse-multiple-streams:
     scope: applicable
     reason: Exercises the installed server transport or catalogue without requiring an example clinical tool.
+    assessment: assessed
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/discover
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/transports
   server-stateless:
     scope: applicable
     reason: Exercises the installed server transport or catalogue without requiring an example clinical tool.
@@ -129,227 +255,499 @@ server:
         Afya does not offer it. Not assessed, not passed.
       sep-2575-missing-capability-http-400: Requires the framework diagnostic tool test_missing_capability; Afya
         does not offer it. Not assessed, not passed.
+      sep-2575-http-server-no-independent-requests-on-stream: Requires reference tool test_streaming_elicitation.
+        Afya has no interactive tools or client callbacks; this fixture cannot assess stream behavior. Raw result
+        retained, not passed.
+      sep-2575-server-no-log-without-loglevel: Requires reference test_logging_tool. Afya does not advertise logging
+        or send MCP log notifications; no logging feature is required. Raw result retained, not passed.
+    assessment: assessed
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/discover
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/transports
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/logging#capabilities
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr
   tasks-capability-negotiation:
     scope: not_offered
-    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
-      a pass.
+    reason: Tasks is an optional extension and Afya does not advertise it. No background-task implementation is
+      required for the current synchronous tools.
+    assessment: not_required_feature
+    specification:
+    - https://modelcontextprotocol.io/extensions
   tasks-dispatch-and-envelope:
     scope: not_offered
-    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
-      a pass.
+    reason: Tasks is an optional extension and Afya does not advertise it. No background-task implementation is
+      required for the current synchronous tools.
+    assessment: not_required_feature
+    specification:
+    - https://modelcontextprotocol.io/extensions
   tasks-lifecycle:
     scope: not_offered
-    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
-      a pass.
+    reason: Tasks is an optional extension and Afya does not advertise it. No background-task implementation is
+      required for the current synchronous tools.
+    assessment: not_required_feature
+    specification:
+    - https://modelcontextprotocol.io/extensions
   tasks-mrtr-composition:
     scope: not_offered
-    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
-      a pass.
+    reason: Tasks is an optional extension and Afya does not advertise it. No background-task implementation is
+      required for the current synchronous tools.
+    assessment: not_required_feature
+    specification:
+    - https://modelcontextprotocol.io/extensions
   tasks-mrtr-input:
     scope: not_offered
-    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
-      a pass.
+    reason: Tasks is an optional extension and Afya does not advertise it. No background-task implementation is
+      required for the current synchronous tools.
+    assessment: not_required_feature
+    specification:
+    - https://modelcontextprotocol.io/extensions
   tasks-request-headers:
     scope: not_offered
-    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
-      a pass.
+    reason: Tasks is an optional extension and Afya does not advertise it. No background-task implementation is
+      required for the current synchronous tools.
+    assessment: not_required_feature
+    specification:
+    - https://modelcontextprotocol.io/extensions
   tasks-request-state-removal:
     scope: not_offered
-    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
-      a pass.
+    reason: Tasks is an optional extension and Afya does not advertise it. No background-task implementation is
+      required for the current synchronous tools.
+    assessment: not_required_feature
+    specification:
+    - https://modelcontextprotocol.io/extensions
   tasks-required-task-error:
     scope: not_offered
-    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
-      a pass.
+    reason: Tasks is an optional extension and Afya does not advertise it. No background-task implementation is
+      required for the current synchronous tools.
+    assessment: not_required_feature
+    specification:
+    - https://modelcontextprotocol.io/extensions
   tasks-status-notifications:
     scope: not_offered
-    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
-      a pass.
+    reason: Tasks is an optional extension and Afya does not advertise it. No background-task implementation is
+      required for the current synchronous tools.
+    assessment: not_required_feature
+    specification:
+    - https://modelcontextprotocol.io/extensions
   tasks-wire-fields:
     scope: not_offered
-    reason: Optional Tasks/completions functionality is not offered by Afya; retain raw outcome, do not count as
-      a pass.
+    reason: Tasks is an optional extension and Afya does not advertise it. No background-task implementation is
+      required for the current synchronous tools.
+    assessment: not_required_feature
+    specification:
+    - https://modelcontextprotocol.io/extensions
   tools-call-audio:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: Tools may return text without implementing the reference image/audio/resource fixtures. Afya must still
+      validate its actual calls and return protocol errors for unknown tool names; application tests and probes
+      cover those rules.
+    assessment: not_required_feature
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools#error-handling
   tools-call-embedded-resource:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: Tools may return text without implementing the reference image/audio/resource fixtures. Afya must still
+      validate its actual calls and return protocol errors for unknown tool names; application tests and probes
+      cover those rules.
+    assessment: not_required_feature
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools#error-handling
   tools-call-error:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: Tools may return text without implementing the reference image/audio/resource fixtures. Afya must still
+      validate its actual calls and return protocol errors for unknown tool names; application tests and probes
+      cover those rules.
+    assessment: fixture_blocked_rule
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools#error-handling
   tools-call-image:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: Tools may return text without implementing the reference image/audio/resource fixtures. Afya must still
+      validate its actual calls and return protocol errors for unknown tool names; application tests and probes
+      cover those rules.
+    assessment: not_required_feature
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools#error-handling
   tools-call-mixed-content:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: Tools may return text without implementing the reference image/audio/resource fixtures. Afya must still
+      validate its actual calls and return protocol errors for unknown tool names; application tests and probes
+      cover those rules.
+    assessment: not_required_feature
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools#error-handling
   tools-call-simple-text:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: Tools may return text without implementing the reference image/audio/resource fixtures. Afya must still
+      validate its actual calls and return protocol errors for unknown tool names; application tests and probes
+      cover those rules.
+    assessment: fixture_blocked_rule
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools#error-handling
   tools-call-with-progress:
     scope: fixture_dependent
-    reason: Requires framework example tools, prompts, resources or input-required flows absent from Afya. An Unknown
-      tool response is not a successful execution of the fixture.
+    reason: Tools may return text without implementing the reference image/audio/resource fixtures. Afya must still
+      validate its actual calls and return protocol errors for unknown tool names; application tests and probes
+      cover those rules.
+    assessment: not_required_feature
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools#error-handling
   tools-list:
     scope: applicable
     reason: Exercises the installed server transport or catalogue without requiring an example clinical tool.
+    assessment: assessed
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/discover
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/transports
 client:
   auth/authorization-server-migration:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: browser_flow_not_used
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/basic-cimd:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: browser_flow_not_used
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/client-credentials-basic:
     scope: applicable
     reason: Exercises the real SDK client stack; the driver implements this scenario contract.
+    assessment: assessed
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
   auth/client-credentials-jwt:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: The selected service flow uses pre-registered client_secret_basic credentials. Alternative optional
+      authentication extensions/methods are not required for that choice.
+    assessment: not_required_auth_method
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
   auth/dpop:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: The selected service flow uses pre-registered client_secret_basic credentials. Alternative optional
+      authentication extensions/methods are not required for that choice.
+    assessment: not_required_auth_method
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
   auth/dpop-nonce:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: The selected service flow uses pre-registered client_secret_basic credentials. Alternative optional
+      authentication extensions/methods are not required for that choice.
+    assessment: not_required_auth_method
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
   auth/enterprise-managed-authorization:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: The selected service flow uses pre-registered client_secret_basic credentials. Alternative optional
+      authentication extensions/methods are not required for that choice.
+    assessment: not_required_auth_method
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
   auth/iss-normalized:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: browser_flow_not_used
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/iss-not-advertised:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: browser_flow_not_used
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/iss-supported:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: browser_flow_not_used
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/iss-supported-missing:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: browser_flow_not_used
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/iss-unexpected:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: browser_flow_not_used
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/iss-wrong-issuer:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: browser_flow_not_used
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/metadata-default:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: covered_by_service_flow_tests
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/metadata-issuer-mismatch:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: covered_by_service_flow_tests
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/metadata-var1:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: covered_by_service_flow_tests
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/metadata-var2:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: covered_by_service_flow_tests
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/metadata-var3:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: covered_by_service_flow_tests
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/offline-access-not-supported:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: browser_flow_not_used
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/offline-access-scope:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: browser_flow_not_used
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/pre-registration:
     scope: applicable
     reason: Exercises the real SDK client stack; the driver implements this scenario contract.
+    assessment: assessed
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
   auth/resource-mismatch:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: covered_by_service_flow_tests
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/scope-from-scopes-supported:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: covered_by_service_flow_tests
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/scope-from-www-authenticate:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: covered_by_service_flow_tests
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/scope-omitted-when-undefined:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: covered_by_service_flow_tests
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/scope-retry-limit:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: covered_by_service_flow_tests
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/scope-step-up:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: covered_by_service_flow_tests
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/token-endpoint-auth-basic:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: browser_flow_not_used
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/token-endpoint-auth-none:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: browser_flow_not_used
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/token-endpoint-auth-post:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: This official scenario uses the delegated browser flow and is not exercised by this driver. Client credentials
+      replaces browser interaction, not baseline discovery/resource/issuer/scope security. The corresponding service-flow
+      rules are checked separately in api/tests/test_mcp_client.py, mcp/tests/test_auth.py and the TLS smoke tests;
+      the raw scenario stays NOT_ASSESSED.
+    assessment: browser_flow_not_used
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
   auth/wif-jwt-bearer:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: The selected service flow uses pre-registered client_secret_basic credentials. Alternative optional
+      authentication extensions/methods are not required for that choice.
+    assessment: not_required_auth_method
+    specification:
+    - https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/oauth-client-credentials/2026-07-28/oauth-client-credentials.mdx
   http-custom-headers:
     scope: applicable
     reason: Exercises the real SDK client stack; the driver implements this scenario contract.
+    assessment: assessed
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools
   http-invalid-tool-headers:
     scope: applicable
     reason: Exercises the real SDK client stack; the driver implements this scenario contract.
+    assessment: assessed
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools
   http-standard-headers:
     scope: applicable
     reason: Exercises the real SDK client stack; the driver implements this scenario contract.
+    assessment: assessed
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools
   json-schema-2020-12-preservation:
     scope: applicable
     reason: Exercises the real SDK client stack; the driver implements this scenario contract.
+    assessment: assessed
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools
   json-schema-ref-no-deref:
     scope: applicable
     reason: Exercises the real SDK client stack; the driver implements this scenario contract.
+    assessment: assessed
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools
   request-metadata:
     scope: applicable
     reason: Exercises the real SDK client stack; the driver implements this scenario contract.
+    assessment: assessed
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools
   sep-2322-client-request-state:
     scope: not_exercised
-    reason: The current service-client driver does not exercise this browser-authorization, alternative-authentication
-      or interactive-input contract. This is a coverage gap, not an official exemption or a pass.
+    reason: The service client advertises no elicitation/sampling/roots callbacks; these tests require implementing
+      interactive multi-round input. That feature is outside the current client capability set.
+    assessment: conditional_not_triggered
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr
   tools_call:
     scope: applicable
     reason: Exercises the real SDK client stack; the driver implements this scenario contract.
-known_probe_failures:
-  unknown-prompt-error:
-    actual_code: -32603
-    reason: SDK 2.3.0 returns Internal server error for an unknown prompt, instead of Invalid params (-32602). A
-      passing probe requires removing this baseline.
+    assessment: assessed
+    specification:
+    - https://modelcontextprotocol.io/specification/2026-07-28/basic
+    - https://modelcontextprotocol.io/specification/2026-07-28/server/tools
+known_probe_failures: {}

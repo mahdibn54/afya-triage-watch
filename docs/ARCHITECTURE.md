@@ -56,15 +56,16 @@ command) in front of every write: an access token never replaces it.
 | Piece | Choice |
 |---|---|
 | Authorization server | Authelia 4.39.28 (Apache-2.0), pinned by digest, service `auth` on the internal `auth` network, HTTPS with a local CA (`auth/init.sh`), about 60 MB RAM. RFC 8414 metadata, RFC 8707 resource indicators, RFC 9068 JWT access tokens, 5-minute lifetime. Nobody signs in to it. |
-| Resources and scopes | One protected resource per mount: `http://afya-mcp:9000/read/mcp` (`afya:read`), `/act/mcp` (`afya:act`), `/ui/mcp` (`afya:ui`). RFC 9728 metadata at `/.well-known/oauth-protected-resource/<mount>/mcp`. |
+| Resources and scopes | One protected resource per mount: `https://afya-mcp:9000/read/mcp` (`afya:read`), `/act/mcp` (`afya:act`), `/ui/mcp` (`afya:ui`). RFC 9728 metadata at `/.well-known/oauth-protected-resource/<mount>/mcp`. |
 | Resource server | `mcp/afya_mcp/auth.py`: the SDK's bearer middleware and metadata routes with a JWKS verifier (signature, exact issuer, audience = the mount, expiry, `typ` at+jwt, asymmetric algorithms only). 401 `invalid_token` or 403 `insufficient_scope`, with `resource_metadata` and `scope`. Every request needs a token, `server/discover` included. |
 | Client | `api/afya_api/mcp_client.py`: the SDK's `ClientCredentialsOAuthProvider` per mount, asking for that mount's resource and scope only, credentials sent only to the configured issuer. The model-facing read path therefore only ever holds an `afya:read` token for `/read/mcp`; `afya:act` tokens exist only on the fixed-code `/act` path (executor after approval, saving vitals, notices). |
 | Never | a token in a URL or a log; any afya credential sent to WSO2; a client secret in afya-mcp. |
 
-Known limit: afya-mcp itself stays plain HTTP on the internal `mcp` network (no published port), while OAuth 2.1 asks for
-TLS wherever bearer tokens travel; tokens are short-lived and bound to one mount. TLS on afya-mcp is the next step.
+Protected MCP transport uses certificate-verified HTTPS on the internal `mcp` network (no published port).
+The separate `mcptls` volume holds its runtime-owned key; API and eval clients receive only the public CA.
+Tokens remain short-lived and bound to one HTTPS resource URI.
 
-Protocol conformance (E13-4): the official MCP conformance tool (pinned alpha, requirement set 2026-07-28) was run against all three mounts and the api's client; results, the triage of every failure and the expected-failures list are in [docs/conformance/final-2026-07-28.md](conformance/final-2026-07-28.md). It is not AAIF certification and not a clinical validation.
+MCP checks (E13-4): raw diagnostics from the pinned official alpha tool remain separate from the application scope and strict protocol probes. The active profile has no protocol-failure exception. Current results and source-based requirement decisions are in [the conformance guide](conformance/README.md) and [applicability review](conformance/applicability.md). This is not full official conformance, AAIF certification or clinical validation.
 
 Postgres holds proposals, single-use commands, readings with the complaint, agent checkpoints and the audit log. FHIR (HAPI)
 holds the clinical record: one reading is one Observation; the confirmed colour is `Encounter.priority`.
@@ -92,3 +93,9 @@ three attempts the run stops (no proposal, no code-built fallback from an unlogg
 `agent_failed` notice. A borrowed WSO2 read stores the exact projected result the model received (ids, codes, values,
 units, times; capped, plus a hash of the full result and of the raw payload, never free text). The complaint text is
 never logged (its length only).
+
+### MCP applicability and TLS follow-up
+
+The protected MCP listener now serves certificate-verified HTTPS. The existing auth-init service signs a separate MCP certificate with its local CA and writes the key/certificate to `mcptls`, owned by runtime uid 1000 and mounted only by afya-mcp. API, Group A and host eval clients trust the public CA; resource audiences and metadata use HTTPS consistently. WSO2 remains the separate, unauthenticated read-only integration and receives no Afya credential. Only the web UI is published on host loopback.
+
+The source-reviewed [applicability matrix](conformance/applicability.md) distinguishes shared requirements from optional features and reference-fixture assumptions. Empty prompt/resource lists are explicitly permitted by the specification. Unknown prompts and tools use correct protocol errors through public SDK overrides. Active application probes have no known-error waiver; raw official fixture failures remain disclosed rather than being converted to passes. Historical HTTP/conformance limitations elsewhere in this document are superseded by this follow-up.

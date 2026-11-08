@@ -53,7 +53,8 @@ def assess_run(data: dict, profile: dict) -> dict:
         else:
             status = "NOT_ASSESSED"
         rows.append({"scenario": name, "raw": verdict(checks), "scope": scope, "application": status,
-                     "reason": policy["reason"], "excluded_checks": excluded,
+                     "reason": policy["reason"], "assessment": policy.get("assessment", "unreviewed"),
+                     "specification": policy.get("specification", []), "excluded_checks": excluded,
                      "check_counts": dict(Counter(c["status"] for c in checks))})
     return {"counts": dict(Counter(r["application"] for r in rows)),
             "raw_counts": dict(Counter(verdict(c) for c in data.values())), "rows": rows, "errors": errors}
@@ -61,7 +62,7 @@ def assess_run(data: dict, profile: dict) -> dict:
 
 def assess_probes(probes: list[dict], known: dict) -> dict:
     expected = {(m, n) for m in ("read", "act", "ui")
-                for n in ("catalogue", "invalid-tool-arguments", "unknown-prompt-error")}
+                for n in ("catalogue", "invalid-tool-arguments", "unknown-prompt-error", "unknown-tool-error")}
     found = [(p["mount"], p["name"]) for p in probes]
     errors, rows = [], []
     if set(found) != expected or len(found) != len(expected):
@@ -86,7 +87,8 @@ def render(report: dict) -> str:
              "**This is not a full official conformance pass, SDK tier result or certification.**", "",
              f"Tool: `{report['tool']}`. Protocol: `{report['protocol']}`. Commit: `{report['commit']}`.", "",
              ("The official frozen requirement set ran unchanged, without expected-failure waivers. "
-             "Raw FAIL results remain FAIL. The application profile below is our own scope decision, not an official exemption."),
+             "Raw FAIL results remain FAIL. The application profile below is our own scope decision, "
+              "not an official exemption."),
              "", "| Run | Raw PASS / WARN / FAIL | Application PASS / WARN / FAIL | Not assessed |",
              "|---|---|---|---|"]
     for name, result in report["runs"].items():
@@ -94,7 +96,7 @@ def render(report: dict) -> str:
         lines.append(f"| {name} | {' / '.join(str(raw.get(k, 0)) for k in ('PASS', 'WARN', 'FAIL'))} | "
                      f"{' / '.join(str(app.get(k, 0)) for k in ('PASS', 'WARN', 'FAIL'))} | "
                      f"{app.get('NOT_ASSESSED', 0)} |")
-    lines += ["", ("Application PASS applies only to the selected assertions. `server-stateless` excludes two "
+    lines += ["", ("Application PASS applies only to the selected assertions. `server-stateless` excludes four "
               "fixture-dependent checks, listed below. Skipped checks are not passes. Wire-schema failures are gated "
               "even in scenarios outside the application scope."), "", "## Supplemental application probes", "",
               "These are Afya checks, not official framework scenarios.", "",
@@ -105,17 +107,21 @@ def render(report: dict) -> str:
         lines += ["", f"## {name}: scope and raw outcomes", "",
                   "| Scenario | Raw | Application | Scope / reason |", "|---|---|---|---|"]
         for row in result["rows"]:
-            note = row["reason"] + " ".join(f" Excluded {k}: {v}" for k, v in row["excluded_checks"].items())
+            note = row["assessment"] + ": " + row["reason"]
+            note += " ".join(f" Excluded {k}: {v}" for k, v in row["excluded_checks"].items())
+            note += " " + " ".join(f"[Spec]({url})" for url in row["specification"])
             lines.append(f"| {row['scenario']} | {row['raw']} | {row['application']} | {row['scope']}: {note} |")
     lines += ["", "## Gate result", "", "FAILED" if report["errors"] else
-              "REGRESSION BASELINE ACCEPTED. Known failures remain; this is not full conformance."]
+              ("REGRESSION BASELINE ACCEPTED. Known failures remain; this is not full conformance."
+               if report["probes"]["counts"].get("KNOWN_FAILURE") else
+               "APPLICATION CHECKS PASSED. No failures waived; this is not full official conformance.")]
     lines += [f"- {e}" for e in report["errors"]]
     lines += ["", "## Coverage limits", "",
-              ("- Browser OAuth, alternative service-auth flows and interactive client inputs are not assessed by this driver; "
+              ("- Browser OAuth, alternative service-auth flows and interactive inputs are not assessed by this driver; "
               "no security compliance claim follows from excluding them."),
-              ("- The server protocol run uses an offline issuer with injected tokens. Resource-server protection is tested "
+              ("- Protocol scenarios use an offline issuer with injected tokens. Resource-server protection is tested "
               "separately by mcp/tests/test_auth.py and scripts/smoke.sh."),
-              "- Empty advertised prompt/resource capabilities and the unknown-prompt SDK error remain documented limits.",
+              "- Empty prompt/resource lists are permitted. Identifier errors are covered by the supplemental probes.",
               "- Clinical scoring, safety and real patient-data handling are outside protocol conformance."]
     return "\n".join(lines) + "\n"
 
@@ -167,12 +173,13 @@ def main() -> int:
             '<h1>Afya MCP application regression report</h1>'
             '<p class="notice"><strong>Not a full conformance pass or certification.</strong> '
             'These are scoped application checks. Raw official failures remain visible.</p>'
-            '<p>Known SDK failures: <strong>' + str(known_count) + '</strong> probes across the three mounts. '
-            'The unknown-prompt error remains unresolved.</p>'
+            '<p>Accepted protocol failures: <strong>' + str(known_count) + '</strong> probes across the three mounts. ' +
+            ('Known-error baselines remain; see the complete report.</p>' if known_count else
+             'No known protocol failures are accepted by the application gate.</p>') +
             '<h2>Results</h2><p>Counts are PASS / WARN / FAIL. Not assessed never means passed.</p>'
             '<div class="table"><table><thead><tr><th>Run</th><th>Raw official</th><th>Application</th>'
             '<th>Not assessed</th></tr></thead><tbody>' + "".join(summary_rows) + '</tbody></table></div>'
-            '<p>Server application counts exclude two fixture-dependent stateless checks. '
+            '<p>Server application counts exclude four fixture-dependent stateless checks. '
             'The complete scope decisions and known failures are below.</p>'
             '<details><summary>Complete report and scope decisions</summary><pre>' + html.escape(text) +
             '</pre></details></main></body></html>')
@@ -182,7 +189,7 @@ def main() -> int:
             out.write(text)
     print(text.split("## Supplemental application probes")[0])
     if report["probes"]["counts"].get("KNOWN_FAILURE"):
-        print("::warning::Known unknown-prompt SDK failures remain. See application-report.md; no full conformance claim.")
+        print("::warning::Known failures remain. See application-report.md; no full conformance claim.")
     for error in report["errors"]:
         print(error)
     return int(bool(report["errors"]))

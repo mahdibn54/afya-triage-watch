@@ -128,8 +128,57 @@ def test_whitespace_around_mcp_header_values_is_accepted(client):
     auth_h = bearer(mint("read"))
     padded = {**headers, "Mcp-Method": "  tools/call  ", "Mcp-Name": "\tno_such_tool  ", **auth_h}
     r = client.post("/read/mcp", json=body, headers=padded)
-    assert r.status_code == 200, r.text
-    assert decode(r)["result"]["isError"] is True  # reached the tool layer (unknown tool), not a header refusal
+    assert r.status_code == 400, r.text
+    assert decode(r)["error"]["code"] == -32602  # reached the tool layer, not a header refusal
     wrong = {**headers, "Mcp-Name": "  another_tool  ", **auth_h}
     r = client.post("/read/mcp", json=body, headers=wrong)
     assert r.status_code == 400 and decode(r)["error"]["code"] == -32020
+
+
+@pytest.mark.parametrize("mount", MOUNTS)
+def test_unknown_prompt_is_invalid_params_not_internal_error(client, mount):
+    body, headers = rpc("prompts/get", params={"name": "not_an_afya_prompt"})
+    response = client.post(f"/{mount}/mcp", json=body,
+                           headers={**headers, "Mcp-Name": "not_an_afya_prompt", **bearer(mint(mount))})
+    error = decode(response)["error"]
+    assert error["code"] == -32602
+    assert "Internal server error" not in error["message"]
+
+
+@pytest.mark.parametrize("mount", MOUNTS)
+def test_legacy_unknown_prompt_uses_the_same_protocol_error(client, mount):
+    token = bearer(mint(mount))
+    init = {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {"protocolVersion": "2025-11-25", "capabilities": {},
+                       "clientInfo": {"name": "pytest", "version": "0"}}}
+    client.post(f"/{mount}/mcp", json=init, headers={**ACCEPT, **token})
+    body = {"jsonrpc": "2.0", "id": 2, "method": "prompts/get", "params": {"name": "missing"}}
+    response = client.post(f"/{mount}/mcp", json=body,
+                           headers={**ACCEPT, **token, "MCP-Protocol-Version": "2025-11-25"})
+    assert decode(response)["error"]["code"] == -32602
+
+
+def test_public_prompt_override_still_delegates_registered_prompts():
+    import anyio
+
+    from afya_mcp.server import AfyaMCPServer
+
+    server = AfyaMCPServer("prompt-hook-test")
+
+    @server.prompt()
+    def greeting(name: str) -> str:
+        return f"Hello {name}"
+
+    async def render():
+        return await server.get_prompt("greeting", {"name": "test"})
+
+    result = anyio.run(render)
+    assert result.messages[0].content.text == "Hello test"
+
+
+@pytest.mark.parametrize("mount", MOUNTS)
+def test_unknown_tool_is_a_protocol_error(client, mount):
+    body, headers = rpc("tools/call", params={"name": "not_an_afya_tool", "arguments": {}})
+    response = client.post(f"/{mount}/mcp", json=body,
+                           headers={**headers, "Mcp-Name": "not_an_afya_tool", **bearer(mint(mount))})
+    assert decode(response)["error"]["code"] == -32602

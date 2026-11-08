@@ -18,6 +18,15 @@ q() { "$@" >/dev/null; }
 q authelia crypto certificate rsa generate --common-name "$HOST" --sans "$HOST" --duration 1y \
   --organization "Afya Triage Watch (local)" --path.ca "$D/tls" --directory "$D/tls" \
   --file.private-key server.private.pem --file.certificate server.public.crt
+# Protected MCP transport: a separate private-key volume readable only by the MCP service (uid 1000).
+mkdir -p /mcp-tls
+q authelia crypto certificate rsa generate --common-name "afya-mcp" --sans "afya-mcp,localhost,127.0.0.1" \
+  --duration 1y --organization "Afya Triage Watch (local)" --path.ca "$D/tls" --directory /mcp-tls \
+  --file.private-key server.private.pem --file.certificate server.public.crt
+chown -R 1000:1000 /mcp-tls
+chmod 0700 /mcp-tls
+chmod 0600 /mcp-tls/server.private.pem
+chmod 0644 /mcp-tls/server.public.crt
 [ -s "$D/jwk.private.pem" ] || q authelia crypto pair rsa generate --bits 2048 --directory "$D" \
   --file.private-key jwk.private.pem --file.public-key jwk.public.pem
 for s in hmac storage session reset; do

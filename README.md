@@ -57,7 +57,7 @@ also starts the authorization server, Authelia (`auth`, about 60 MB RAM), on an 
 CA; a one-shot `auth-init` creates the CA, keys and internal secrets in the `authdata` volume and registers the api's
 client with a hash of `AFYA_MCP_CLIENT_SECRET`. Nothing else to configure. The api gets one short-lived token per MCP
 mount with only that mount's scope (`afya:read`, `afya:act`, `afya:ui`). Rotate all of it with
-`docker compose down && docker volume rm afya_authdata afya_authca`. Design and limits: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). MCP application regression checks and unmodified official diagnostic results (alpha tool, protocol 2026-07-28; known failures remain, not full conformance or certification): [`docs/conformance/README.md`](docs/conformance/README.md).
+`docker compose down && docker volume rm afya_authdata afya_authca afya_mcptls`. Design and limits: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). MCP application checks and raw official diagnostics (alpha tool, protocol 2026-07-28; no active protocol-failure waiver, not full conformance or certification): [`docs/conformance/README.md`](docs/conformance/README.md).
 
 ### Migrating an older checkout
 
@@ -73,7 +73,15 @@ docker compose up -d --no-deps --force-recreate api
 
 The existing CA and signing key stay in their volumes. The API obtains new short-lived tokens automatically.
 
-The MCP connections still use HTTP on the private Docker network; the authorization server uses HTTPS. This is a documented transport limitation, not full production OAuth compliance. The web demo switcher remains separate from service OAuth. Staff can sign out from the user menu; managers have no demo scenario controls.
+The protected MCP connections now use certificate-verified HTTPS (`https://afya-mcp:9000`), as does the authorization server. `auth-init` creates the separate `mcptls` volume for the MCP private key; the API and test runner only receive the public CA. See the [requirement applicability review](docs/conformance/applicability.md). The web demo switcher remains separate from service OAuth. Staff can sign out from the user menu; managers have no demo scenario controls.
+
+When upgrading an existing HTTP-based stack, recreate the authorization server, MCP and API so the HTTPS resource audiences, certificate and client configuration take effect together (keep your existing Compose project and `.env`):
+
+```sh
+docker compose --profile web up -d --build --force-recreate auth afya-mcp api web
+```
+
+Old access tokens name the HTTP audience and will be refused; the recreated API obtains new HTTPS-bound tokens. Existing data volumes are retained.
 
 ### Model provider
 

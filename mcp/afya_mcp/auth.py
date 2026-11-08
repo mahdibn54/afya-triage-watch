@@ -7,7 +7,7 @@ Each mount is its own protected resource with its own audience and scope:
     <base>/act/mcp                        afya:act    fixed code only (executor after approval, vitals, notices)
     <base>/ui/mcp                         afya:ui     the api's screens
 
-<base> is AFYA_MCP_RESOURCE_BASE (compose: http://afya-mcp:9000). Tokens are JWT access tokens (RFC 9068) signed by
+<base> is AFYA_MCP_RESOURCE_BASE (compose: https://afya-mcp:9000). Tokens are JWT access tokens (RFC 9068) signed by
 the authorization server named in AFYA_AUTH_ISSUER (Authelia in compose). A token is accepted only if its signature
 checks against the issuer's JWKS (found through RFC 8414 metadata, fetched over TLS with AFYA_AUTH_CA_FILE), its
 `iss` is exactly the issuer, its `aud` contains this mount's resource, it has not expired, its `typ` is at+jwt and it
@@ -66,7 +66,7 @@ class Settings:
 @lru_cache(maxsize=1)
 def settings() -> Settings:
     return Settings(issuer=os.environ.get("AFYA_AUTH_ISSUER", "").strip(),
-                    base=os.environ.get("AFYA_MCP_RESOURCE_BASE", "http://afya-mcp:9000").strip().rstrip("/"),
+                    base=os.environ.get("AFYA_MCP_RESOURCE_BASE", "https://afya-mcp:9000").strip().rstrip("/"),
                     ca_file=os.environ.get("AFYA_AUTH_CA_FILE") or None)
 
 
