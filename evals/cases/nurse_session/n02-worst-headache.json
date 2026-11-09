@@ -2,10 +2,11 @@
   "id": "n02-worst-headache",
   "synthetic": true,
   "title": "young adult, normal vitals, 'worst headache of my life'",
-  "split": "held_out",
+  "split": "tuning",
   "tags": [
     "nurse_session",
-    "fresh"
+    "fresh",
+    "drove-prompt-fix"
   ],
   "age_years": 24,
   "confirmed_colour": "GREEN",

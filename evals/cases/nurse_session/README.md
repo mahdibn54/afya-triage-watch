@@ -31,3 +31,15 @@ ones confirmed there. Result against the labels committed beforehand: **11/12**.
 The miss is a false negative (the riskier direction): the patient stays at the nurse's confirmed GREEN and is not
 flagged. The nurse can still raise it with "patient feels worse" in the Vitals dialog. Any prompt change made because
 of this case is tuned on it, so after such a change n02 no longer counts as held-out.
+
+## n02 moved from held-out to tuning
+
+n02 drove a change to the sign mapper's prompt (`api/afya_api/signs.py`): the injection example no longer uses a
+headache (it taught "headache, no sign"), and a pain-severity rule with one French example was added (not n02's
+wording). So n02 is now `split: tuning`, tagged `drove-prompt-fix`; its expected labels are unchanged. The held-out
+set is the other 11 cases. The results above (11/12 in the UI pass, and 11/12 in every one of the 5 `make eval` runs of
+batch `20261109T095114Z`, n02 missed 5/5) stand as recorded, measured before the change.
+
+Pain-severity cutoffs used by the prompt are patient-stated: "severe" (unbearable, the worst, a top score out of 10)
+and "moderate" (a middling score). Afya working assumption, not taken from the chart: 8-10 out of 10 = SEVERE_PAIN,
+5-7 = MODERATE_PAIN. **To be confirmed by the nurse review**; the chart file (`rules/charts/`) is unchanged.

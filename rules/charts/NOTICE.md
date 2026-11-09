@@ -10,3 +10,9 @@ published by the Emergency Medicine Society of South Africa (EMSSA): https://ems
   We have asked EMSSA for permission; until it is confirmed, use them for non-commercial research only.
 - This project is a research prototype on synthetic data. It is not clinically validated and has not been
   assessed or cleared as a medical device.
+
+## Afya note (not chart content)
+
+The pain-scale cutoffs are not in `sats_adult_2012.yaml`. The sign mapper's prompt maps patient-stated severity to
+`SEVERE_PAIN` / `MODERATE_PAIN`; Afya's working numbers (8-10 out of 10 severe, 5-7 moderate) are an assumption
+**to be confirmed by the nurse review** (see `evals/cases/nurse_session/README.md`).

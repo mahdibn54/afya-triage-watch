@@ -61,13 +61,17 @@ CASES = [
      ["SEVERE_PAIN"], [], "severe headache since morning, in Swahili"),
 ]
 
+# Cases that drove a prompt change no longer count as held-out (see README.md in the output folder).
+TUNED = {"n02-worst-headache"}
+
 OUT.mkdir(parents=True, exist_ok=True)
 for cid, title, age, conf, arrived, readings, signs, forbidden, why in CASES:
     after = rules.score(readings[-1][0], chart)
     before = rules.score(readings[0][0], chart)
     trig = rules.evaluate_trigger(conf, after, signs, chart, previous_colour=before.colour)
     case = {
-        "id": cid, "synthetic": True, "title": title, "split": "held_out", "tags": ["nurse_session", "fresh"],
+        "id": cid, "synthetic": True, "title": title, "split": "tuning" if cid in TUNED else "held_out",
+        "tags": ["nurse_session", "fresh"] + (["drove-prompt-fix"] if cid in TUNED else []),
         "age_years": age, "confirmed_colour": conf, "arrived_minutes_ago": arrived,
         "readings": [{"values": vals, "complaint": c} for vals, c in readings],
         "expected": {"proposal": trig.propose, **({"to_colour": trig.to_colour} if trig.propose else {}),
