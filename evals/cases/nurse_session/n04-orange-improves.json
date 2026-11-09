@@ -1,0 +1,47 @@
+{
+  "id": "n04-orange-improves",
+  "synthetic": true,
+  "title": "confirmed ORANGE, vitals improve",
+  "split": "held_out",
+  "tags": [
+    "nurse_session",
+    "fresh"
+  ],
+  "age_years": 45,
+  "confirmed_colour": "ORANGE",
+  "arrived_minutes_ago": 20,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 26,
+        "heart_rate": 118,
+        "systolic_bp": 110,
+        "temperature": 38.7,
+        "spo2": 94,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 18,
+        "heart_rate": 98,
+        "systolic_bp": 120,
+        "temperature": 37.6,
+        "spo2": 97,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    }
+  ],
+  "expected": {
+    "proposal": false,
+    "signs": [],
+    "forbidden_signs": [],
+    "label_basis": "TEWS 6->1 (GREEN); never propose lower. Pre-registered before any run; colours from the SATS rules, signs by the author."
+  }
+}

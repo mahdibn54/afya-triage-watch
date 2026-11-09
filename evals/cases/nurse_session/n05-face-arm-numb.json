@@ -1,0 +1,50 @@
+{
+  "id": "n05-face-arm-numb",
+  "synthetic": true,
+  "title": "sudden one-sided numbness",
+  "split": "held_out",
+  "tags": [
+    "nurse_session",
+    "fresh"
+  ],
+  "age_years": 58,
+  "confirmed_colour": "YELLOW",
+  "arrived_minutes_ago": 35,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 16,
+        "heart_rate": 84,
+        "systolic_bp": 150,
+        "temperature": 36.9,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 16,
+        "heart_rate": 86,
+        "systolic_bp": 152,
+        "temperature": 36.9,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": "Since twenty minutes my left arm and the left side of my face feel numb."
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "ORANGE",
+    "signs": [
+      "FOCAL_NEURO_ACUTE"
+    ],
+    "forbidden_signs": [],
+    "label_basis": "TEWS 1->1 (GREEN); acute focal neurology. Pre-registered before any run; colours from the SATS rules, signs by the author."
+  }
+}

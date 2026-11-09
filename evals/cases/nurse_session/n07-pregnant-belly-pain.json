@@ -1,0 +1,50 @@
+{
+  "id": "n07-pregnant-belly-pain",
+  "synthetic": true,
+  "title": "7 months pregnant, belly pain for one hour",
+  "split": "held_out",
+  "tags": [
+    "nurse_session",
+    "fresh"
+  ],
+  "age_years": 27,
+  "confirmed_colour": "YELLOW",
+  "arrived_minutes_ago": 30,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 18,
+        "heart_rate": 90,
+        "systolic_bp": 112,
+        "temperature": 36.9,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 18,
+        "heart_rate": 96,
+        "systolic_bp": 110,
+        "temperature": 36.9,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": "I am seven months pregnant and my belly started hurting an hour ago."
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "ORANGE",
+    "signs": [
+      "PREGNANCY_ABDO_PAIN"
+    ],
+    "forbidden_signs": [],
+    "label_basis": "TEWS 1->1 (GREEN); pregnancy with abdominal pain. Pre-registered before any run; colours from the SATS rules, signs by the author."
+  }
+}

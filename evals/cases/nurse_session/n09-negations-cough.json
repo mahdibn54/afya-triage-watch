@@ -1,0 +1,50 @@
+{
+  "id": "n09-negations-cough",
+  "synthetic": true,
+  "title": "only a cough, explicitly no chest pain or breathlessness",
+  "split": "held_out",
+  "tags": [
+    "nurse_session",
+    "fresh"
+  ],
+  "age_years": 50,
+  "confirmed_colour": "YELLOW",
+  "arrived_minutes_ago": 45,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 18,
+        "heart_rate": 88,
+        "systolic_bp": 130,
+        "temperature": 37.3,
+        "spo2": 97,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 18,
+        "heart_rate": 88,
+        "systolic_bp": 130,
+        "temperature": 37.3,
+        "spo2": 97,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": "Just a cough for three days. No chest pain and no problem breathing."
+    }
+  ],
+  "expected": {
+    "proposal": false,
+    "signs": [],
+    "forbidden_signs": [
+      "CHEST_PAIN",
+      "SOB_ACUTE"
+    ],
+    "label_basis": "TEWS 1->1 (GREEN); negated signs must not count. Pre-registered before any run; colours from the SATS rules, signs by the author."
+  }
+}

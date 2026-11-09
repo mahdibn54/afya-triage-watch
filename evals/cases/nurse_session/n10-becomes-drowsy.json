@@ -1,0 +1,48 @@
+{
+  "id": "n10-becomes-drowsy",
+  "synthetic": true,
+  "title": "responds only to voice now, breathing faster",
+  "split": "held_out",
+  "tags": [
+    "nurse_session",
+    "fresh"
+  ],
+  "age_years": 66,
+  "confirmed_colour": "YELLOW",
+  "arrived_minutes_ago": 55,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 18,
+        "heart_rate": 92,
+        "systolic_bp": 134,
+        "temperature": 37.4,
+        "spo2": 96,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 24,
+        "heart_rate": 98,
+        "systolic_bp": 130,
+        "temperature": 37.5,
+        "spo2": 94,
+        "mobility": "walking",
+        "consciousness": "voice",
+        "trauma": "no"
+      },
+      "complaint": null
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "ORANGE",
+    "signs": [],
+    "forbidden_signs": [],
+    "label_basis": "TEWS 1->3 (YELLOW); AVPU voice implies reduced consciousness. Pre-registered before any run; colours from the SATS rules, signs by the author."
+  }
+}

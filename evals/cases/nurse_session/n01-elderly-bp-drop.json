@@ -1,0 +1,48 @@
+{
+  "id": "n01-elderly-bp-drop",
+  "synthetic": true,
+  "title": "72-year-old, BP falls and pulse climbs, no complaint",
+  "split": "held_out",
+  "tags": [
+    "nurse_session",
+    "fresh"
+  ],
+  "age_years": 72,
+  "confirmed_colour": "YELLOW",
+  "arrived_minutes_ago": 50,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 18,
+        "heart_rate": 96,
+        "systolic_bp": 128,
+        "temperature": 37.0,
+        "spo2": 96,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 24,
+        "heart_rate": 124,
+        "systolic_bp": 86,
+        "temperature": 37.1,
+        "spo2": 94,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "ORANGE",
+    "signs": [],
+    "forbidden_signs": [],
+    "label_basis": "TEWS 1->5 (ORANGE); vitals only. Pre-registered before any run; colours from the SATS rules, signs by the author."
+  }
+}

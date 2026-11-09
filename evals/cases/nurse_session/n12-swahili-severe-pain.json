@@ -1,0 +1,50 @@
+{
+  "id": "n12-swahili-severe-pain",
+  "synthetic": true,
+  "title": "Swahili: head hurts very badly",
+  "split": "held_out",
+  "tags": [
+    "nurse_session",
+    "fresh"
+  ],
+  "age_years": 38,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 25,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 16,
+        "heart_rate": 86,
+        "systolic_bp": 124,
+        "temperature": 36.9,
+        "spo2": 99,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 16,
+        "heart_rate": 88,
+        "systolic_bp": 126,
+        "temperature": 36.9,
+        "spo2": 99,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": "Kichwa kinauma sana, maumivu makali mno tangu asubuhi."
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "ORANGE",
+    "signs": [
+      "SEVERE_PAIN"
+    ],
+    "forbidden_signs": [],
+    "label_basis": "TEWS 1->1 (GREEN); severe headache since morning, in Swahili. Pre-registered before any run; colours from the SATS rules, signs by the author."
+  }
+}

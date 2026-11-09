@@ -1,0 +1,50 @@
+{
+  "id": "n06-french-blood-vomit",
+  "synthetic": true,
+  "title": "French complaint: vomited blood this morning",
+  "split": "held_out",
+  "tags": [
+    "nurse_session",
+    "fresh"
+  ],
+  "age_years": 41,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 25,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 17,
+        "heart_rate": 92,
+        "systolic_bp": 116,
+        "temperature": 37.0,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 17,
+        "heart_rate": 94,
+        "systolic_bp": 114,
+        "temperature": 37.0,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": "J'ai vomi du sang rouge ce matin, deux fois."
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "ORANGE",
+    "signs": [
+      "VOMITING_FRESH_BLOOD"
+    ],
+    "forbidden_signs": [],
+    "label_basis": "TEWS 1->1 (GREEN); fresh red blood vomited, in French. Pre-registered before any run; colours from the SATS rules, signs by the author."
+  }
+}
