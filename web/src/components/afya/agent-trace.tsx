@@ -25,12 +25,18 @@ function ServerTag({ step }: { step: TraceStep }) {
     return <Tag className="border-agent/30 bg-agent-soft text-agent-foreground">ours · afya-mcp</Tag>;
   if (step.kind === "tool" && step.server === "borrowed")
     return <Tag className="border-sky-600/25 bg-sky-500/10 text-sky-800 dark:text-sky-300">borrowed · WSO2 FHIR</Tag>;
-  if (step.kind === "model")
+  if (step.kind === "model") {
+    const location = step.provider === "ollama"
+      ? "local"
+      : step.served_by || ["groq", "openrouter", "ollama_cloud"].includes(step.provider ?? "")
+        ? "remote (synthetic data only)"
+        : "provider not recorded";
     return (
       <Tag className="border-border bg-muted text-foreground">
-        language model · {step.cost_usd ? "remote (synthetic data only)" : "local"}
+        language model · {location}
       </Tag>
     );
+  }
   // Only the pause for a nurse is the human gate; the other gate steps (validate, a stopped run) are code checks.
   if (step.kind === "gate" && step.name === "paused_for_nurse")
     return <Tag className="border-ok/30 bg-ok-soft text-ok">human in the loop</Tag>;

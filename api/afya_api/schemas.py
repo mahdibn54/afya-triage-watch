@@ -186,6 +186,8 @@ class TraceStep(BaseModel):
     tokens_in: int | None = None
     tokens_out: int | None = None
     cost_usd: float | None = None
+    provider: str | None = None
+    served_by: str | None = None
     cited_ids: list[str] = []
 
 

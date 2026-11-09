@@ -665,8 +665,10 @@ Dheker asked to fix the remaining protocol error and check which requirements ap
 Verification follow-up: merged suites passed 236 API, 339 MCP, 71 eval and 18 harness tests; sequential Group A passed 27. CI at `478c1fd` independently passed 27 live, 3 isolation and all 6 desktop/mobile workflows, plus the strict application conformance gate (12 probes, no waivers). Its separate E2E WSO2 checker still expected the pre-E12-5 reading shape; corrected the checker to require labels, oldest-first order and current-reading markers, preserving projection/quantity/scope/write-refusal assertions. The corrected checker passed on real services. Full official conformance remains unclaimed; raw fixture failures and local timeout attempts are retained in the audit.
 
 
-### For Dheker (web-only items from the demo polish, not done by M)
+### For Dheker (demo polish follow-up)
 
-- `web/src/components/afya/agent-trace.tsx` labels model steps "local" whenever `cost_usd` is 0, but the Groq free plan has cost 0, so a remote provider shows as "local". Use the step's `served_by` / provider instead.
-- `web/src/lib/notices.ts`: the `clinician_reminder` text says the suggestion "has waited a while", but for ORANGE/RED the reminder is sent at creation (`api/afya_api/watch.py` `notify_at_creation`). The wording should not claim a wait.
+- [x] E7-5/E6-5: trace labels use the recorded provider instead of price. Expose only nullable `provider`/`served_by` from model audit metadata in the trace API, regenerate UI types, distinguish local Ollama from hosted providers (including free Groq), and show "provider not recorded" for older traces without identity.
+- [x] E7-8: clinician-reminder wording now says the clinician was reminded to review the suggestion, without claiming a wait. It covers both immediate and later reminders (`api/afya_api/watch.py`).
 - Optional: a toggle on the audit page for `include_screen_reads` (`GET /audit?include_screen_reads=true`); by default the screen-refresh rows are now hidden, so the page needs no change.
+
+Verification (B): reproduced the missing-provider API failure and old reminder wording before the fix. All 8 evidence/provider API tests passed against disposable PostgreSQL with no skips. The focused desktop/mobile browser checks passed on the production build (six provider cases, keyboard opening, no page errors or horizontal overflow); screenshots were inspected under ignored `.playwright-mcp/demo-polish-production/`. These browser checks use explicit UI fixtures and make no live model calls. Typecheck, ESLint, Ruff and the production web build passed. Story totals are unchanged: these are corrections to completed E6-5/E7-5/E7-8 work.

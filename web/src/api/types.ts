@@ -366,7 +366,9 @@ export interface paths {
         };
         /**
          * Audit
-         * @description Newest first. Payloads hold ids, codes and numbers only (written that way by the audit wrapper).
+         * @description Newest first. Payloads hold ids, codes and numbers only (written that way by the audit wrapper). Rows of the
+         *     read-only screen tools (mode `ui`: visit_timeline, demo_visit, written on every screen refresh) are left out
+         *     unless include_screen_reads=true or `kind` asks for one of them; they are still written, never deleted.
          */
         get: operations["audit_audit_get"];
         put?: never;
@@ -834,6 +836,10 @@ export interface components {
             tokens_out?: number | null;
             /** Cost Usd */
             cost_usd?: number | null;
+            /** Provider */
+            provider?: string | null;
+            /** Served By */
+            served_by?: string | null;
             /**
              * Cited Ids
              * @default []
@@ -2195,6 +2201,7 @@ export interface operations {
                 run_id?: string | null;
                 kind?: string | null;
                 limit?: number;
+                include_screen_reads?: boolean;
             };
             header?: never;
             path?: never;

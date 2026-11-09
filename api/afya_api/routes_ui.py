@@ -75,11 +75,13 @@ def trace_steps(rows: list[dict[str, Any]]) -> list[TraceStep]:
                 args_summary=_args(p.get("inputs") or {}), result_summary=_result(r["kind"], p),
                 latency_ms=p.get("latency_ms"), cited_ids=_cited(r["kind"], p)))
         elif r["kind"] == AGENT_STEP:
+            model = (p.get("model") or {}) if p["step_kind"] == "model" else {}
             steps.append(TraceStep(
                 step=len(steps) + 1, at=r["at"].isoformat(), kind=p["step_kind"], server=p.get("server"),
                 name=p["name"], args_summary=p.get("args_summary", "-"), result_summary=p.get("result_summary", "-"),
                 latency_ms=p.get("latency_ms"), tokens_in=p.get("tokens_in"), tokens_out=p.get("tokens_out"),
-                cost_usd=p.get("cost_usd"), cited_ids=[workflow.obs_ref(i) for i in p.get("cited_ids", [])]))
+                cost_usd=p.get("cost_usd"), provider=model.get("provider"), served_by=model.get("served_by"),
+                cited_ids=[workflow.obs_ref(i) for i in p.get("cited_ids", [])]))
     return steps
 
 

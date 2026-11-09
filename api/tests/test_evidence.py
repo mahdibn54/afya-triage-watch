@@ -52,7 +52,7 @@ def test_trace_from_audit_rows(client, as_user, visit, conn):
     a.write("agent_step", "agent", "service", visit, run,
             {"step_kind": "model", "server": None, "name": "map_signs", "args_summary": "complaint, 66 characters",
              "result_summary": "1 current sign", "latency_ms": 8200, "tokens_in": 540, "tokens_out": 96,
-             "cost_usd": 0, "cited_ids": []})
+             "cost_usd": 0, "model": {"provider": "groq", "served_by": "groq"}, "cited_ids": []})
     a.write("agent_step", "agent", "service", visit, run,
             {"step_kind": "tool", "server": "borrowed", "name": "search", "cited_ids": ["1042", "Observation/1057"]})
     a.write("raise_recheck_flag_refused", "mgr-k", "demo_switcher", visit, run, {"error": "actor refused"})
@@ -61,10 +61,11 @@ def test_trace_from_audit_rows(client, as_user, visit, conn):
     assert steps[0] == {"step": 1, "at": steps[0]["at"], "kind": "tool", "server": "ours", "name": "compute_tews",
                         "args_summary": "observation_id=Observation/1057", "result_summary": "scored: TEWS 6, ORANGE",
                         "latency_ms": 38.2, "tokens_in": None, "tokens_out": None, "cost_usd": None,
-                        "cited_ids": ["Observation/1057"]}
+                        "provider": None, "served_by": None, "cited_ids": ["Observation/1057"]}
     assert steps[1]["result_summary"] == "checked: YELLOW to ORANGE, propose"
     assert steps[1]["cited_ids"] == ["Observation/1042", "Observation/1057"]
     assert (steps[2]["kind"], steps[2]["server"], steps[2]["tokens_in"]) == ("model", None, 540)
+    assert (steps[2]["provider"], steps[2]["served_by"], steps[2]["cost_usd"]) == ("groq", "groq", 0)
     assert (steps[3]["server"], steps[3]["cited_ids"]) == ("borrowed", ["Observation/1042", "Observation/1057"])
     assert client.get("/runs/never-ran/trace").json() == []
     error(client.get("/runs/bad id/trace"), 404, "not_found")

@@ -36,7 +36,7 @@ export const NOTICE: Record<NoticeCode, { title: string; body: string; tone: "in
   clinician_reminded: {
     short: "Clinician reminded",
     title: "Clinician on duty reminded",
-    body: "A second-look suggestion has waited a while, so the clinician on duty was reminded.",
+    body: "The clinician on duty was reminded to review this second-look suggestion.",
     tone: "agent",
   },
   model_unavailable: {
