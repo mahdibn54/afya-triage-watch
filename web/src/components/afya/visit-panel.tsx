@@ -11,6 +11,7 @@ import { GateSteps } from "@/components/afya/gate-steps";
 import { NoticeCallout } from "@/components/afya/notice-chip";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { useAcknowledgeNotice, useAcknowledgeProposal, useProposals, useQueue, useTimeline, useUserName } from "@/lib/queries";
+import { fullName } from "@/lib/identity";
 import { SATS } from "@/lib/sats";
 import { clockShort, useNow } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -77,7 +78,7 @@ function VisitBody({ me, visitId, onRecord }: { me: Me; visitId: string; onRecor
     <div className="flex h-full flex-col overflow-x-hidden overflow-y-auto">
       <header className="sticky top-0 z-10 border-b bg-background/90 px-5 py-4 pr-14 backdrop-blur-md sm:px-7">
         <div className="flex flex-wrap items-center gap-3">
-          <SheetTitle className="font-mono text-2xl font-semibold tracking-tight">{p.patient_label ?? p.visit_id}</SheetTitle>
+          <SheetTitle className="text-2xl font-semibold tracking-tight">{fullName(p)}</SheetTitle>
           <ColourChip colour={p.confirmed_colour} />
           {p.flags.includes("second_look") && (
             <span className="inline-flex h-7 items-center gap-1 rounded-lg border px-2 text-xs font-semibold">
@@ -94,6 +95,18 @@ function VisitBody({ me, visitId, onRecord }: { me: Me; visitId: string; onRecor
             </button>
           )}
         </div>
+        <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+          <div className="flex items-baseline gap-1.5">
+            <dt className="text-xs text-muted-foreground">File no.</dt>
+            <dd className="font-mono font-semibold" data-testid="panel-file-number">{p.file_number ?? "–"}</dd>
+          </div>
+          {p.patient_name && (
+            <div className="flex items-baseline gap-1.5">
+              <dt className="text-xs text-muted-foreground">Label</dt>
+              <dd className="font-mono text-xs text-muted-foreground">{p.patient_label ?? p.visit_id}</dd>
+            </div>
+          )}
+        </dl>
         <SheetDescription className="tnum mt-1">
           {arrivedMs(p) === null ? "No arrival time" : `Arrived ${clockShort(p.arrived_at)} · waited ${minutesWaited(p, now)} min`} · last
           reading{" "}

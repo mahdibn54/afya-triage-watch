@@ -6,6 +6,7 @@ import type { Me, Notice, Proposal, QueuePatient } from "@/api/contract";
 import { ColourChip } from "@/components/afya/colour-chip";
 import { NoticeCallout, NoticeChip } from "@/components/afya/notice-chip";
 import { useAcknowledgeNotice, useProposals, useQueue } from "@/lib/queries";
+import { shortName } from "@/lib/identity";
 import { SATS } from "@/lib/sats";
 import { ago, clockShort, mmss, useClientNow, useNow } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -127,9 +128,10 @@ export function Board({
       )}
 
       <div className="mt-6 overflow-hidden rounded-2xl border bg-card shadow-[0_1px_2px_oklch(0_0_0/0.04)]">
-        <div className="hidden grid-cols-[150px_minmax(140px,1fr)_minmax(220px,1.6fr)_150px_150px_130px] gap-4 border-b bg-muted/50 px-5 py-2.5 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase lg:grid">
+        <div className="hidden grid-cols-[150px_minmax(120px,1fr)_90px_minmax(220px,1.6fr)_150px_150px_130px] gap-4 border-b bg-muted/50 px-5 py-2.5 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase lg:grid">
           <span>Confirmed colour</span>
           <span>Patient</span>
+          <span>File no.</span>
           <span>Time to target</span>
           <span>Last reading</span>
           <span>Re-check</span>
@@ -369,7 +371,7 @@ function PatientRow({
       data-testid={`row-${p.visit_id}`}
       className={cn(
         "group relative grid cursor-pointer grid-cols-[auto_1fr_auto] items-center gap-x-4 gap-y-3 px-4 py-4 transition-colors sm:px-5",
-        "lg:grid-cols-[150px_minmax(140px,1fr)_minmax(220px,1.6fr)_150px_150px_130px]",
+        "lg:grid-cols-[150px_minmax(120px,1fr)_90px_minmax(220px,1.6fr)_150px_150px_130px]",
         "hover:bg-muted/40",
         selected && "bg-muted/60",
         proposal && "bg-agent-soft/40 hover:bg-agent-soft/60",
@@ -390,11 +392,16 @@ function PatientRow({
           }}
           className="font-mono text-lg font-semibold tracking-tight outline-none hover:underline focus-visible:underline"
         >
-          {p.patient_label ?? p.visit_id}
+          {shortName(p)}
         </button>
         <p className="tnum text-xs text-muted-foreground">
+          {p.file_number && <span className="font-mono lg:hidden">{p.file_number} · </span>}
           {arrivedMs(p) === null ? "No arrival time" : `Arrived ${clockShort(p.arrived_at)} · waited ${minutesWaited(p, now)} min`}
         </p>
+      </div>
+
+      <div className="hidden font-mono text-sm lg:block" data-testid={`file-${p.visit_id}`}>
+        {p.file_number ?? <span className="text-muted-foreground">–</span>}
       </div>
 
       <div className="col-span-3 row-start-2 lg:col-span-1 lg:row-start-auto">

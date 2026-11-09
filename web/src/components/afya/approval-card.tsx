@@ -12,7 +12,8 @@ import { GateSteps } from "@/components/afya/gate-steps";
 import { NoticeCallout } from "@/components/afya/notice-chip";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ApiError } from "@/lib/api";
-import { useApprove, useReject } from "@/lib/queries";
+import { fullName } from "@/lib/identity";
+import { useApprove, useQueue, useReject } from "@/lib/queries";
 import { COLOURS, INPUT_LABEL, SATS } from "@/lib/sats";
 import { ago, useClientNow } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,8 @@ function decisionError(e: unknown): { title: string; body: string } {
 
 export function ApprovalCard({ me, proposal, hideNotices = [] }: { me: Me; proposal: Proposal; hideNotices?: string[] }) {
   const p = proposal;
+  const row = useQueue().data?.patients.find((x) => x.visit_id === p.visit_id);
+  const who = row ? fullName(row) : (p.patient_label ?? p.visit_id);   // the panel shows the full name
   const now = useClientNow(15_000);
   const canDecide = me.role === "nurse" || me.role === "clinician";
   const currentSigns = p.signs.filter((s) => s.status === "current");
@@ -64,7 +67,7 @@ export function ApprovalCard({ me, proposal, hideNotices = [] }: { me: Me; propo
       { colour, signs_kept: [...kept], override_reason: overriding ? overrideReason.trim() : null },
       {
         onSuccess: () =>
-          toast.success(`Confirmed ${SATS[colour].label} ${SATS[colour].shape} for ${p.patient_label ?? p.visit_id}`, {
+          toast.success(`Confirmed ${SATS[colour].label} ${SATS[colour].shape} for ${who}`, {
             description: "The flag and colour are being written to the record.",
           }),
         onError: (e) => toast.error(decisionError(e).title, { description: decisionError(e).body, duration: 8000 }),
@@ -73,7 +76,7 @@ export function ApprovalCard({ me, proposal, hideNotices = [] }: { me: Me; propo
   }
   function onReject() {
     reject.mutate(rejectReason.trim(), {
-      onSuccess: () => toast(`Suggestion for ${p.patient_label ?? p.visit_id} rejected`, { description: "Logged with your reason. The colour stays as it was." }),
+      onSuccess: () => toast(`Suggestion for ${who} rejected`, { description: "Logged with your reason. The colour stays as it was." }),
       onError: (e) => toast.error(decisionError(e).title, { description: decisionError(e).body, duration: 8000 }),
     });
   }

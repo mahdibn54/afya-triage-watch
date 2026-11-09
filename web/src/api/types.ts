@@ -675,6 +675,10 @@ export interface components {
             patient_id?: string | null;
             /** Patient Label */
             patient_label?: string | null;
+            /** Patient Name */
+            patient_name?: string | null;
+            /** File Number */
+            file_number?: string | null;
             /** Confirmed Colour */
             confirmed_colour?: ("RED" | "ORANGE" | "YELLOW" | "GREEN") | null;
             /** Arrived At */
