@@ -608,7 +608,8 @@ class GroqBackend:
         start = time.perf_counter()
         headers = {"Authorization": f"Bearer {self._key}"}
         async with httpx.AsyncClient(base_url=self.s.groq_url, timeout=None, transport=self.transport) as c:
-            for attempt in range(2):
+            first = body["messages"]
+            for attempt in range(RESAMPLES + 1):
                 try:
                     r = await _post_with_retry(c, "/chat/completions", body, self.s, headers=headers,
                                                sleep=self.sleep,
@@ -619,11 +620,16 @@ class GroqBackend:
                     code = _error_code(e.response)
                     log.warning("groq HTTP %s (%s)", e.response.status_code, code or "no code")
                     # E12-5: Groq answers 400 `tool_use_failed` when the model's own tool call did not parse or named
-                    # a tool that was not offered (gpt-oss sometimes calls its "commentary" channel): a bad sample, not
-                    # a bad request. One new sample (next seed) with a fixed reminder, then give up.
-                    if attempt == 0 and e.response.status_code == 400 and code == "tool_use_failed":
+                    # a tool that was not offered (gpt-oss sometimes calls its "commentary" channel), and 400
+                    # `output_parse_failed` when it could not parse the model's own output: a bad sample, not a bad
+                    # request. Up to RESAMPLES new samples (next seed each time) with a fixed reminder, only while
+                    # they fit before the call's deadline; any other 400 is raised at once.
+                    deadline = CALL_DEADLINE.get()
+                    if (attempt < RESAMPLES and e.response.status_code == 400 and code in RESAMPLE_CODES
+                            and (deadline is None or time.monotonic() + 2.0 < deadline)):
+                        reminder = TOOL_REMINDER if body.get("tools") else FORMAT_REMINDER
                         body = {**body, "seed": int(body.get("seed") or 0) + 1,
-                                "messages": [*body["messages"], {"role": "user", "content": TOOL_REMINDER}]}
+                                "messages": [*first, {"role": "user", "content": reminder}]}   # one reminder
                         continue
                     raise
         reply = openai_reply(r.json(), self.s.model, start)
@@ -657,6 +663,9 @@ def _limit_kind(r: httpx.Response) -> str:
 
 
 TOOL_REMINDER = "Your last answer did not call an offered tool. Call one of the offered tools by its exact name."
+FORMAT_REMINDER = "Your last answer could not be read. Answer again with JSON only that matches the schema exactly."
+RESAMPLE_CODES = ("tool_use_failed", "output_parse_failed")   # Groq 400s that are a bad sample of the model's output
+RESAMPLES = 2                                                 # new samples after the first: 3 attempts at most
 
 
 def _error_code(r: httpx.Response) -> str | None:

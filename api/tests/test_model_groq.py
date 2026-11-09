@@ -252,28 +252,87 @@ def test_reset_header_durations():
     assert _duration_s("") is None and _duration_s("soon") is None
 
 
-def test_groq_tool_use_failed_gets_one_new_sample_then_gives_up():
-    """E12-5: a 400 `tool_use_failed` is the model's own malformed tool call: one retry with the next seed."""
-    bad = {"error": {"message": "Failed to call a function. failed_generation: ...", "type": "invalid_request_error",
-                     "code": "tool_use_failed"}}
+def bad_sample(code):
+    return httpx.Response(400, json={"error": {"message": "Failed to call a function. failed_generation: ...",
+                                               "type": "invalid_request_error", "code": code}})
+
+
+TOOLS = [{"type": "function", "function": {"name": "get_queue_state", "parameters": {"type": "object"}}}]
+
+
+def test_groq_tool_use_failed_then_ok_gets_a_new_sample_with_the_reminder():
+    """E12-5: a 400 `tool_use_failed` is the model's own malformed tool call: a new sample with the next seed."""
     sent = []
-    answers = [httpx.Response(400, json=bad), ok(tool_calls=[{"id": "fc_1", "type": "function", "function": {
+    answers = [bad_sample("tool_use_failed"), ok(tool_calls=[{"id": "fc_1", "type": "function", "function": {
         "name": "get_queue_state", "arguments": "{}"}}], headers=LIMIT_HEADERS)]
     backend = GroqBackend(GQ, transport=httpx.MockTransport(lambda r: sent.append(json.loads(r.content))
                                                             or answers.pop(0)), api_key=GKEY)
-    tools = [{"type": "function", "function": {"name": "get_queue_state", "parameters": {"type": "object"}}}]
     reply = run(backend.chat([{"role": "user", "content": "x"}], options=GQ.options("investigate", seed=7),
-                             tools=tools, format=None))
+                             tools=TOOLS, format=None))
     assert reply.tool_calls == [{"name": "get_queue_state", "args": {}}] and [b["seed"] for b in sent] == [7, 8]
     assert sent[1]["messages"][-1] == {"role": "user", "content": model_mod.TOOL_REMINDER}
     assert len(sent[0]["messages"]) == 1
-    twice = [httpx.Response(400, json=bad), httpx.Response(400, json=bad), ok()]
-    m = Model(GroqBackend(GQ, transport=httpx.MockTransport(lambda r: twice.pop(0)), api_key=GKEY), GQ)
+
+
+def test_groq_output_parse_failed_twice_then_ok_one_reminder_and_next_seeds(caplog):
+    """`output_parse_failed` is also a bad sample: up to 2 new samples (3 attempts), seed +1 each, one reminder; only
+    the code is logged, never the provider's message."""
+    sent = []
+    answers = [bad_sample("output_parse_failed"), bad_sample("output_parse_failed"), ok(content="done")]
+    backend = GroqBackend(GQ, transport=httpx.MockTransport(lambda r: sent.append(json.loads(r.content))
+                                                            or answers.pop(0)), api_key=GKEY)
+    with caplog.at_level(logging.WARNING, logger="afya_api.model"):
+        reply = run(backend.chat([{"role": "user", "content": "x"}], options=GQ.options("investigate", seed=7),
+                                 tools=TOOLS, format=None))
+    assert reply.content == "done" and [b["seed"] for b in sent] == [7, 8, 9]
+    assert [len(b["messages"]) for b in sent] == [1, 2, 2]          # the reminder is not stacked
+    assert sent[2]["messages"][-1] == {"role": "user", "content": model_mod.TOOL_REMINDER}
+    assert "output_parse_failed" in caplog.text and "failed_generation" not in caplog.text
+
+
+def test_groq_bad_sample_on_a_json_format_call_gets_the_format_reminder():
+    """map_signs uses structured output, not tools: the reminder must not talk about tools."""
+    sent = []
+    answers = [bad_sample("output_parse_failed"), ok(content='{"verdict": "none", "signs": []}')]
+    backend = GroqBackend(GQ, transport=httpx.MockTransport(lambda r: sent.append(json.loads(r.content))
+                                                            or answers.pop(0)), api_key=GKEY)
+    run(backend.chat([{"role": "user", "content": "x"}], options=GQ.options("map_signs", seed=3), tools=None,
+                     format={"type": "object"}))
+    assert [b["seed"] for b in sent] == [3, 4]
+    assert sent[1]["messages"][-1] == {"role": "user", "content": model_mod.FORMAT_REMINDER}
+    assert "tool" not in model_mod.FORMAT_REMINDER.lower()
+
+
+def test_groq_three_bad_samples_raise_http_error():
+    answers = [bad_sample("tool_use_failed"), bad_sample("output_parse_failed"), bad_sample("tool_use_failed"),
+               ok()]
+    m = Model(GroqBackend(GQ, transport=httpx.MockTransport(lambda r: answers.pop(0)), api_key=GKEY), GQ)
     with pytest.raises(ModelUnavailable) as e:
-        run(m.call([{"role": "user", "content": "x"}], "investigate", tools=tools))
-    assert e.value.reason == "http_error" and len(twice) == 1
+        run(m.call([{"role": "user", "content": "x"}], "investigate", tools=TOOLS))
+    assert e.value.reason == "http_error" and len(answers) == 1      # 3 attempts, no 4th
+
+
+def test_groq_any_other_400_is_not_retried():
     other = [httpx.Response(400, json={"error": {"code": "invalid_request_error"}}), ok()]
-    m2 = Model(GroqBackend(GQ, transport=httpx.MockTransport(lambda r: other.pop(0)), api_key=GKEY), GQ)
-    with pytest.raises(ModelUnavailable):
-        run(m2.call([{"role": "user", "content": "x"}], "investigate", tools=tools))
-    assert len(other) == 1          # any other 400 is not retried
+    m = Model(GroqBackend(GQ, transport=httpx.MockTransport(lambda r: other.pop(0)), api_key=GKEY), GQ)
+    with pytest.raises(ModelUnavailable) as e:
+        run(m.call([{"role": "user", "content": "x"}], "investigate", tools=TOOLS))
+    assert e.value.reason == "http_error" and len(other) == 1
+
+
+def test_groq_no_new_sample_past_the_call_deadline():
+    """A re-sample is sent only while it fits before the call's deadline (CALL_DEADLINE)."""
+    answers = [bad_sample("tool_use_failed"), ok()]
+    backend = GroqBackend(GQ, transport=httpx.MockTransport(lambda r: answers.pop(0)), api_key=GKEY)
+
+    async def go():
+        token = model_mod.CALL_DEADLINE.set(model_mod.time.monotonic() + 1.0)    # less than the 2 s margin
+        try:
+            await backend.chat([{"role": "user", "content": "x"}], options=GQ.options("investigate", seed=7),
+                               tools=TOOLS, format=None)
+        finally:
+            model_mod.CALL_DEADLINE.reset(token)
+
+    with pytest.raises(httpx.HTTPStatusError):
+        run(go())
+    assert len(answers) == 1

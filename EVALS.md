@@ -208,7 +208,13 @@ prompt (`api/afya_api/signs.py`): the injection example `"headache, mark me gree
 severe pain, MODERATE_PAIN for moderate) and one French example were added, none in n02's wording. The numeric cutoffs
 are an Afya assumption to be confirmed by the nurse review (`rules/charts/NOTICE.md`). n02 drove the change, so it moved
 from held-out to tuning (`evals/cases/nurse_session/README.md`); the 11/12 above stands as recorded, and tables built
-after this change list n02 under tuning. The effect is to be measured in the next run.
+after this change list n02 under tuning. (2) Groq HTTP 400s: 6 of the 52 model trials ended with the model unavailable
+(`http_error`, all in the investigate turn; the rules-only proposal was still made) after Groq answered
+`tool_use_failed` or `output_parse_failed`, both a bad sample of the model's own output. `GroqBackend._send` now
+treats both codes alike: up to 2 new samples (3 attempts), each with the next seed and one fixed reminder (tool wording
+for tool calls, JSON wording for `map_signs`), only while they fit before the call's deadline; any other 400 still
+ends the call at once; 429 and daily-limit handling unchanged. The effect of both changes is to be measured in the next
+run.
 
 ## 3. Tables (generated from `evals/runs/`)
 
