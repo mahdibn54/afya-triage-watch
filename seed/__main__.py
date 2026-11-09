@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from afya_mcp import audit, db, rules, services
+from afya_mcp import audit, db, identity, rules, services
 from afya_mcp.fhir import COLOUR_SYSTEM, Fhir, FhirUnavailable, HttpFhir
 
 from evals.cases import Case, load_cases
@@ -38,8 +38,10 @@ def seed_case(fhir: Fhir, store: db.VisitStore, auditor: audit.Auditor, case: Ca
 
     def create() -> dict[str, Any]:
         born = now.date() - timedelta(days=round(365.25 * case.age_years) + 30)
+        who = identity.identity_fields(label)   # made-up name and file number, for the screens only
         patient = fhir.conditional_create(
-            {"resourceType": "Patient", "identifier": [{"system": services.LABEL_SYSTEM, "value": label}],
+            {"resourceType": "Patient", "name": who["name"],
+             "identifier": [{"system": services.LABEL_SYSTEM, "value": label}, who["file_number"]],
              "birthDate": born.isoformat(), "gender": "other"}, f"{services.LABEL_SYSTEM}|{label}")
         encounter: dict[str, Any] = {
             "resourceType": "Encounter", "status": "in-progress", "class": {"code": "EMER"},

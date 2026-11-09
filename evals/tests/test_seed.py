@@ -1,9 +1,10 @@
 """E2-6 retry, partial failure and preservation contract; no model calls."""
 import importlib.util
+import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from afya_mcp import audit, services
+from afya_mcp import audit, identity, services
 from seed.__main__ import ROOT, seed_case
 
 from evals.cases import load_cases
@@ -115,3 +116,14 @@ def test_retry_preserves_newer_readings_and_complaint(setup):
         case.readings[1]["values"], "human-recheck", when=NOW, store=store)
     seed_case(fhir, store, auditor, case, NOW + timedelta(days=1))
     assert store.visits[result["visit_id"]][1] == saved["observation_id"].split("/")[1]
+
+
+def test_seeded_patients_get_made_up_names_kept_out_of_audit(setup):
+    fhir, store, auditor, cases = setup
+    result = seed_case(fhir, store, auditor, cases[0], NOW)
+    patient = fhir.read("Patient", result["patient_id"])
+    name = identity.full_name_of(patient)
+    assert name == " ".join(identity.name_for(f"SYN-{cases[0].id}"))
+    assert identity.file_number_of(patient) == identity.file_number_for(f"SYN-{cases[0].id}")
+    assert name not in json.dumps(result)
+    assert name not in json.dumps(getattr(auditor, "rows", []), default=str)
