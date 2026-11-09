@@ -667,6 +667,8 @@ Verification follow-up: merged suites passed 236 API, 339 MCP, 71 eval and 18 ha
 
 ### For Dheker (demo polish follow-up)
 
+E8-3 configuration follow-up (B, explicitly requested): prepared the ignored local `.env` for Groq `qwen/qwen3.8-27b`, synthetic data, one concurrent request and the model enabled; left `GROQ_API_KEY` empty for Dheker. Added the alternative model settings to `.env.example` without changing its default. Verified configuration parsing and the eval model tag offline; no provider call or evaluation result is claimed, and E8-3 remains in progress with Mahdi.
+
 - [x] E7-5/E6-5: trace labels use the recorded provider instead of price. Expose only nullable `provider`/`served_by` from model audit metadata in the trace API, regenerate UI types, distinguish local Ollama from hosted providers (including free Groq), and show "provider not recorded" for older traces without identity.
 - [x] E7-8: clinician-reminder wording now says the clinician was reminded to review the suggestion, without claiming a wait. It covers both immediate and later reminders (`api/afya_api/watch.py`).
 - Optional: a toggle on the audit page for `include_screen_reads` (`GET /audit?include_screen_reads=true`); by default the screen-refresh rows are now hidden, so the page needs no change.
