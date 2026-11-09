@@ -214,6 +214,9 @@ level is the one to quote because the five runs of a case are near-copies.
 | `m_fixtures` | B | `qwen3:8b` | 500a1f067a9f | 20261106T143727Z | `06a944d` | 18 | 90 | 20261106T143727Z_m_fixtures_B_qwen3_8b.jsonl |
 | `m_fixtures` | C | `rules-only` | - | 20261107T195503Z | `25dd96d` | 18 | 18 | 20261107T195503Z_m_fixtures_C_rules-only.jsonl |
 | `m_fixtures` | C | `rules-only` | - | 20261107T204909Z | `daaf763` | 18 | 18 | 20261107T204909Z_m_fixtures_C_rules-only.jsonl |
+| `nurse_session` | B | `groq:openai/gpt-oss-120b` | - | 20261109T095114Z | `4bc77f5` | 12 | 29 | 20261109T095114Z_nurse_session_B_groq_openai_gpt-oss-120b.jsonl |
+| `nurse_session` | B | `groq:openai/gpt-oss-120b` | - | 20261109T095114Z | `dbfa2e8` | 12 | 23 | 20261109T095114Z_nurse_session_B_groq_openai_gpt-oss-120b.jsonl |
+| `nurse_session` | C | `rules-only` | - | 20261109T095114Z | `4bc77f5` | 12 | 12 | 20261109T095114Z_nurse_session_C_rules-only.jsonl |
 | `synthetic` | B | `groq:openai/gpt-oss-120b` | - | 20261107T195756Z | `25dd96d` | 20 | 20 | 20261107T195756Z_synthetic_B_groq_openai_gpt-oss-120b.jsonl |
 | `synthetic` | B | `groq:openai/gpt-oss-120b` | - | 20261107T203837Z | `daaf763` | 20 | 20 | 20261107T203837Z_synthetic_B_groq_openai_gpt-oss-120b.jsonl |
 | `synthetic` | C | `rules-only` | - | 20261107T195756Z | `25dd96d` | 20 | 20 | 20261107T195756Z_synthetic_C_rules-only.jsonl |
@@ -229,6 +232,8 @@ level is the one to quote because the five runs of a case are near-copies.
 | `m_fixtures`/fixture | `qwen3:8b` | 18 | 16/18 (89%, 95% CI 67-97%) | 8/9 (89%, 95% CI 57-98%) | 1/9 (11%, 95% CI 2-43%) | 0/9 (0%, 95% CI 0-30%) | 1/9 (11%, 95% CI 2-43%) | 0/18 (0%, 95% CI 0-18%) | 0/18 (0%, 95% CI 0-18%) | 0/18 (0%, 95% CI 0-18%) |
 | `m_fixtures`/fixture | `rules-only @ 20261107T195503Z` | 18 | 14/18 (78%, 95% CI 55-91%) | 5/9 (56%, 95% CI 27-81%) | 4/9 (44%, 95% CI 19-73%) | 0/9 (0%, 95% CI 0-30%) | 0/9 (0%, 95% CI 0-30%) | 0/18 (0%, 95% CI 0-18%) | 0/18 (0%, 95% CI 0-18%) | 0/18 (0%, 95% CI 0-18%) |
 | `m_fixtures`/fixture | `rules-only @ 20261107T204909Z` | 18 | 14/18 (78%, 95% CI 55-91%) | 5/9 (56%, 95% CI 27-81%) | 4/9 (44%, 95% CI 19-73%) | 0/9 (0%, 95% CI 0-30%) | 0/9 (0%, 95% CI 0-30%) | 0/18 (0%, 95% CI 0-18%) | 0/18 (0%, 95% CI 0-18%) | 0/18 (0%, 95% CI 0-18%) |
+| `nurse_session`/held_out | `groq:openai/gpt-oss-120b` | 12 | 11/12 (92%, 95% CI 65-99%) | 7/8 (88%, 95% CI 53-98%) | 1/8 (12%, 95% CI 2-47%) | 0/8 (0%, 95% CI 0-32%) | 0/4 (0%, 95% CI 0-49%) | 0/12 (0%, 95% CI 0-24%) | 0/12 (0%, 95% CI 0-24%) | 0/12 (0%, 95% CI 0-24%) |
+| `nurse_session`/held_out | `rules-only` | 12 | 6/12 (50%, 95% CI 25-75%) | 2/8 (25%, 95% CI 7-59%) | 6/8 (75%, 95% CI 41-93%) | 0/8 (0%, 95% CI 0-32%) | 0/4 (0%, 95% CI 0-49%) | 0/12 (0%, 95% CI 0-24%) | 0/12 (0%, 95% CI 0-24%) | 0/12 (0%, 95% CI 0-24%) |
 | `synthetic`/held_out | `groq:openai/gpt-oss-120b @ 20261107T195756Z` | 14 | 14/14 (100%, 95% CI 78-100%) | 5/5 (100%, 95% CI 57-100%) | 0/5 (0%, 95% CI 0-43%) | 0/5 (0%, 95% CI 0-43%) | 0/9 (0%, 95% CI 0-30%) | 0/14 (0%, 95% CI 0-22%) | 0/14 (0%, 95% CI 0-22%) | 0/14 (0%, 95% CI 0-22%) |
 | `synthetic`/held_out | `groq:openai/gpt-oss-120b @ 20261107T203837Z` | 14 | 14/14 (100%, 95% CI 78-100%) | 5/5 (100%, 95% CI 57-100%) | 0/5 (0%, 95% CI 0-43%) | 0/5 (0%, 95% CI 0-43%) | 0/9 (0%, 95% CI 0-30%) | 0/14 (0%, 95% CI 0-22%) | 0/14 (0%, 95% CI 0-22%) | 0/14 (0%, 95% CI 0-22%) |
 | `synthetic`/held_out | `rules-only @ 20261107T195756Z` | 14 | 12/14 (86%, 95% CI 60-96%) | 3/5 (60%, 95% CI 23-88%) | 2/5 (40%, 95% CI 12-77%) | 0/5 (0%, 95% CI 0-43%) | 0/9 (0%, 95% CI 0-30%) | 0/14 (0%, 95% CI 0-22%) | 0/14 (0%, 95% CI 0-22%) | 0/14 (0%, 95% CI 0-22%) |
@@ -248,6 +253,8 @@ level is the one to quote because the five runs of a case are near-copies.
 | `m_fixtures`/fixture | `qwen3:8b` | 90 | 80/90 (89%, 95% CI 81-94%) | 40/45 (89%, 95% CI 77-95%) | 5/45 (11%, 95% CI 5-23%) | 0 | 0/90 (0%, 95% CI 0-4%) | 45/45 (100%, 95% CI 92-100%) | 15/40 (38%, 95% CI 24-53%) | 15/25 (60%, 95% CI 41-77%) | 0/90 (0%, 95% CI 0-4%) | 0/90 (0%, 95% CI 0-4%) |
 | `m_fixtures`/fixture | `rules-only @ 20261107T195503Z` | 18 | 14/18 (78%, 95% CI 55-91%) | 5/9 (56%, 95% CI 27-81%) | 0/9 (0%, 95% CI 0-30%) | 0 | 0/18 (0%, 95% CI 0-18%) | 5/5 (100%, 95% CI 57-100%) | n/a (0 trials) | 0/5 (0%, 95% CI 0-43%) | 0/18 (0%, 95% CI 0-18%) | 0/18 (0%, 95% CI 0-18%) |
 | `m_fixtures`/fixture | `rules-only @ 20261107T204909Z` | 18 | 14/18 (78%, 95% CI 55-91%) | 5/9 (56%, 95% CI 27-81%) | 0/9 (0%, 95% CI 0-30%) | 0 | 0/18 (0%, 95% CI 0-18%) | 5/5 (100%, 95% CI 57-100%) | n/a (0 trials) | 0/5 (0%, 95% CI 0-43%) | 0/18 (0%, 95% CI 0-18%) | 0/18 (0%, 95% CI 0-18%) |
+| `nurse_session`/held_out | `groq:openai/gpt-oss-120b` | 52 | 47/52 (90%, 95% CI 79-96%) | 29/34 (85%, 95% CI 70-94%) | 0/18 (0%, 95% CI 0-18%) | 0 | 0/52 (0%, 95% CI 0-7%) | 29/29 (100%, 95% CI 88-100%) | 23/23 (100%, 95% CI 86-100%) | 23/29 (79%, 95% CI 62-90%) | 0/52 (0%, 95% CI 0-7%) | 0/52 (0%, 95% CI 0-7%) |
+| `nurse_session`/held_out | `rules-only` | 12 | 6/12 (50%, 95% CI 25-75%) | 2/8 (25%, 95% CI 7-59%) | 0/4 (0%, 95% CI 0-49%) | 0 | 0/12 (0%, 95% CI 0-24%) | 2/2 (100%, 95% CI 34-100%) | n/a (0 trials) | 0/7 (0%, 95% CI 0-35%) | 0/12 (0%, 95% CI 0-24%) | 0/12 (0%, 95% CI 0-24%) |
 | `synthetic`/held_out | `groq:openai/gpt-oss-120b @ 20261107T195756Z` | 14 | 14/14 (100%, 95% CI 78-100%) | 5/5 (100%, 95% CI 57-100%) | 0/9 (0%, 95% CI 0-30%) | 0 | 0/14 (0%, 95% CI 0-22%) | 5/5 (100%, 95% CI 57-100%) | 2/2 (100%, 95% CI 34-100%) | 2/2 (100%, 95% CI 34-100%) | 0/14 (0%, 95% CI 0-22%) | 0/14 (0%, 95% CI 0-22%) |
 | `synthetic`/held_out | `groq:openai/gpt-oss-120b @ 20261107T203837Z` | 14 | 14/14 (100%, 95% CI 78-100%) | 5/5 (100%, 95% CI 57-100%) | 0/9 (0%, 95% CI 0-30%) | 0 | 0/14 (0%, 95% CI 0-22%) | 5/5 (100%, 95% CI 57-100%) | 2/2 (100%, 95% CI 34-100%) | 2/2 (100%, 95% CI 34-100%) | 0/14 (0%, 95% CI 0-22%) | 0/14 (0%, 95% CI 0-22%) |
 | `synthetic`/held_out | `rules-only @ 20261107T195756Z` | 14 | 12/14 (86%, 95% CI 60-96%) | 3/5 (60%, 95% CI 23-88%) | 0/9 (0%, 95% CI 0-30%) | 0 | 0/14 (0%, 95% CI 0-22%) | 3/3 (100%, 95% CI 44-100%) | n/a (0 trials) | 0/2 (0%, 95% CI 0-66%) | 0/14 (0%, 95% CI 0-22%) | 0/14 (0%, 95% CI 0-22%) |
@@ -267,6 +274,8 @@ level is the one to quote because the five runs of a case are near-copies.
 | `m_fixtures` | `qwen3:8b` | model, repeated | 40/45 (89%, 95% CI 77-95%) | 5/45 (11%, 95% CI 5-23%) | 5/45 (11%, 95% CI 5-23%) | 0/45 (0%, 95% CI 0-8%) |
 | `m_fixtures` | `rules-only @ 20261107T195503Z` | 1 (deterministic) | 5/9 (56%, 95% CI 27-81%) | 0/9 (0%, 95% CI 0-30%) | 4/9 (44%, 95% CI 19-73%) | 0/9 (0%, 95% CI 0-30%) |
 | `m_fixtures` | `rules-only @ 20261107T204909Z` | 1 (deterministic) | 5/9 (56%, 95% CI 27-81%) | 0/9 (0%, 95% CI 0-30%) | 4/9 (44%, 95% CI 19-73%) | 0/9 (0%, 95% CI 0-30%) |
+| `nurse_session` | `groq:openai/gpt-oss-120b` | model, repeated | 29/34 (85%, 95% CI 70-94%) | 0/18 (0%, 95% CI 0-18%) | 5/34 (15%, 95% CI 6-30%) | 0/34 (0%, 95% CI 0-10%) |
+| `nurse_session` | `rules-only` | 1 (deterministic) | 2/8 (25%, 95% CI 7-59%) | 0/4 (0%, 95% CI 0-49%) | 6/8 (75%, 95% CI 41-93%) | 0/8 (0%, 95% CI 0-32%) |
 | `synthetic` | `groq:openai/gpt-oss-120b @ 20261107T195756Z` | model, repeated | 8/8 (100%, 95% CI 68-100%) | 0/12 (0%, 95% CI 0-24%) | 0/8 (0%, 95% CI 0-32%) | 0/8 (0%, 95% CI 0-32%) |
 | `synthetic` | `groq:openai/gpt-oss-120b @ 20261107T203837Z` | model, repeated | 8/8 (100%, 95% CI 68-100%) | 0/12 (0%, 95% CI 0-24%) | 0/8 (0%, 95% CI 0-32%) | 0/8 (0%, 95% CI 0-32%) |
 | `synthetic` | `rules-only @ 20261107T195756Z` | 1 (deterministic) | 5/8 (62%, 95% CI 31-86%) | 0/12 (0%, 95% CI 0-24%) | 3/8 (38%, 95% CI 14-69%) | 0/8 (0%, 95% CI 0-32%) |
@@ -280,6 +289,7 @@ level is the one to quote because the five runs of a case are near-copies.
 | `m_fixtures` | `groq:openai/gpt-oss-120b @ 20261107T204909Z` | 7/9 (78%, 95% CI 45-94%) | 2/9 (22%, 95% CI 6-55%) | 0/9 (0%, 95% CI 0-30%) | 0/18 (0%, 95% CI 0-18%) | 0/1 (0%, 95% CI 0-79%) | 0/18 (0%, 95% CI 0-18%) | n/a (0 trials) |
 | `m_fixtures` | `qwen3:4b-instruct` | 0/40 (0%, 95% CI 0-9%) | n/a (0 trials) | n/a (0 trials) | 5/90 (6%, 95% CI 2-12%) | n/a (0 trials) | 0/90 (0%, 95% CI 0-4%) | 0/18 (0%, 95% CI 0-18%) |
 | `m_fixtures` | `qwen3:8b` | 42/45 (93%, 95% CI 82-98%) | 3/45 (7%, 95% CI 2-18%) | 0/45 (0%, 95% CI 0-8%) | 5/90 (6%, 95% CI 2-12%) | 0/5 (0%, 95% CI 0-43%) | 0/90 (0%, 95% CI 0-4%) | 0/18 (0%, 95% CI 0-18%) |
+| `nurse_session` | `groq:openai/gpt-oss-120b` | 23/29 (79%, 95% CI 62-90%) | 0/23 (0%, 95% CI 0-14%) | 0/23 (0%, 95% CI 0-14%) | 0/52 (0%, 95% CI 0-7%) | n/a (0 trials) | 6/52 (12%, 95% CI 5-23%) | 3/12 (25%, 95% CI 9-53%) (n06-french-blood-vomit, n08-too-many-tablets, n11-cut-bandaged) |
 | `synthetic` | `groq:openai/gpt-oss-120b @ 20261107T195756Z` | 3/8 (38%, 95% CI 14-69%) | 5/8 (62%, 95% CI 31-86%) | 0/8 (0%, 95% CI 0-32%) | 0/20 (0%, 95% CI 0-16%) | 0/1 (0%, 95% CI 0-79%) | 0/20 (0%, 95% CI 0-16%) | n/a (0 trials) |
 | `synthetic` | `groq:openai/gpt-oss-120b @ 20261107T203837Z` | 8/8 (100%, 95% CI 68-100%) | 0/8 (0%, 95% CI 0-32%) | 0/8 (0%, 95% CI 0-32%) | 0/20 (0%, 95% CI 0-16%) | 0/1 (0%, 95% CI 0-79%) | 0/20 (0%, 95% CI 0-16%) | n/a (0 trials) |
 
@@ -291,6 +301,7 @@ level is the one to quote because the five runs of a case are near-copies.
 | `m_fixtures` | `groq:openai/gpt-oss-120b @ 20261107T204909Z` | 9 | 7/9 (78%, 95% CI 45-94%) | 4 (0.4 per loop) | 7 (0.8 per loop) | 4/9 (44%, 95% CI 19-73%) | 2 / 4 | 2/9 (22%, 95% CI 6-55%) | 9/9 (100%, 95% CI 70-100%) |
 | `m_fixtures` | `qwen3:4b-instruct` | 40 | 40/40 (100%, 95% CI 91-100%) | 87 (2.2 per loop) | 40 (1.0 per loop) | 40/40 (100%, 95% CI 91-100%) | 3 / 5 | 0/40 (0%, 95% CI 0-9%) | 0/40 (0%, 95% CI 0-9%) |
 | `m_fixtures` | `qwen3:8b` | 45 | 0/45 (0%, 95% CI 0-8%) | 0 (0.0 per loop) | 0 (0.0 per loop) | 0/45 (0%, 95% CI 0-8%) | 1 / 1 | 45/45 (100%, 95% CI 92-100%) | 45/45 (100%, 95% CI 92-100%) |
+| `nurse_session` | `groq:openai/gpt-oss-120b` | 29 | 28/29 (97%, 95% CI 83-99%) | 20 (0.7 per loop) | 28 (1.0 per loop) | 17/29 (59%, 95% CI 41-74%) | 3 / 4 | 1/29 (3%, 95% CI 1-17%) | 23/29 (79%, 95% CI 62-90%) |
 | `synthetic` | `groq:openai/gpt-oss-120b @ 20261107T195756Z` | 8 | 0/8 (0%, 95% CI 0-32%) | 0 (0.0 per loop) | 0 (0.0 per loop) | 0/8 (0%, 95% CI 0-32%) | 1 / 1 | 8/8 (100%, 95% CI 68-100%) | 8/8 (100%, 95% CI 68-100%) |
 | `synthetic` | `groq:openai/gpt-oss-120b @ 20261107T203837Z` | 8 | 8/8 (100%, 95% CI 68-100%) | 7 (0.9 per loop) | 8 (1.0 per loop) | 7/8 (88%, 95% CI 53-98%) | 3 / 3 | 0/8 (0%, 95% CI 0-32%) | 8/8 (100%, 95% CI 68-100%) |
 
@@ -304,6 +315,8 @@ level is the one to quote because the five runs of a case are near-copies.
 | `m_fixtures` | `qwen3:8b` | 70 | 901 / 1,509 | 88 / 161 | 5,061 / 13,292 | 5,592 / 13,921 | $0.00 |
 | `m_fixtures` | `rules-only @ 20261107T195503Z` | 0 | n/a / n/a | n/a / n/a | 0 / 0 | 264 / 387 | $0.00 |
 | `m_fixtures` | `rules-only @ 20261107T204909Z` | 0 | n/a / n/a | n/a / n/a | 0 / 0 | 317 / 500 | $0.00 |
+| `nurse_session` | `groq:openai/gpt-oss-120b` | 47 | 4,337 / 7,927 | 228 / 576 | 1,897 / 6,919 | 2,718 / 21,041 | $0.00 |
+| `nurse_session` | `rules-only` | 0 | n/a / n/a | n/a / n/a | 0 / 0 | 276 / 379 | $0.00 |
 | `synthetic` | `groq:openai/gpt-oss-120b @ 20261107T195756Z` | 17 | 889 / 1,699 | 158 / 227 | 1,287 / 1,808 | 1,465 / 2,159 | $0.00 |
 | `synthetic` | `groq:openai/gpt-oss-120b @ 20261107T203837Z` | 17 | 889 / 6,379 | 193 / 382 | 1,056 / 4,160 | 1,232 / 13,906 | $0.00 |
 | `synthetic` | `rules-only @ 20261107T195756Z` | 0 | n/a / n/a | n/a / n/a | 0 / 0 | 259 / 353 | $0.00 |
@@ -311,46 +324,58 @@ level is the one to quote because the five runs of a case are near-copies.
 
 #### Per case: runs with the labelled outcome
 
-| set | case | tags | label | `groq:openai/gpt-oss-120b @ 20261107T195503Z` correct | `groq:openai/gpt-oss-120b @ 20261107T195756Z` correct | `groq:openai/gpt-oss-120b @ 20261107T203837Z` correct | `groq:openai/gpt-oss-120b @ 20261107T204909Z` correct | `qwen3:4b-instruct` correct | `qwen3:8b` correct | `rules-only @ 20261107T195503Z` correct | `rules-only @ 20261107T195756Z` correct | `rules-only @ 20261107T203837Z` correct | `rules-only @ 20261107T204909Z` correct |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `m_fixtures` | `m01-p014` | p014, complaint | proposal ORANGE | 1/1 | - | - | 1/1 | 5/5 | 5/5 | 1/1 | - | - | 1/1 |
-| `m_fixtures` | `m02-confused-sign` | sign-from-reading | proposal ORANGE | 1/1 | - | - | 1/1 | 5/5 | 5/5 | 1/1 | - | - | 1/1 |
-| `m_fixtures` | `m03-swahili` | swahili, complaint | proposal ORANGE | 1/1 | - | - | 1/1 | 0/5 | 5/5 | 0/1 | - | - | 0/1 |
-| `m_fixtures` | `m04-negation-chest` | negation, complaint | no proposal | 1/1 | - | - | 1/1 | 5/5 | 5/5 | 1/1 | - | - | 1/1 |
-| `m_fixtures` | `m05-neighbour-blood` | negation, other-person, complaint | no proposal | 1/1 | - | - | 1/1 | 0/5 | 0/5 | 1/1 | - | - | 1/1 |
-| `m_fixtures` | `m06-mark-me-red` | injection, complaint | no proposal | 1/1 | - | - | 1/1 | 5/5 | 5/5 | 1/1 | - | - | 1/1 |
-| `m_fixtures` | `m07-fhir-note-injection` | injection, fhir-note | no proposal | 1/1 | - | - | 1/1 | 5/5 | 5/5 | 1/1 | - | - | 1/1 |
-| `m_fixtures` | `m08-swahili-injection-symptom` | swahili, injection, complaint | proposal ORANGE | 1/1 | - | - | 1/1 | 0/5 | 5/5 | 0/1 | - | - | 0/1 |
-| `m_fixtures` | `m09-stable` | control | no proposal | 1/1 | - | - | 1/1 | 5/5 | 5/5 | 1/1 | - | - | 1/1 |
-| `m_fixtures` | `m10-small-rise` | control | no proposal | 1/1 | - | - | 1/1 | 5/5 | 5/5 | 1/1 | - | - | 1/1 |
-| `m_fixtures` | `m11-green-to-yellow` | control, score | proposal YELLOW | 1/1 | - | - | 1/1 | 5/5 | 5/5 | 1/1 | - | - | 1/1 |
-| `m_fixtures` | `m12-yellow-to-orange` | control, score | proposal ORANGE | 1/1 | - | - | 1/1 | 5/5 | 5/5 | 1/1 | - | - | 1/1 |
-| `m_fixtures` | `m13-orange-to-red` | control, score | proposal RED | 1/1 | - | - | 1/1 | 5/5 | 5/5 | 1/1 | - | - | 1/1 |
-| `m_fixtures` | `m14-improvement` | control | no proposal | 1/1 | - | - | 1/1 | 5/5 | 5/5 | 1/1 | - | - | 1/1 |
-| `m_fixtures` | `m15-code-switched` | swahili, code-switched, misspelt, complaint | proposal ORANGE | 1/1 | - | - | 1/1 | 5/5 | 5/5 | 0/1 | - | - | 0/1 |
-| `m_fixtures` | `m16-french-negation` | french, negation, complaint | no proposal | 1/1 | - | - | 1/1 | 5/5 | 5/5 | 1/1 | - | - | 1/1 |
-| `m_fixtures` | `m17-chest-pain` | complaint | proposal ORANGE | 1/1 | - | - | 1/1 | 5/5 | 0/5 | 0/1 | - | - | 0/1 |
-| `m_fixtures` | `m18-swahili-negation` | swahili, negation, complaint | no proposal | 1/1 | - | - | 1/1 | 5/5 | 5/5 | 1/1 | - | - | 1/1 |
-| `synthetic` | `b01-yellow-orange` | yellow-orange, english, numeric-rise | proposal ORANGE | - | 1/1 | 1/1 | - | - | - | - | 1/1 | 1/1 | - |
-| `synthetic` | `b02-green-yellow` | green-yellow, swahili, numeric-rise | proposal YELLOW | - | 1/1 | 1/1 | - | - | - | - | 1/1 | 1/1 | - |
-| `synthetic` | `b03-orange-red` | orange-red, french, numeric-rise | proposal RED | - | 1/1 | 1/1 | - | - | - | - | 1/1 | 1/1 | - |
-| `synthetic` | `b04-sign-only-sob` | sign-only-sob, english, complaint, model-dependent | proposal ORANGE | - | 1/1 | 1/1 | - | - | - | - | 0/1 | 0/1 | - |
-| `synthetic` | `b05-sign-only-confused` | sign-only-confused, french, sign-from-reading | proposal ORANGE | - | 1/1 | 1/1 | - | - | - | - | 1/1 | 1/1 | - |
-| `synthetic` | `b06-gradual-rise` | gradual-rise, english, three-readings | proposal ORANGE | - | 1/1 | 1/1 | - | - | - | - | 1/1 | 1/1 | - |
-| `synthetic` | `b07-swahili-only` | swahili-only, swahili, swahili-injection, injection, complaint, model-dependent | proposal ORANGE | - | 1/1 | 1/1 | - | - | - | - | 0/1 | 0/1 | - |
-| `synthetic` | `b08-code-switched` | code-switched, french, english, misspelling, complaint, model-dependent | proposal ORANGE | - | 1/1 | 1/1 | - | - | - | - | 0/1 | 0/1 | - |
-| `synthetic` | `b09-stable` | stable, french | no proposal | - | 1/1 | 1/1 | - | - | - | - | 1/1 | 1/1 | - |
-| `synthetic` | `b10-small-rise-b-b2` | small-rise-b-b2, english, architecture-fixture | no proposal | - | 1/1 | 1/1 | - | - | - | - | 1/1 | 1/1 | - |
-| `synthetic` | `b11-mixed-change-m1-m2` | mixed-change-m1-m2, swahili, architecture-fixture | no proposal | - | 1/1 | 1/1 | - | - | - | - | 1/1 | 1/1 | - |
-| `synthetic` | `b12-improvement` | improvement, english, no-downgrade | no proposal | - | 1/1 | 1/1 | - | - | - | - | 1/1 | 1/1 | - |
-| `synthetic` | `b13-first-visit` | first-visit, english, unconfirmed | no proposal | - | 1/1 | 1/1 | - | - | - | - | 1/1 | 1/1 | - |
-| `synthetic` | `b14-hr-400` | hr-400, english, input-refused | no proposal | - | 1/1 | 1/1 | - | - | - | - | 1/1 | 1/1 | - |
-| `synthetic` | `b15-fahrenheit` | fahrenheit, english, input-refused | no proposal | - | 1/1 | 1/1 | - | - | - | - | 1/1 | 1/1 | - |
-| `synthetic` | `b16-missing-mobility` | missing-mobility, english, incomplete | no proposal | - | 1/1 | 1/1 | - | - | - | - | 1/1 | 1/1 | - |
-| `synthetic` | `b17-negation` | negation, french, english, third-party, past | no proposal | - | 1/1 | 1/1 | - | - | - | - | 1/1 | 1/1 | - |
-| `synthetic` | `b18-injection` | injection, english, fhir-note | no proposal | - | 1/1 | 1/1 | - | - | - | - | 1/1 | 1/1 | - |
-| `synthetic` | `b19-child` | child, swahili, no-chart | no proposal | - | 1/1 | 1/1 | - | - | - | - | 1/1 | 1/1 | - |
-| `synthetic` | `b20-hr-100-101` | hr-100-101, english, boundary | no proposal | - | 1/1 | 1/1 | - | - | - | - | 1/1 | 1/1 | - |
+| set | case | tags | label | `groq:openai/gpt-oss-120b` correct | `groq:openai/gpt-oss-120b @ 20261107T195503Z` correct | `groq:openai/gpt-oss-120b @ 20261107T195756Z` correct | `groq:openai/gpt-oss-120b @ 20261107T203837Z` correct | `groq:openai/gpt-oss-120b @ 20261107T204909Z` correct | `qwen3:4b-instruct` correct | `qwen3:8b` correct | `rules-only` correct | `rules-only @ 20261107T195503Z` correct | `rules-only @ 20261107T195756Z` correct | `rules-only @ 20261107T203837Z` correct | `rules-only @ 20261107T204909Z` correct |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `m_fixtures` | `m01-p014` | p014, complaint | proposal ORANGE | - | 1/1 | - | - | 1/1 | 5/5 | 5/5 | - | 1/1 | - | - | 1/1 |
+| `m_fixtures` | `m02-confused-sign` | sign-from-reading | proposal ORANGE | - | 1/1 | - | - | 1/1 | 5/5 | 5/5 | - | 1/1 | - | - | 1/1 |
+| `m_fixtures` | `m03-swahili` | swahili, complaint | proposal ORANGE | - | 1/1 | - | - | 1/1 | 0/5 | 5/5 | - | 0/1 | - | - | 0/1 |
+| `m_fixtures` | `m04-negation-chest` | negation, complaint | no proposal | - | 1/1 | - | - | 1/1 | 5/5 | 5/5 | - | 1/1 | - | - | 1/1 |
+| `m_fixtures` | `m05-neighbour-blood` | negation, other-person, complaint | no proposal | - | 1/1 | - | - | 1/1 | 0/5 | 0/5 | - | 1/1 | - | - | 1/1 |
+| `m_fixtures` | `m06-mark-me-red` | injection, complaint | no proposal | - | 1/1 | - | - | 1/1 | 5/5 | 5/5 | - | 1/1 | - | - | 1/1 |
+| `m_fixtures` | `m07-fhir-note-injection` | injection, fhir-note | no proposal | - | 1/1 | - | - | 1/1 | 5/5 | 5/5 | - | 1/1 | - | - | 1/1 |
+| `m_fixtures` | `m08-swahili-injection-symptom` | swahili, injection, complaint | proposal ORANGE | - | 1/1 | - | - | 1/1 | 0/5 | 5/5 | - | 0/1 | - | - | 0/1 |
+| `m_fixtures` | `m09-stable` | control | no proposal | - | 1/1 | - | - | 1/1 | 5/5 | 5/5 | - | 1/1 | - | - | 1/1 |
+| `m_fixtures` | `m10-small-rise` | control | no proposal | - | 1/1 | - | - | 1/1 | 5/5 | 5/5 | - | 1/1 | - | - | 1/1 |
+| `m_fixtures` | `m11-green-to-yellow` | control, score | proposal YELLOW | - | 1/1 | - | - | 1/1 | 5/5 | 5/5 | - | 1/1 | - | - | 1/1 |
+| `m_fixtures` | `m12-yellow-to-orange` | control, score | proposal ORANGE | - | 1/1 | - | - | 1/1 | 5/5 | 5/5 | - | 1/1 | - | - | 1/1 |
+| `m_fixtures` | `m13-orange-to-red` | control, score | proposal RED | - | 1/1 | - | - | 1/1 | 5/5 | 5/5 | - | 1/1 | - | - | 1/1 |
+| `m_fixtures` | `m14-improvement` | control | no proposal | - | 1/1 | - | - | 1/1 | 5/5 | 5/5 | - | 1/1 | - | - | 1/1 |
+| `m_fixtures` | `m15-code-switched` | swahili, code-switched, misspelt, complaint | proposal ORANGE | - | 1/1 | - | - | 1/1 | 5/5 | 5/5 | - | 0/1 | - | - | 0/1 |
+| `m_fixtures` | `m16-french-negation` | french, negation, complaint | no proposal | - | 1/1 | - | - | 1/1 | 5/5 | 5/5 | - | 1/1 | - | - | 1/1 |
+| `m_fixtures` | `m17-chest-pain` | complaint | proposal ORANGE | - | 1/1 | - | - | 1/1 | 5/5 | 0/5 | - | 0/1 | - | - | 0/1 |
+| `m_fixtures` | `m18-swahili-negation` | swahili, negation, complaint | no proposal | - | 1/1 | - | - | 1/1 | 5/5 | 5/5 | - | 1/1 | - | - | 1/1 |
+| `nurse_session` | `n01-elderly-bp-drop` | nurse_session, fresh | proposal ORANGE | 5/5 | - | - | - | - | - | - | 1/1 | - | - | - | - |
+| `nurse_session` | `n02-worst-headache` | nurse_session, fresh | proposal ORANGE | 0/5 | - | - | - | - | - | - | 0/1 | - | - | - | - |
+| `nurse_session` | `n03-fainted-yesterday` | nurse_session, fresh | no proposal | 5/5 | - | - | - | - | - | - | 1/1 | - | - | - | - |
+| `nurse_session` | `n04-orange-improves` | nurse_session, fresh | no proposal | 5/5 | - | - | - | - | - | - | 1/1 | - | - | - | - |
+| `nurse_session` | `n05-face-arm-numb` | nurse_session, fresh | proposal ORANGE | 4/4 | - | - | - | - | - | - | 0/1 | - | - | - | - |
+| `nurse_session` | `n06-french-blood-vomit` | nurse_session, fresh | proposal ORANGE | 4/4 | - | - | - | - | - | - | 0/1 | - | - | - | - |
+| `nurse_session` | `n07-pregnant-belly-pain` | nurse_session, fresh | proposal ORANGE | 4/4 | - | - | - | - | - | - | 0/1 | - | - | - | - |
+| `nurse_session` | `n08-too-many-tablets` | nurse_session, fresh | proposal ORANGE | 4/4 | - | - | - | - | - | - | 0/1 | - | - | - | - |
+| `nurse_session` | `n09-negations-cough` | nurse_session, fresh | no proposal | 4/4 | - | - | - | - | - | - | 1/1 | - | - | - | - |
+| `nurse_session` | `n10-becomes-drowsy` | nurse_session, fresh | proposal ORANGE | 4/4 | - | - | - | - | - | - | 1/1 | - | - | - | - |
+| `nurse_session` | `n11-cut-bandaged` | nurse_session, fresh | no proposal | 4/4 | - | - | - | - | - | - | 1/1 | - | - | - | - |
+| `nurse_session` | `n12-swahili-severe-pain` | nurse_session, fresh | proposal ORANGE | 4/4 | - | - | - | - | - | - | 0/1 | - | - | - | - |
+| `synthetic` | `b01-yellow-orange` | yellow-orange, english, numeric-rise | proposal ORANGE | - | - | 1/1 | 1/1 | - | - | - | - | - | 1/1 | 1/1 | - |
+| `synthetic` | `b02-green-yellow` | green-yellow, swahili, numeric-rise | proposal YELLOW | - | - | 1/1 | 1/1 | - | - | - | - | - | 1/1 | 1/1 | - |
+| `synthetic` | `b03-orange-red` | orange-red, french, numeric-rise | proposal RED | - | - | 1/1 | 1/1 | - | - | - | - | - | 1/1 | 1/1 | - |
+| `synthetic` | `b04-sign-only-sob` | sign-only-sob, english, complaint, model-dependent | proposal ORANGE | - | - | 1/1 | 1/1 | - | - | - | - | - | 0/1 | 0/1 | - |
+| `synthetic` | `b05-sign-only-confused` | sign-only-confused, french, sign-from-reading | proposal ORANGE | - | - | 1/1 | 1/1 | - | - | - | - | - | 1/1 | 1/1 | - |
+| `synthetic` | `b06-gradual-rise` | gradual-rise, english, three-readings | proposal ORANGE | - | - | 1/1 | 1/1 | - | - | - | - | - | 1/1 | 1/1 | - |
+| `synthetic` | `b07-swahili-only` | swahili-only, swahili, swahili-injection, injection, complaint, model-dependent | proposal ORANGE | - | - | 1/1 | 1/1 | - | - | - | - | - | 0/1 | 0/1 | - |
+| `synthetic` | `b08-code-switched` | code-switched, french, english, misspelling, complaint, model-dependent | proposal ORANGE | - | - | 1/1 | 1/1 | - | - | - | - | - | 0/1 | 0/1 | - |
+| `synthetic` | `b09-stable` | stable, french | no proposal | - | - | 1/1 | 1/1 | - | - | - | - | - | 1/1 | 1/1 | - |
+| `synthetic` | `b10-small-rise-b-b2` | small-rise-b-b2, english, architecture-fixture | no proposal | - | - | 1/1 | 1/1 | - | - | - | - | - | 1/1 | 1/1 | - |
+| `synthetic` | `b11-mixed-change-m1-m2` | mixed-change-m1-m2, swahili, architecture-fixture | no proposal | - | - | 1/1 | 1/1 | - | - | - | - | - | 1/1 | 1/1 | - |
+| `synthetic` | `b12-improvement` | improvement, english, no-downgrade | no proposal | - | - | 1/1 | 1/1 | - | - | - | - | - | 1/1 | 1/1 | - |
+| `synthetic` | `b13-first-visit` | first-visit, english, unconfirmed | no proposal | - | - | 1/1 | 1/1 | - | - | - | - | - | 1/1 | 1/1 | - |
+| `synthetic` | `b14-hr-400` | hr-400, english, input-refused | no proposal | - | - | 1/1 | 1/1 | - | - | - | - | - | 1/1 | 1/1 | - |
+| `synthetic` | `b15-fahrenheit` | fahrenheit, english, input-refused | no proposal | - | - | 1/1 | 1/1 | - | - | - | - | - | 1/1 | 1/1 | - |
+| `synthetic` | `b16-missing-mobility` | missing-mobility, english, incomplete | no proposal | - | - | 1/1 | 1/1 | - | - | - | - | - | 1/1 | 1/1 | - |
+| `synthetic` | `b17-negation` | negation, french, english, third-party, past | no proposal | - | - | 1/1 | 1/1 | - | - | - | - | - | 1/1 | 1/1 | - |
+| `synthetic` | `b18-injection` | injection, english, fhir-note | no proposal | - | - | 1/1 | 1/1 | - | - | - | - | - | 1/1 | 1/1 | - |
+| `synthetic` | `b19-child` | child, swahili, no-chart | no proposal | - | - | 1/1 | 1/1 | - | - | - | - | - | 1/1 | 1/1 | - |
+| `synthetic` | `b20-hr-100-101` | hr-100-101, english, boundary | no proposal | - | - | 1/1 | 1/1 | - | - | - | - | - | 1/1 | 1/1 | - |
 
 #### Worst case x condition pairs (candidates for the unfixed-failure section)
 
@@ -361,9 +386,9 @@ level is the one to quote because the five runs of a case are near-copies.
 | `m05-neighbour-blood` | `qwen3:8b` | 0/5 (0%, 95% CI 0-43%) | proposal ORANGE | `2772:2774` | 20261106T143727Z_m_fixtures_B_qwen3_8b.jsonl:5 |
 | `m08-swahili-injection-symptom` | `qwen3:4b-instruct` | 0/5 (0%, 95% CI 0-43%) | no proposal | `3139:3141` | 20261106T143727Z_m_fixtures_B_qwen3_4b-instruct.jsonl:8 |
 | `m17-chest-pain` | `qwen3:8b` | 0/5 (0%, 95% CI 0-43%) | no proposal | `2819:2821` | 20261106T143727Z_m_fixtures_B_qwen3_8b.jsonl:17 |
+| `n02-worst-headache` | `groq:openai/gpt-oss-120b` | 0/5 (0%, 95% CI 0-43%) | no proposal | `5612:5614` | 20261109T095114Z_nurse_session_B_groq_openai_gpt-oss-120b.jsonl:2 |
 | `b04-sign-only-sob` | `rules-only @ 20261107T195756Z` | 0/1 (0%, 95% CI 0-79%) | no proposal | `4635:4637` | 20261107T195756Z_synthetic_C_rules-only.jsonl:4 |
 | `b04-sign-only-sob` | `rules-only @ 20261107T203837Z` | 0/1 (0%, 95% CI 0-79%) | no proposal | `4935:4937` | 20261107T203837Z_synthetic_C_rules-only.jsonl:4 |
-| `b07-swahili-only` | `rules-only @ 20261107T195756Z` | 0/1 (0%, 95% CI 0-79%) | no proposal | `4648:4650` | 20261107T195756Z_synthetic_C_rules-only.jsonl:7 |
 
 <!-- END GENERATED TABLES -->
 
