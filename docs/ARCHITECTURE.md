@@ -70,6 +70,14 @@ MCP checks (E13-4): raw diagnostics from the pinned official alpha tool remain s
 Postgres holds proposals, single-use commands, readings with the complaint, agent checkpoints and the audit log. FHIR (HAPI)
 holds the clinical record: one reading is one Observation; the confirmed colour is `Encounter.priority`.
 
+## Patient identity on screen
+
+Synthetic patients have made-up names (common Kenyan and South African given names and surnames, combined from the
+label, never a real person) and an `F-0000` file number, stored on the FHIR Patient beside the label. The board shows
+the initials and the file number in separate columns; the patient panel shows the full name. The name and file number
+are never sent to the model and never written to an audit payload: only the screens' `queue_state` carries them. A real
+deployment under POPIA or the Kenya Data Protection Act would follow the same rule.
+
 ## Write order: Postgres, then FHIR
 
 1. The agent writes a proposal row (nothing in FHIR changes). The run pauses.
