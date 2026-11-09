@@ -214,7 +214,7 @@ after this change list n02 under tuning. (2) Groq HTTP 400s: 6 of the 52 model t
 treats both codes alike: up to 2 new samples (3 attempts), each with the next seed and one fixed reminder (tool wording
 for tool calls, JSON wording for `map_signs`), only while they fit before the call's deadline; any other 400 still
 ends the call at once; 429 and daily-limit handling unchanged. The effect of both changes is to be measured in the next
-run.
+run. (3) A quick tuning check of (1) on `gpt-oss-20b` (n02 only, scratch output, not in the tables) still missed n02 5/5: the model now named SEVERE_PAIN but quoted the whole sentence (over 15 words), and the validator dropped it (`quote_too_long`). Prompt rule 2 now asks for the shortest part of the patient's words, copied word for word. With that wording n02 gave ORANGE in 5/5 runs; a one-run check of the other 11 nurse cases then missed n06 once (the shortened quote was not word for word: `quote_not_in_complaint`), so rule 2 now also says never skip, change or translate a word. That last wording is not yet measured; the 20b daily limit ended the check. The validator's limits (15 words, quote must be in the complaint) are unchanged.
 
 ## 3. Tables (generated from `evals/runs/`)
 
