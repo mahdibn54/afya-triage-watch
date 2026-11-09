@@ -17,7 +17,8 @@ def test_demo_scenario_loads_p014_then_the_orange_reading(client, as_user, fhir,
     assert r.status_code == 200, r.text
     vid = r.json()["visit_id"]
     patient = next(p for p in fhir.data["Patient"].values() if p["id"] != "p1")
-    assert patient["identifier"] == [{"system": "urn:afya:label", "value": "P-014"}] and "name" not in patient
+    assert patient["identifier"][0] == {"system": "urn:afya:label", "value": "P-014"}
+    assert patient["name"][0]["text"] == "Grace Achieng"   # made-up, fixed for the demo patient
     tl = client.get(f"/visits/{vid}/timeline").json()
     assert [(x["tews"], x["colour"]) for x in tl["readings"]] == [(3, "YELLOW")]
     nxt = client.post("/demo/scenario/next")

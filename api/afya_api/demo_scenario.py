@@ -1,4 +1,7 @@
-"""Synthetic demo data (E6-6). Nothing here is real: a label instead of a name, invented numbers.
+"""Synthetic demo data (E6-6). Nothing here is real: invented numbers and a made-up identity.
+
+The P-014 patient is always named Grace Achieng (fixed in afya-mcp identity.py, which also makes the file number from
+the label). The name goes to the screens only, never to the model or an audit payload.
 
 P-014 numbers are the ones of docs/api.md: reading 1 scores TEWS 3 (YELLOW), reading 2 scores TEWS 6 (ORANGE).
 """

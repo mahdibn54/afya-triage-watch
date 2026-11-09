@@ -259,7 +259,8 @@ async def visit_timeline(visit_id: str) -> dict:
 async def queue_state() -> dict:
     """Read-only, for the api's waiting-room board (GET /queue, polled every few seconds by every screen). Same data
     as get_queue_state, but on this mount so the screens' polling is not written to the audit log as agent calls."""
-    return await _run(lambda: services.get_queue_state(_fhir(), _registry(), _site(), _store()))
+    return await _run(lambda: services.get_queue_state(_fhir(), _registry(), _site(), _store(),
+                                                       include_identity=True))
 
 
 @ui.tool()

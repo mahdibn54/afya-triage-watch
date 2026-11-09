@@ -16,7 +16,7 @@ from typing import Any
 import psycopg
 from psycopg.rows import DictRow
 
-from . import rules, workflow
+from . import identity, rules, workflow
 from .db import VisitStore
 from .fhir import (
     AFYA,
@@ -238,13 +238,15 @@ def _height_cm(patient: dict[str, Any]) -> float | None:
 # ---------- E4-5: queue state ----------
 
 def get_queue_state(fhir: Fhir, registry: list[dict[str, Any]], site: dict[str, Any],
-                    store: VisitStore | None = None, now: datetime | None = None) -> dict[str, Any]:
+                    store: VisitStore | None = None, now: datetime | None = None,
+                    include_identity: bool = False) -> dict[str, Any]:
     """Read-only. For each waiting visit (FHIR Encounter in arrived/triaged/in-progress), oldest arrival first:
     patient_label, minutes waited since Encounter.period.start against the SATS target of the colour a nurse
     confirmed (Encounter.priority; target from the patient's chart), the last reading with its TEWS and colour, active
     flags, and when the next reading is due by the site re-check interval (site rule, not SATS). Plus the proposals
     nobody has decided (pending) or reviewed (superseded), with their age, from Postgres. Only IDs, codes, times and
-    numbers: no names or notes. Notices are objects {code, notification_id?, at?} with the codes of docs/api.md
+    numbers: no names or notes (only the screens' queue_state passes include_identity=True, which adds the made-up
+    patient_name and file_number). Notices are objects {code, notification_id?, at?} with the codes of docs/api.md
     section 6; if FHIR cannot be reached the patients are empty and the notice is fhir_unavailable (not an error).
     """
     now = now or datetime.now(timezone.utc)
@@ -271,7 +273,7 @@ def get_queue_state(fhir: Fhir, registry: list[dict[str, Any]], site: dict[str, 
         truncated = len(encounters) >= QUEUE_LIMIT
         cache: dict[str, tuple[dict[str, Any] | None, dict[str, Any] | None]] = {}
         patients = [_queue_entry(fhir, registry, site, e, cache, pending_by_visit, unreviewed,
-                                 by_visit.get(e["id"], []), now) for e in encounters]
+                                 by_visit.get(e["id"], []), now, include_identity) for e in encounters]
     except FhirUnavailable:
         patients = []
         notices.append({"code": "fhir_unavailable"})
@@ -290,7 +292,7 @@ def get_queue_state(fhir: Fhir, registry: list[dict[str, Any]], site: dict[str, 
 def _queue_entry(fhir: Fhir, registry: list[dict[str, Any]], site: dict[str, Any], enc: dict[str, Any],
                  cache: dict[str, tuple[dict[str, Any] | None, dict[str, Any] | None]],
                  pending_by_visit: dict[str, int], unreviewed: set[str], visit_notices: list[dict[str, Any]],
-                 now: datetime) -> dict[str, Any]:
+                 now: datetime, include_identity: bool = False) -> dict[str, Any]:
     vid = enc["id"]
     notices: list[dict[str, Any]] = []
     pid = None
@@ -332,10 +334,13 @@ def _queue_entry(fhir: Fhir, registry: list[dict[str, Any]], site: dict[str, Any
         flag_codes = []
     if vid in unreviewed:
         notices.append({"code": "not_reviewed"})
+    who = ({"patient_name": identity.full_name_of(patient) if patient else None,
+            "file_number": identity.file_number_of(patient) if patient else None} if include_identity else {})
     return {
         "visit_id": vid,
         "patient_id": pid,
         "patient_label": label_of(patient) if patient else None,
+        **who,
         "confirmed_colour": colour,
         "arrived_at": arrived.isoformat() if arrived else None,
         "minutes_waited": waited,
@@ -474,16 +479,22 @@ def seed_demo_visit(fhir: Fhir, label: str, birth_date: str, arrived_minutes_ago
     """Create (or reuse) the synthetic Patient and a fresh in-progress Encounter.
 
     `confirmed_colour` is the nurse's existing confirmation; None leaves the first visit unconfirmed. Earlier waiting
-    Encounters of this demo patient are finished so reloading starts a clean entry. Synthetic labels only, no names.
+    Encounters of this demo patient are finished so reloading starts a clean entry. The Patient gets a made-up name
+    and file number (identity.py), never a real one.
     """
     if not re.fullmatch(r"[A-Za-z0-9-]{1,32}", label or ""):
         return {"status": "invalid", "reason": "label must be 1-32 letters, digits or '-'"}
     if confirmed_colour is not None and confirmed_colour not in COLOURS:
         return {"status": "invalid", "reason": f"confirmed_colour must be one of {COLOURS}, or null"}
     now = now or datetime.now(timezone.utc)
+    ident = identity.identity_fields(label)
     patient = fhir.conditional_create(
-        {"resourceType": "Patient", "identifier": [{"system": LABEL_SYSTEM, "value": label}], "birthDate": birth_date,
-         "gender": "other"}, f"{LABEL_SYSTEM}|{label}")
+        {"resourceType": "Patient",
+         "identifier": [{"system": LABEL_SYSTEM, "value": label}, ident["file_number"]], "name": ident["name"],
+         "birthDate": birth_date, "gender": "other"}, f"{LABEL_SYSTEM}|{label}")
+    if not patient.get("name"):   # a demo patient created before names existed gets its made-up name now
+        patient = fhir.update({**patient, "name": ident["name"],
+                               "identifier": [*patient.get("identifier", []), ident["file_number"]]})
     for old in fhir.search("Encounter", {"subject": f"Patient/{patient['id']}", "status": ",".join(WAITING_STATUSES)}):
         fhir.update({**old, "status": "finished"})
     key = uuid.uuid4().hex

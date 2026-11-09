@@ -254,6 +254,8 @@ class QueuePatient(BaseModel):
     visit_id: str
     patient_id: str | None = None
     patient_label: str | None = None
+    patient_name: str | None = None    # made-up (synthetic) full name, screens only; null for older patients
+    file_number: str | None = None     # made-up "F-0000" file number, screens only
     confirmed_colour: Colour | None = None
     arrived_at: str | None = None
     minutes_waited: int | None = None

@@ -124,7 +124,7 @@ class InProcessGateway:
         if tool == "demo_visit":
             return services.demo_visit(self.fhir, args["label"])
         if tool == "queue_state":
-            return services.get_queue_state(self.fhir, REG, SITE, db.PgVisitStore(), self.now)
+            return services.get_queue_state(self.fhir, REG, SITE, db.PgVisitStore(), self.now, include_identity=True)
         raise AssertionError(tool)
 
 
