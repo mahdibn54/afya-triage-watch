@@ -6,7 +6,7 @@ import type { Me, Notice, Proposal, QueuePatient } from "@/api/contract";
 import { ColourChip } from "@/components/afya/colour-chip";
 import { NoticeCallout, NoticeChip } from "@/components/afya/notice-chip";
 import { useAcknowledgeNotice, useProposals, useQueue } from "@/lib/queries";
-import { shortName } from "@/lib/identity";
+import { fullName } from "@/lib/identity";
 import { SATS } from "@/lib/sats";
 import { ago, clockShort, mmss, useClientNow, useNow } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -390,9 +390,9 @@ function PatientRow({
             e.stopPropagation();
             onOpen();
           }}
-          className="font-mono text-lg font-semibold tracking-tight outline-none hover:underline focus-visible:underline"
+          className={`${p.patient_name ? "" : "font-mono "}text-lg font-semibold tracking-tight outline-none hover:underline focus-visible:underline`}
         >
-          {shortName(p)}
+          {fullName(p)}
         </button>
         <p className="tnum text-xs text-muted-foreground">
           {p.file_number && <span className="font-mono lg:hidden">{p.file_number} · </span>}
