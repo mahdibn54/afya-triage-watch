@@ -13,18 +13,29 @@ Research prototype on synthetic data. Not clinically validated; not assessed or 
 
 ## Run
 
+Needs Docker with Compose v2 and `openssl`. One command:
+
 ```bash
-cp .env.example .env                       # then set every CHANGE_ME (see below)
-docker compose --profile web up --build    # whole stack including the nurse UI
+make demo          # or: sh scripts/demo.sh
 ```
 
-The nurse UI is the only published port: `http://127.0.0.1:3000` (add `-d` to run in the background). Without
-`--profile web` the stack starts but nothing is published. Hardware: 8 GB RAM is enough with the default hosted
-model; a local model needs 16 GB or more.
+It creates `.env` from `.env.example` with a fresh random value for every `CHANGE_ME` (an existing `.env` is kept),
+builds and starts the whole stack in the background, and loads the 20 synthetic patients. Then open the nurse UI,
+the only published port: `http://127.0.0.1:3000` (set `WEB_PORT` to change it). Stop with
+`docker compose --profile web down`; the data stays in Docker volumes.
+
+No model key is needed to try it: without one the agent proposes from the fixed SATS rules and each card says
+"no model". To use the open-weights model, put a free Groq key in `.env` (`MODEL_PROVIDER=groq`,
+`GROQ_API_KEY=...`, see [Model provider](#model-provider)) and run `make demo` again. Hardware: 8 GB RAM is enough
+with a hosted model; a local model needs 16 GB or more.
+
+By hand, the same steps are: `cp .env.example .env` and set every `CHANGE_ME` (see below), then
+`docker compose --profile web up --build`, then the seed command below. Without `--profile web` the stack starts but
+nothing is published.
 
 ### Load the synthetic waiting room
 
-With `DEMO_MODE=1` and `DATA_CLASSIFICATION=synthetic`, run:
+`make demo` already does this. By hand, with `DEMO_MODE=1` and `DATA_CLASSIFICATION=synthetic`, run:
 
 ```sh
 docker compose --profile seed run --build --rm seed

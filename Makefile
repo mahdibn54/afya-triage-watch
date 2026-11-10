@@ -1,3 +1,4 @@
+# Demo: one command from a fresh clone to the nurse UI with the synthetic waiting room (scripts/demo.sh).
 # Eval harness (E8). Full instructions: evals/README.md
 PY      ?= python3
 CASES   ?= evals/cases/m_fixtures
@@ -9,7 +10,10 @@ RULES_ONLY_RUNS ?= 1
 RESUME  ?=
 TOKEN_BUDGET ?= 0
 
-.PHONY: eval eval-tables eval-test
+.PHONY: demo eval eval-tables eval-test
+
+demo:
+	sh scripts/demo.sh
 
 # Live: groups B (each model, RUNS runs per case) and C (rules-only, once per case) on the cases at CASES, raw JSONL to
 # evals/runs/, then the tables in EVALS.md. Needs the stack and Ollama; first: eval "$(sh evals/stack_env.sh)"
