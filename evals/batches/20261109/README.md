@@ -25,21 +25,22 @@ Mahdi is continuing this batch on his machine (do not run it elsewhere at the sa
 
 The same command is used with `--runs 3 --rules-only-runs 0` (the rules-only baseline is already complete).
 
-## Interim result for Dheker (123 of 150 trials)
+## Result for Dheker (all 150 trials)
 
-Qwen3.8-27B is weaker than gpt-oss on the same cases. Preliminary, synthetic cases only:
+Qwen3.8-27B is weaker than gpt-oss on the same cases. Synthetic cases only, 50 cases x 3 runs:
 
-| model | trials so far | matched expected proposal | model unavailable (rules fallback) |
+| model | trials | matched expected proposal | model unavailable (rules fallback) |
 |---|---|---|---|
-| qwen/qwen3.8-27b | 123 | 115 (93%) | 9 |
-| openai/gpt-oss-120b (batches 20261110T073014Z, 20261110T074856Z) | 64 | 64 | 0 |
-| openai/gpt-oss-20b (batches 20261110T073035Z, 20261110T074535Z) | 56 | 56 | 2 |
+| qwen/qwen3.8-27b | 150 | 140 (93%) | 11 |
+| openai/gpt-oss-120b (batches 20261110T073014Z, 20261110T074856Z, so far) | 86 | 86 | 0 |
+| openai/gpt-oss-20b (batches 20261110T073035Z, 20261110T074535Z) | 90 | 90 | 6 |
 
-All 8 Qwen misses are complaint-only signs where it proposed nothing (n02 headache, n06 French blood vomit twice,
-n07 pregnancy pain, n08 overdose, m08 Swahili symptom, m15 code-switched twice):
+All 10 Qwen misses are under-calls on complaint-only signs: it proposed nothing where ORANGE was expected. There is no
+false alarm and no wrong colour.
 
-- 4 are model misses: Qwen answered but found no sign (run 1, source commit `d5e1526`).
-- 4 are Groq call failures (`http_error`): the rules fallback scores vitals only, so a complaint sign is lost.
+- 5 are model misses: Qwen answered but found no sign (m15 code-switched, n02 worst headache, n06 French blood vomit
+  twice, n08 too many tablets).
+- 5 are Groq call failures (`http_error`; n06, n07 pregnancy belly pain, m08 Swahili symptom, m15, n12 Swahili severe
+  pain). The rules fallback scores vitals only, so a complaint sign is lost.
 
-Proposal: keep `openai/gpt-oss-120b` as the default and report Qwen as a compared model. Final numbers after the
-batch completes.
+Proposal: keep `openai/gpt-oss-120b` as the default and report Qwen as a compared model.
