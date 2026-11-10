@@ -24,3 +24,22 @@ Mahdi is continuing this batch on his machine (do not run it elsewhere at the sa
   the agent, prompts, rules and tools are identical. Same case file (SHA-256 checked) and batch ID.
 
 The same command is used with `--runs 3 --rules-only-runs 0` (the rules-only baseline is already complete).
+
+## Interim result for Dheker (123 of 150 trials)
+
+Qwen3.8-27B is weaker than gpt-oss on the same cases. Preliminary, synthetic cases only:
+
+| model | trials so far | matched expected proposal | model unavailable (rules fallback) |
+|---|---|---|---|
+| qwen/qwen3.8-27b | 123 | 115 (93%) | 9 |
+| openai/gpt-oss-120b (batches 20261110T073014Z, 20261110T074856Z) | 64 | 64 | 0 |
+| openai/gpt-oss-20b (batches 20261110T073035Z, 20261110T074535Z) | 56 | 56 | 2 |
+
+All 8 Qwen misses are complaint-only signs where it proposed nothing (n02 headache, n06 French blood vomit twice,
+n07 pregnancy pain, n08 overdose, m08 Swahili symptom, m15 code-switched twice):
+
+- 4 are model misses: Qwen answered but found no sign (run 1, source commit `d5e1526`).
+- 4 are Groq call failures (`http_error`): the rules fallback scores vitals only, so a complaint sign is lost.
+
+Proposal: keep `openai/gpt-oss-120b` as the default and report Qwen as a compared model. Final numbers after the
+batch completes.
