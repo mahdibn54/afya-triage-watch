@@ -1,0 +1,51 @@
+{
+  "id": "s08-vomiting-all-night",
+  "synthetic": true,
+  "title": "vomiting all night, cannot keep water down",
+  "split": "held_out",
+  "tags": [
+    "sign_coverage",
+    "fresh"
+  ],
+  "age_years": 36,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 30,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 16,
+        "heart_rate": 82,
+        "systolic_bp": 122,
+        "temperature": 36.9,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 18,
+        "heart_rate": 96,
+        "systolic_bp": 116,
+        "temperature": 37.1,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": "I have been vomiting all night, I cannot keep even water down."
+    }
+  ],
+  "expected": {
+    "proposal": false,
+    "signs": [
+      "VOMITING_PERSISTENT"
+    ],
+    "forbidden_signs": [
+      "VOMITING_FRESH_BLOOD"
+    ],
+    "label_basis": "TEWS 1->1 (GREEN); persistent vomiting, no blood. Pre-registered before any run; colours from the SATS rules, signs by the author."
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "id": "s02-fitting-now",
+  "synthetic": true,
+  "title": "relative: fitting right now",
+  "split": "held_out",
+  "tags": [
+    "sign_coverage",
+    "fresh"
+  ],
+  "age_years": 22,
+  "confirmed_colour": "YELLOW",
+  "arrived_minutes_ago": 20,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 16,
+        "heart_rate": 82,
+        "systolic_bp": 122,
+        "temperature": 36.9,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 22,
+        "heart_rate": 124,
+        "systolic_bp": 134,
+        "temperature": 37.4,
+        "spo2": 94,
+        "mobility": "walking",
+        "consciousness": "pain",
+        "trauma": "no"
+      },
+      "complaint": "She is fitting right now, shaking all over and not answering me."
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "RED",
+    "signs": [
+      "SEIZURE_CURRENT"
+    ],
+    "forbidden_signs": [],
+    "label_basis": "TEWS 1->6 (ORANGE); current seizure is RED. Pre-registered before any run; colours from the SATS rules, signs by the author."
+  }
+}

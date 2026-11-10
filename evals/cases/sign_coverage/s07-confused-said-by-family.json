@@ -1,0 +1,50 @@
+{
+  "id": "s07-confused-said-by-family",
+  "synthetic": true,
+  "title": "family says he is confused, reading recorded as alert",
+  "split": "held_out",
+  "tags": [
+    "sign_coverage",
+    "fresh"
+  ],
+  "age_years": 74,
+  "confirmed_colour": "YELLOW",
+  "arrived_minutes_ago": 60,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 16,
+        "heart_rate": 82,
+        "systolic_bp": 122,
+        "temperature": 36.9,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 18,
+        "heart_rate": 90,
+        "systolic_bp": 132,
+        "temperature": 37.3,
+        "spo2": 96,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": "My father is confused since this morning, he does not know where he is."
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "ORANGE",
+    "signs": [
+      "LOC_REDUCED_CONFUSED"
+    ],
+    "forbidden_signs": [],
+    "label_basis": "TEWS 1->1 (GREEN); confusion reported in the complaint, not in the AVPU reading. Pre-registered before any run; colours from the SATS rules, signs by the author."
+  }
+}

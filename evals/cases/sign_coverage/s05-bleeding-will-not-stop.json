@@ -1,0 +1,52 @@
+{
+  "id": "s05-bleeding-will-not-stop",
+  "synthetic": true,
+  "title": "leg wound keeps bleeding through the cloth",
+  "split": "held_out",
+  "tags": [
+    "sign_coverage",
+    "fresh"
+  ],
+  "age_years": 31,
+  "confirmed_colour": "YELLOW",
+  "arrived_minutes_ago": 15,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 16,
+        "heart_rate": 82,
+        "systolic_bp": 122,
+        "temperature": 36.9,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 18,
+        "heart_rate": 104,
+        "systolic_bp": 116,
+        "temperature": 36.8,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": "My leg wound keeps bleeding, the cloth is soaked and it will not stop."
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "ORANGE",
+    "signs": [
+      "HAEMORRHAGE_UNCONTROLLED"
+    ],
+    "forbidden_signs": [
+      "HAEMORRHAGE_CONTROLLED"
+    ],
+    "label_basis": "TEWS 1->2 (GREEN); uncontrolled bleeding is ORANGE. Pre-registered before any run; colours from the SATS rules, signs by the author."
+  }
+}

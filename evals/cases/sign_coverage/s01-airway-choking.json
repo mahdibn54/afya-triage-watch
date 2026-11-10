@@ -1,0 +1,50 @@
+{
+  "id": "s01-airway-choking",
+  "synthetic": true,
+  "title": "relative: choking, cannot breathe",
+  "split": "held_out",
+  "tags": [
+    "sign_coverage",
+    "fresh"
+  ],
+  "age_years": 34,
+  "confirmed_colour": "YELLOW",
+  "arrived_minutes_ago": 15,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 16,
+        "heart_rate": 82,
+        "systolic_bp": 122,
+        "temperature": 36.9,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 28,
+        "heart_rate": 118,
+        "systolic_bp": 130,
+        "temperature": 37.0,
+        "spo2": 90,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": "He is choking, something is stuck in his throat and he cannot breathe."
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "RED",
+    "signs": [
+      "AIRWAY_OBSTRUCTED"
+    ],
+    "forbidden_signs": [],
+    "label_basis": "TEWS 1->4 (YELLOW); airway obstruction is RED whatever the score. Pre-registered before any run; colours from the SATS rules, signs by the author."
+  }
+}

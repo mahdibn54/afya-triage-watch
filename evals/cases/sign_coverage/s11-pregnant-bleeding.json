@@ -1,0 +1,51 @@
+{
+  "id": "s11-pregnant-bleeding",
+  "synthetic": true,
+  "title": "five months pregnant, bleeding from below",
+  "split": "held_out",
+  "tags": [
+    "sign_coverage",
+    "fresh"
+  ],
+  "age_years": 30,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 20,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 16,
+        "heart_rate": 82,
+        "systolic_bp": 122,
+        "temperature": 36.9,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 18,
+        "heart_rate": 92,
+        "systolic_bp": 114,
+        "temperature": 36.9,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": "I am five months pregnant and I have some bleeding from below since this morning."
+    }
+  ],
+  "expected": {
+    "proposal": false,
+    "signs": [
+      "PREGNANCY_PV_BLEED"
+    ],
+    "forbidden_signs": [
+      "PREGNANCY_ABDO_PAIN"
+    ],
+    "label_basis": "TEWS 1->1 (GREEN); pregnancy with vaginal bleeding, no belly pain stated. Pre-registered before any run; colours from the SATS rules, signs by the author."
+  }
+}

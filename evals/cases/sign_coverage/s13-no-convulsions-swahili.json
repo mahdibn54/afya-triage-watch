@@ -1,0 +1,50 @@
+{
+  "id": "s13-no-convulsions-swahili",
+  "synthetic": true,
+  "title": "code-switched: no convulsions, just a fever",
+  "split": "held_out",
+  "tags": [
+    "sign_coverage",
+    "fresh"
+  ],
+  "age_years": 19,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 30,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 16,
+        "heart_rate": 82,
+        "systolic_bp": 122,
+        "temperature": 36.9,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 18,
+        "heart_rate": 96,
+        "systolic_bp": 122,
+        "temperature": 38.4,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": "Hakuna degedege, just a fever since yesterday."
+    }
+  ],
+  "expected": {
+    "proposal": false,
+    "signs": [],
+    "forbidden_signs": [
+      "SEIZURE_CURRENT",
+      "SEIZURE_POSTICTAL"
+    ],
+    "label_basis": "TEWS 1->1 (GREEN); negated convulsions ('hakuna degedege') must not count. Pre-registered before any run; colours from the SATS rules, signs by the author."
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "id": "s03-postictal-french",
+  "synthetic": true,
+  "title": "French: had a fit twenty minutes ago, tired now",
+  "split": "held_out",
+  "tags": [
+    "sign_coverage",
+    "fresh"
+  ],
+  "age_years": 29,
+  "confirmed_colour": "GREEN",
+  "arrived_minutes_ago": 30,
+  "readings": [
+    {
+      "values": {
+        "resp_rate": 16,
+        "heart_rate": 82,
+        "systolic_bp": 122,
+        "temperature": 36.9,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": null
+    },
+    {
+      "values": {
+        "resp_rate": 16,
+        "heart_rate": 88,
+        "systolic_bp": 124,
+        "temperature": 36.9,
+        "spo2": 98,
+        "mobility": "walking",
+        "consciousness": "alert",
+        "trauma": "no"
+      },
+      "complaint": "J'ai fait une crise d'épilepsie il y a vingt minutes, je suis très fatigué."
+    }
+  ],
+  "expected": {
+    "proposal": true,
+    "to_colour": "ORANGE",
+    "signs": [
+      "SEIZURE_POSTICTAL"
+    ],
+    "forbidden_signs": [
+      "SEIZURE_CURRENT"
+    ],
+    "label_basis": "TEWS 1->1 (GREEN); just had a fit, not fitting now. Pre-registered before any run; colours from the SATS rules, signs by the author."
+  }
+}
