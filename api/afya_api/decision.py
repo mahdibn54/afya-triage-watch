@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from afya_mcp import rules, workflow
@@ -111,6 +111,7 @@ _ID = re.compile(r"\b(observation|encounter)/([a-z0-9.-]{1,64})", re.IGNORECASE)
 _NUMBER = re.compile(r"(?<![\w.])\d+(?:[.,]\d+)?(?![\w])")
 _PAIR = re.compile(r"((?:observation|encounter)/[a-z0-9.-]{1,64}|(?<![\w.])\d+(?:[.,]\d+)?)\s*(?:to|->|→|-)\s*"
                    r"((?:observation|encounter)/[a-z0-9.-]{1,64}|\d+(?:[.,]\d+)?(?![\w]))")
+_COLOUR_PAIR = re.compile(r"\b(red|orange|yellow|green)\s*(?:to|->|→|-)\s*(red|orange|yellow|green)\b")
 _PUNCT = re.compile(r"[\s.,;:()\[\]/%°+\-'\"<>=→←↑↓–—]+")
 
 
@@ -131,6 +132,10 @@ class RationaleFacts:
     ids: frozenset[str] = frozenset()
     words: frozenset[str] = frozenset()
     order: frozenset[tuple[str, str]] = frozenset()   # E12-5: (earlier, later) values, scores and record ids
+    # The proposal the text explains: (confirmed colour, proposed colour), and the warning signs that drove it, each as
+    # the names a nurse would recognise (sign code or gloss). None / empty = not checked.
+    colours: tuple[str, str] | None = None
+    signs: tuple[frozenset[str], ...] = ()
 
 
 def _token(v: Any) -> str:
@@ -202,6 +207,18 @@ def rationale_text(model_text: str | None, code_text: str,
         pair = (_token(a), _token(b))
         if pair[::-1] in facts.order and pair not in facts.order:
             return code_text, "code", "values in the wrong order"
+    if facts.colours:
+        # The card shows "confirmed -> proposed"; a text that never names the proposed colour, or writes another colour
+        # change (seen live: "GREEN to GREEN, no input changed" on a sign proposal to ORANGE), contradicts it.
+        current, proposed = (c.casefold() for c in facts.colours)
+        if not re.search(rf"\b{proposed}\b", text):
+            return code_text, "code", "does not name the proposed colour"
+        for a, b in _COLOUR_PAIR.findall(text):
+            if (a, b) != (current, proposed):
+                return code_text, "code", "colour change does not match the proposal"
+    for names in facts.signs:
+        if not any(n in text for n in names):
+            return code_text, "code", "does not name the warning sign"
     rest = _ID.sub(" ", text)
     for n in _NUMBER.findall(rest):
         if _number(n.replace(",", ".")) not in facts.numbers:
@@ -268,8 +285,18 @@ def facts_for(s: dict[str, Any], chart: dict[str, Any], evidence: list[dict[str,
     """What this run's rationale may cite: its score, deterioration check, trigger, evidence rows, the two readings
     (all their values) and the record ids its investigate tools returned."""
     dec = s.get("decision") or {}
-    return rationale_facts(s.get("score"), s.get("det"), s.get("trigger"), evidence, readings or [],
-                           ids=list(dec.get("seen_ids") or []), chart=chart, order=earlier_later(s, readings or []))
+    facts = rationale_facts(s.get("score"), s.get("det"), s.get("trigger"), evidence, readings or [],
+                            ids=list(dec.get("seen_ids") or []), chart=chart, order=earlier_later(s, readings or []))
+    trig = s.get("trigger") or {}
+    if not trig.get("to") or "score" not in s or "signs" not in s:
+        return facts
+    merged, _notes = merge_decision(dec, trig, s["score"], s["signs"]["kept"], chart)
+    current = (s.get("det") or {}).get("confirmed_colour") or trig.get("from")
+    driving = list(merged["extra_triggers"])
+    if trig.get("kind") == "sign":
+        driving += [c for c in s["signs"]["kept"] if chart["signs"][c]["colour"] in rules.URGENT_SIGN_COLOURS]
+    names = tuple(frozenset({c.casefold(), clean_text(chart["signs"][c]["gloss"])}) for c in dict.fromkeys(driving))
+    return replace(facts, colours=(current, merged["to_colour"]) if current else None, signs=names)
 
 
 def earlier_later(s: dict[str, Any], readings: list[dict[str, Any]]) -> list[tuple[Any, Any]]:
