@@ -1,7 +1,7 @@
-# Architecture on one page
+# Architecture in detail
 
 Decision support for trained triage staff: the agent flags a patient for a second look and cites the readings; a nurse or
-clinician confirms every change. Research prototype on synthetic data. Full design: `docs/architecture-v4.1.pdf`.
+clinician confirms every change. Research prototype on synthetic data. One-page summary: [`ARCHITECTURE.md`](../ARCHITECTURE.md). Full design: `docs/architecture-v4.1.pdf`.
 
 ## Agent shape
 

@@ -8,7 +8,7 @@ diagnoses, prescribes or moves a patient.**
 African Agentic AI Challenge · Healthcare track "The Triage Desk" · sub-theme *Deterioration Watch*.
 Research prototype on synthetic data. Not clinically validated; not assessed or cleared as a medical device.
 
-> Status: research prototype, in development. Architecture: [`docs/architecture-v4.1.pdf`](docs/architecture-v4.1.pdf) · one page: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · evals: [`EVALS.md`](EVALS.md) ·
+> Status: research prototype, in development. Architecture: [`docs/architecture-v4.1.pdf`](docs/architecture-v4.1.pdf) · one page: [`ARCHITECTURE.md`](ARCHITECTURE.md) (details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)) · evals: [`EVALS.md`](EVALS.md) ·
 > backlog: [`docs/Afya_Tasks_BMAD.md`](docs/Afya_Tasks_BMAD.md)
 
 ## Run
