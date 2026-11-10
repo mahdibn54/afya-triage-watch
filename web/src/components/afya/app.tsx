@@ -13,6 +13,7 @@ import { SignIn } from "@/components/afya/sign-in";
 import { UserSwitcher } from "@/components/afya/user-switcher";
 import { VisitPanel } from "@/components/afya/visit-panel";
 import { VitalsDialog } from "@/components/afya/vitals-dialog";
+import { WallBoard } from "@/components/afya/wall-board";
 import { ApiError } from "@/lib/api";
 import { useMe } from "@/lib/queries";
 import { cn } from "@/lib/utils";
@@ -64,6 +65,8 @@ export function Shell({ me }: { me: Me }) {
   const [view, setView] = useState<View>("board");
   const [openVisit, setOpenVisit] = useState<string | null>(null);
   const [recordFor, setRecordFor] = useState<QueuePatient | null>(null);
+  const [wall, setWall] = useState(false);
+  if (wall) return <WallBoard onExit={() => setWall(false)} />;
   return (
     <div className="flex min-h-dvh flex-1 flex-col">
       <header className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur-md">
@@ -92,6 +95,7 @@ export function Shell({ me }: { me: Me }) {
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+            {view === "board" && <button type="button" onClick={() => setWall(true)} className="h-11 rounded-xl border bg-card px-3 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2">Wall mode</button>}
             <ThemeToggle />
             <UserSwitcher me={me} />
           </div>

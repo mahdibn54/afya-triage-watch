@@ -36,7 +36,7 @@ function citesText(pr: Proposal): string {
   return `cites ${n} ${n === 1 ? "reading" : "readings"}`;
 }
 
-function sortByTimeLeft(ps: QueuePatient[], now: number): QueuePatient[] {
+export function sortByTimeLeft(ps: QueuePatient[], now: number): QueuePatient[] {
   return [...ps].sort((a, b) => {
     const la = secondsLeft(a, now);
     const lb = secondsLeft(b, now);

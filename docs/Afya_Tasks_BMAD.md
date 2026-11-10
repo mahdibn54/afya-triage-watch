@@ -622,7 +622,7 @@ Technical competition audit of `28215e1`: [competition-audit.md](competition-aud
 
 | Was | Item | Est. | Needs |
 |---|---|---|---|
-| E7-1 | Wall mode for the clinic TV | 1 h | E7-1 |
+| E7-1 | Wall mode for the clinic TV — implemented as a read-only staff display | 1 h | E7-1 |
 | E7-4 | Evidence sparklines drawn over shaded SATS bands (replaces the table) | 1.5 h | E6-5 + bands in `/visits/{id}/timeline` |
 | E7-5 | Replay button on the agent trace | 2 h | E7-5 |
 | E7-7 | Animated gate stepper | 1 h | E7-7 |
@@ -631,6 +631,8 @@ Technical competition audit of `28215e1`: [competition-audit.md](competition-aud
 | E7-13 | W8 UI in English, Kiswahili, French | 3 h | E7-10 |
 | E7-14 | W9 keyboard shortcuts | 1 h | E7-10 |
 | E7-15 / E6-7 | W10 shift handover sheet (`GET /handover`) | 1.5 h B + 0.5 h M | E7-10 |
+
+Wall mode decision: the signed-in board opens a read-only staff display with patient labels, confirmed colours, target times and second-look markers. It uses the existing queue polling and shows stale, disconnected, unavailable-record and truncated-queue states. No patient actions are offered; use the board to review. The screen is intended for staff-only viewing, and a long list requires scrolling. The completed board story and overall story count are unchanged.
 
 ---
 
