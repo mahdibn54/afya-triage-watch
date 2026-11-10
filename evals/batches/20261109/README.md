@@ -11,3 +11,16 @@ DEMO_MODE=1 DATA_CLASSIFICATION=synthetic python -m evals run --cases evals/batc
 ```
 
 The `all50` filename is significant: the runner derives the output filename from it and skips trial IDs already present in that file. Verify it reports 69 already written and 181 to run before continuing. It saves each completed trial and stops at the provider limit; resume with the same command and batch ID when quota is available. Do not run the batch on two machines at once or overwrite another person's new results. Share the updated JSONL files after the run and never commit keys or credentials.
+
+## Continued by Mahdi
+
+Mahdi is continuing this batch on his machine (do not run it elsewhere at the same time). Two recorded differences:
+
+- **3 runs per case, not 5.** Decided to fit the Groq free-plan daily limit before submission. The 69 trials saved
+  above are all run 1 (50) and run 2 (19), so the batch is complete at 150 model trials with no trial dropped.
+  `manifest.json` still records the original plan of 5.
+- **Stack.** Mahdi's running stack was built at `ceb3e52`. Between it and the source commit `d5e1526` the only
+  backend change is the provider and served-by fields on the UI trace (`routes_ui.py`, `schemas.py`): display only,
+  the agent, prompts, rules and tools are identical. Same case file (SHA-256 checked) and batch ID.
+
+The same command is used with `--runs 3 --rules-only-runs 0` (the rules-only baseline is already complete).
