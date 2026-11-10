@@ -1,0 +1,29 @@
+{
+  "source_commit": "d5e1526e9bf761f324faa2371a6f58970d97f3f8",
+  "source_archive_sha256": "00fc635c3a4d189eac02f1002419462792c996ce8cc9ecad914abdf43c0d2a28",
+  "model": "groq:qwen/qwen3.8-27b",
+  "cases": 50,
+  "runs_per_case": 5,
+  "model_trials": 250,
+  "case_sha256": "8a7568b9644e05e19d051979b42098f9a325f32e9ce8fb48a5b941a92de81cc4",
+  "batch": "20261109T162312Z",
+  "splits": {
+    "fixture": 18,
+    "tuning": 7,
+    "held_out": 25
+  },
+  "runner_python": "3.12.16 (main, Nov  5 2026, 07:58:20) [GCC 14.2.0]",
+  "runner_packages": {
+    "mcp": "2.3.0",
+    "httpx2": "2.16.0",
+    "httpx": "0.28.1",
+    "langgraph": "1.2.20",
+    "fastapi": "0.162.2",
+    "psycopg": "3.3.8"
+  },
+  "excluded_attempt": {
+    "file": "network-blocked-model-attempt.jsonl",
+    "trials": 11,
+    "reason": "Runner was attached only to internal Docker networks; no Groq calls succeeded. Retained outside scored logs. Baseline unaffected."
+  }
+}
