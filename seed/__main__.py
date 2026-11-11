@@ -15,6 +15,23 @@ from evals.cases import Case, load_cases
 
 ROOT = Path(__file__).resolve().parents[1]
 SEED_SYSTEM = "urn:afya:seed:v1"
+# Demo-video patients: first reading only (normal vitals, no complaint). The nurse types the case's complaint live,
+# so the agent runs on screen. Complaint-only sign, two no-flag complaints, and the known French failure (n06).
+DEMO_CASES = (
+    "nurse_session/n02-worst-headache.json",
+    "m_fixtures/m05-neighbour-blood.json",
+    "m_fixtures/m16-french-negation.json",
+    "nurse_session/n06-french-blood-vomit.json",
+)
+
+
+def load_seed_cases() -> list[Case]:
+    cases = load_cases(ROOT / "evals" / "fixtures" / "synthetic")
+    if len(cases) != 20:
+        raise ValueError("Expected exactly 20 synthetic cases")
+    for rel in DEMO_CASES:
+        cases += load_cases(ROOT / "evals" / "cases" / rel)
+    return cases
 
 
 def require_demo() -> None:
@@ -74,9 +91,7 @@ def seed_case(fhir: Fhir, store: db.VisitStore, auditor: audit.Auditor, case: Ca
 
 def main() -> None:
     require_demo()
-    cases = load_cases(ROOT / "evals" / "fixtures" / "synthetic")
-    if len(cases) != 20:
-        raise ValueError("Expected exactly 20 synthetic cases")
+    cases = load_seed_cases()
     now = datetime.now(UTC)
     fhir = HttpFhir(os.environ["FHIR_BASE_URL"])
     try:

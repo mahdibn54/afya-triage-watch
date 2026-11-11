@@ -12,7 +12,12 @@ role and private FHIR write network, without publishing any ports or adding mode
 
 It loads the 20 E5-1 cases as `SYN-b01-…` through `SYN-b20-…` labels, with one
 Patient, one Encounter and the **first reading only** per case. This is the waiting-room
-starting state, not a replay or evaluation. Later readings (including HR 400 and
+starting state, not a replay or evaluation.
+
+It also loads four demo-video patients from the eval cases (`SYN-n02-…`, `SYN-m05-…`, `SYN-m16-…`, `SYN-n06-…`),
+again first reading only, with normal vitals and no complaint. For the demo, the nurse records a new reading with the
+case's complaint typed live (text in each case file under `evals/cases/`): n02 a complaint-only sign, m05 and m16 no
+flag expected (someone else's symptom, a denied sign), n06 the French complaint Qwen missed in 3 of 3 runs. Later readings (including HR 400 and
 Fahrenheit inputs), FHIR-note injection payloads, and expected evaluation labels are
 not imported. Complaints remain in Postgres through the existing recording service.
 No model calls, proposals, approvals or Flags are created by this job.

@@ -9,15 +9,15 @@ test("twenty seeded patients are usable on desktop and mobile", async ({ page },
   await login.focus();
   await expect(login).toBeFocused();
   await login.click();
-  await expect(page.locator('[data-testid^="row-"]').filter({ hasText: "SYN-" })).toHaveCount(20, { timeout: 60_000 });
+  await expect(page.locator('[data-testid^="row-"]').filter({ hasText: "SYN-" })).toHaveCount(24, { timeout: 60_000 });
   await expect(page.getByTestId("demo-director").getByRole("button", { name: /Demo director/ })).toHaveAttribute("aria-expanded", "false");
   const response = await page.request.get("/api/queue");
   expect(response.ok()).toBeTruthy();
   const queue = await response.json();
   const seeded = queue.patients.filter((p: { patient_label: string | null }) => p.patient_label?.startsWith("SYN-"));
-  expect(seeded).toHaveLength(20);
+  expect(seeded).toHaveLength(24);
   for (const patient of seeded) {
-    expect(patient.patient_label).toMatch(/^SYN-b\d\d-/);
+    expect(patient.patient_label).toMatch(/^SYN-(b\d\d|n02|m05|m16|n06)-/);
     await expect(page.getByTestId(`row-${patient.visit_id}`)).toContainText(patient.patient_label);
   }
   const patient = queue.patients.find((p: { patient_label: string }) => p.patient_label === "SYN-b01-yellow-orange");

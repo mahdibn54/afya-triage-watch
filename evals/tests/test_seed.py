@@ -5,9 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 from afya_mcp import audit, identity, services
-from seed.__main__ import ROOT, seed_case
-
-from evals.cases import load_cases
+from seed.__main__ import ROOT, load_seed_cases, seed_case
 
 # Reuse the MCP suite's in-memory FHIR implementation without importing the installed MCP SDK's tests.
 spec = importlib.util.spec_from_file_location("seed_fake_fhir", ROOT / "mcp/tests/fake_fhir.py")
@@ -45,23 +43,23 @@ class Auditor:
 def setup(monkeypatch):
     monkeypatch.setenv("DEMO_MODE", "1")
     monkeypatch.setenv("DATA_CLASSIFICATION", "synthetic")
-    return FakeFhir(), Store(), Auditor(), load_cases(ROOT / "evals/fixtures/synthetic")
+    return FakeFhir(), Store(), Auditor(), load_seed_cases()
 
 
 NOW = datetime(2026, 1, 1, 12, tzinfo=timezone.utc)
 
 
-def test_twenty_baselines_are_idempotent_and_preserve_confirmations(setup):
+def test_seed_baselines_are_idempotent_and_preserve_confirmations(setup):
     fhir, store, auditor, cases = setup
     first = [seed_case(fhir, store, auditor, c, NOW) for c in cases]
-    assert len(store.visits) == 20
-    assert {k: len(v) for k, v in fhir.data.items()} == {"Patient": 20, "Encounter": 20, "Observation": 20}
+    assert len(cases) == 24 and len(store.visits) == 24
+    assert {k: len(v) for k, v in fhir.data.items()} == {"Patient": 24, "Encounter": 24, "Observation": 24}
     visit = fhir.read("Encounter", first[0]["visit_id"])
     visit["priority"]["coding"][0]["code"] = "RED"
     fhir.update(visit)
     again = [seed_case(fhir, store, auditor, c, NOW + timedelta(days=1)) for c in cases]
     assert first == again
-    assert fhir.creates == 60
+    assert fhir.creates == 72
     assert fhir.read("Encounter", visit["id"])["priority"]["coding"][0]["code"] == "RED"
     unconfirmed = next(r for c, r in zip(cases, first) if c.confirmed_colour is None)
     assert "priority" not in fhir.read("Encounter", unconfirmed["visit_id"])
@@ -127,3 +125,14 @@ def test_seeded_patients_get_made_up_names_kept_out_of_audit(setup):
     assert identity.file_number_of(patient) == identity.file_number_for(f"SYN-{cases[0].id}")
     assert name not in json.dumps(result)
     assert name not in json.dumps(getattr(auditor, "rows", []), default=str)
+
+
+def test_demo_patients_start_without_a_complaint(setup):
+    """The demo-video patients get their first reading only; the nurse types the complaint live."""
+    fhir, store, auditor, cases = setup
+    demo = [c for c in cases if not c.id.startswith("b")]
+    assert [c.id for c in demo] == ["n02-worst-headache", "m05-neighbour-blood", "m16-french-negation",
+                                    "n06-french-blood-vomit"]
+    for c in demo:
+        seed_case(fhir, store, auditor, c, NOW)
+        assert c.readings[0]["complaint"] is None
