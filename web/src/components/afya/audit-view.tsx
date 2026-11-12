@@ -83,7 +83,7 @@ export function AuditView() {
 
       <div className="mt-6 overflow-x-auto rounded-2xl border bg-card">
         <table data-testid="audit" className="w-full min-w-[760px] text-sm">
-          <thead className="bg-muted/50 text-left text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+          <thead className="bg-muted/50 text-left text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
             <tr>
               <th className="px-4 py-2.5">Time</th>
               <th className="px-4 py-2.5">Who</th>
@@ -140,7 +140,7 @@ export function AuditView() {
                   <td className="px-4 py-2.5">
                     <span className="flex flex-wrap gap-1">
                       {ids.map(([k, v]) => (
-                        <code key={k} title={k} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10.5px] text-muted-foreground">
+                        <code key={k} title={k} className="rounded bg-muted px-1.5 py-0.5 font-mono text-2xs text-muted-foreground">
                           {v.length > 20 ? `${v.slice(0, 8)}…` : v}
                         </code>
                       ))}

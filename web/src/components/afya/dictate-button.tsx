@@ -163,7 +163,7 @@ export function DictateButton({ onText, label, className }: { onText: (text: str
         disabled={busy || (notReady && !listening)}
         onClick={() => (listening ? stop() : void start())}
         className={cn(
-          "grid size-9 shrink-0 place-items-center rounded-full border bg-background text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50",
+          "grid size-11 shrink-0 place-items-center rounded-full border bg-background text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50",
           listening && "animate-pulse border-destructive bg-destructive text-white hover:text-white",
         )}
       >

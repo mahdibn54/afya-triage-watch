@@ -128,7 +128,7 @@ export function Board({
       )}
 
       <div className="mt-6 overflow-hidden rounded-2xl border bg-card shadow-[0_1px_2px_oklch(0_0_0/0.04)]">
-        <div className="hidden grid-cols-[150px_minmax(120px,1fr)_90px_minmax(220px,1.6fr)_150px_150px_130px] gap-4 border-b bg-muted/50 px-5 py-2.5 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase lg:grid">
+        <div className="hidden grid-cols-[150px_minmax(120px,1fr)_90px_minmax(220px,1.6fr)_150px_150px_130px] gap-4 border-b bg-muted/50 px-5 py-2.5 text-2xs font-semibold tracking-wider text-muted-foreground uppercase xl:grid">
           <span>Confirmed colour</span>
           <span>Patient</span>
           <span>File no.</span>
@@ -371,7 +371,7 @@ function PatientRow({
       data-testid={`row-${p.visit_id}`}
       className={cn(
         "group relative grid cursor-pointer grid-cols-[auto_1fr_auto] items-center gap-x-4 gap-y-3 px-4 py-4 transition-colors sm:px-5",
-        "lg:grid-cols-[150px_minmax(120px,1fr)_90px_minmax(220px,1.6fr)_150px_150px_130px]",
+        "xl:grid-cols-[150px_minmax(120px,1fr)_90px_minmax(220px,1.6fr)_150px_150px_130px]",
         "hover:bg-muted/40",
         selected && "bg-muted/60",
         proposal && "bg-agent-soft/40 hover:bg-agent-soft/60",
@@ -395,18 +395,18 @@ function PatientRow({
           {fullName(p)}
         </button>
         <p className="tnum text-xs text-muted-foreground">
-          {p.file_number && <span className="font-mono lg:hidden">{p.file_number} · </span>}
+          {p.file_number && <span className="font-mono xl:hidden">{p.file_number} · </span>}
           {arrivedMs(p) === null ? "No arrival time" : `Arrived ${clockShort(p.arrived_at)} · waited ${minutesWaited(p, now)} min`}
         </p>
       </div>
 
-      <div className="hidden font-mono text-sm lg:block" data-testid={`file-${p.visit_id}`}>
+      <div className="hidden font-mono text-sm xl:block" data-testid={`file-${p.visit_id}`}>
         {p.file_number ?? <span className="text-muted-foreground">–</span>}
       </div>
 
-      <div className="col-span-3 row-start-2 lg:col-span-1 lg:row-start-auto">
+      <div className="col-span-3 row-start-2 xl:col-span-1 xl:row-start-auto">
         <TargetBar p={p} now={now} />
-        <p className="tnum mt-1.5 text-xs text-muted-foreground lg:hidden">
+        <p className="tnum mt-1.5 text-xs text-muted-foreground xl:hidden">
           {p.last_reading ? `Last reading ${tewsText(p)}${readingAgo(p, now)}` : "No reading yet"}
           {(() => {
             const d = dueIn(p, now);
@@ -416,7 +416,7 @@ function PatientRow({
         </p>
       </div>
 
-      <div className="hidden text-sm lg:block">
+      <div className="hidden text-sm xl:block">
         {p.last_reading ? (
           <>
             <span className="inline-flex items-center gap-1.5 font-medium">
@@ -441,11 +441,11 @@ function PatientRow({
         )}
       </div>
 
-      <div className="hidden lg:block">
+      <div className="hidden xl:block">
         <Recheck p={p} now={now} />
       </div>
 
-      <div className="col-start-3 row-start-1 flex items-center justify-end gap-1 lg:col-start-auto lg:row-start-auto">
+      <div className="col-start-3 row-start-1 flex items-center justify-end gap-1 xl:col-start-auto xl:row-start-auto">
         {canWrite && (
           <button
             type="button"
@@ -463,15 +463,15 @@ function PatientRow({
       </div>
 
       {(proposal || p.flags.length > 0 || p.notices.length > 0) && (
-        <div className="col-span-3 flex flex-wrap items-center gap-1.5 lg:col-span-5 lg:col-start-2 lg:-mt-1">
+        <div className="col-span-3 flex flex-wrap items-center gap-1.5 xl:col-span-5 xl:col-start-2 xl:-mt-1">
           {proposal && (
-            <span className="inline-flex h-6 items-center gap-1 rounded-full bg-agent px-2.5 text-[11px] font-semibold text-white animate-pulse-ring">
+            <span className="inline-flex h-7 items-center gap-1 rounded-full bg-agent px-3 text-2xs font-semibold text-white animate-pulse-ring">
               <Sparkles className="size-3.5" />
               Second look suggested{canWrite && " · review"}
             </span>
           )}
           {p.flags.includes("second_look") && (
-            <span className="inline-flex h-6 items-center gap-1 rounded-full border border-foreground/15 bg-background px-2 text-[11px] font-semibold">
+            <span className="inline-flex h-7 items-center gap-1 rounded-full border border-foreground/15 bg-background px-2.5 text-2xs font-semibold">
               <Flag className="size-3.5" /> Second look confirmed
             </span>
           )}

@@ -73,7 +73,7 @@ export function Shell({ me }: { me: Me }) {
     <div className="flex min-h-dvh flex-1 flex-col">
       <header className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-4 px-4 sm:px-6">
-          <Wordmark className="[&>span:last-child]:hidden sm:[&>span:last-child]:inline" />
+          <Wordmark className="whitespace-nowrap [&>span:last-child]:hidden lg:[&>span:last-child]:inline" />
           <nav className="ml-1 flex items-center gap-1 rounded-xl bg-muted p-1 sm:ml-2" aria-label="Main">
             {(
               [
@@ -97,7 +97,7 @@ export function Shell({ me }: { me: Me }) {
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-            {view === "board" && <button type="button" onClick={() => setWall(true)} className="h-11 rounded-xl border bg-card px-3 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2">Wall mode</button>}
+            {view === "board" && <button type="button" onClick={() => setWall(true)} className="h-11 whitespace-nowrap rounded-xl border bg-card px-3 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2">Wall mode</button>}
             <ThemeToggle />
             <UserSwitcher me={me} />
           </div>

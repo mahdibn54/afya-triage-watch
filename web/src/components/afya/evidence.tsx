@@ -61,7 +61,7 @@ export function EvidenceTable({ rows }: { rows: EvidenceRow[] }) {
                       {r.after.points ?? "–"}
                     </span>
                   </td>
-                  <td className="px-3 py-2.5 font-mono text-[11px] leading-tight text-muted-foreground">
+                  <td className="px-3 py-2.5 font-mono text-2xs leading-tight text-muted-foreground">
                     <span className="block" title="previous reading">{r.before.obs_id}</span>
                     <span className="block text-foreground" title="new reading">{r.after.obs_id}</span>
                   </td>

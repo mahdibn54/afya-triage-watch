@@ -47,9 +47,9 @@ export function UserSwitcher({ me }: { me: Me }) {
           className="flex h-11 items-center gap-2.5 rounded-xl border bg-card pr-2.5 pl-1.5 text-left outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/40"
         >
           <Initials name={me.name} role={me.role} />
-          <span className="hidden leading-tight sm:block">
+          <span className="hidden whitespace-nowrap leading-tight lg:block">
             <span className="block text-sm font-semibold">{me.name}</span>
-            <span className="block text-[11px] text-muted-foreground">{ROLE[me.role].title}</span>
+            <span className="block text-2xs text-muted-foreground">{ROLE[me.role].title}</span>
           </span>
           <ChevronDown className="size-4 text-muted-foreground" />
         </DropdownMenuTrigger>

@@ -8,7 +8,7 @@ export function DemoBadge({ compact = false, className }: { compact?: boolean; c
       title="Demo mode: no real authentication, synthetic patients only"
       className={cn(
         "inline-flex items-center gap-1.5 rounded-md border-2 border-dashed border-warn/70 bg-warn-soft font-mono font-bold tracking-[0.18em] text-[color-mix(in_oklch,var(--warn),black_35%)] uppercase dark:text-warn",
-        compact ? "h-6 px-1.5 text-[10px]" : "h-7 px-2 text-[11px]",
+        compact ? "h-6 px-1.5 text-2xs" : "h-7 px-2 text-2xs",
         className,
       )}
     >

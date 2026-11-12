@@ -33,7 +33,7 @@ export function NoticeChip({ notice, className }: { notice: Notice; className?: 
   return (
     <span
       title={n.title}
-      className={cn("inline-flex h-6 items-center gap-1 rounded-full border px-2 text-[11px] font-medium", TONE[n.tone], className)}
+      className={cn("inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-2xs font-medium", TONE[n.tone], className)}
     >
       <Icon className="size-3.5" />
       {n.short}

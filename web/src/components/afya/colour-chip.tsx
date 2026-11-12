@@ -33,7 +33,7 @@ export function ColourChip({
       className={cn(
         "inline-flex shrink-0 items-center font-semibold uppercase tracking-wide",
         muted ? cn(m.soft, m.ink) : cn(m.bg, m.text),
-        size === "sm" && "h-6 gap-1 rounded-md px-1.5 text-[11px]",
+        size === "sm" && "h-6 gap-1 rounded-md px-1.5 text-2xs",
         size === "md" && "h-7 gap-1.5 rounded-lg px-2.5 text-xs",
         size === "lg" && "h-10 gap-2 rounded-xl px-3.5 text-sm",
         className,

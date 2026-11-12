@@ -236,7 +236,7 @@ function VitalsForm({ me, patient, onClose }: { me: Me; patient: QueuePatient; o
               <label key={n.key} className="block">
                 <span className="flex items-baseline justify-between text-sm font-medium">
                   {INPUT_LABEL[n.key]}
-                  {n.note && <span className="text-[11px] font-normal text-muted-foreground">{n.note}</span>}
+                  {n.note && <span className="text-2xs font-normal text-muted-foreground">{n.note}</span>}
                 </span>
                 <span
                   className={cn(

@@ -44,7 +44,7 @@ function ServerTag({ step }: { step: TraceStep }) {
 }
 
 function Tag({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <span className={cn("inline-flex h-5 items-center rounded-full border px-2 text-[10.5px] font-semibold", className)}>{children}</span>;
+  return <span className={cn("inline-flex h-5 items-center rounded-full border px-2 text-2xs font-semibold", className)}>{children}</span>;
 }
 
 function ms(v: number | null | undefined): string {
@@ -90,13 +90,13 @@ export function AgentTrace({ runId, live = true }: { runId: string; live?: boole
               )}
             >
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                <span className="tnum grid size-6 place-items-center rounded-md bg-muted font-mono text-[11px] font-semibold text-muted-foreground">
+                <span className="tnum grid size-6 place-items-center rounded-md bg-muted font-mono text-2xs font-semibold text-muted-foreground">
                   {s.step}
                 </span>
                 <K.icon className="size-4 text-muted-foreground" aria-label={K.label} />
                 <code className="font-mono text-sm font-semibold">{s.name}</code>
                 <ServerTag step={s} />
-                <span className="tnum ml-auto font-mono text-[11px] text-muted-foreground">
+                <span className="tnum ml-auto font-mono text-2xs text-muted-foreground">
                   {[ms(s.latency_ms), s.tokens_in != null ? `${s.tokens_in} → ${s.tokens_out ?? 0} tokens` : "", s.cost_usd != null ? `$${s.cost_usd.toFixed(2)}` : "", clock(s.at)]
                     .filter(Boolean)
                     .join(" · ")}
@@ -110,7 +110,7 @@ export function AgentTrace({ runId, live = true }: { runId: string; live?: boole
               {s.cited_ids.length > 0 && (
                 <p className="mt-1.5 flex flex-wrap gap-1 pl-[34px]">
                   {s.cited_ids.map((id) => (
-                    <code key={id} className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px]">
+                    <code key={id} className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-2xs">
                       {id}
                     </code>
                   ))}

@@ -89,7 +89,7 @@ function VisitBody({ me, visitId, onRecord }: { me: Me; visitId: string; onRecor
             <button
               type="button"
               onClick={() => onRecord(p)}
-              className="ml-auto inline-flex h-11 items-center gap-1.5 rounded-xl border bg-card px-3.5 text-sm font-medium hover:shadow-sm"
+              className="mr-10 ml-auto inline-flex h-11 items-center gap-1.5 rounded-xl border bg-card px-3.5 text-sm font-medium hover:shadow-sm"
             >
               <PenLine className="size-4" /> Record vitals
             </button>

@@ -34,7 +34,7 @@ export function DemoDirector({ me, onOpen }: { me: Me; onOpen: (visitId: string 
       >
         <Clapperboard className="size-4" />
         Demo director
-        <span className="font-mono text-[10px] font-bold tracking-[0.18em] text-muted-foreground uppercase">demo only</span>
+        <span className="font-mono text-2xs font-bold tracking-[0.18em] text-muted-foreground uppercase">demo only</span>
         <ChevronDown className={cn("ml-auto size-4 transition", !open && "rotate-180")} />
       </button>
       {open && (
@@ -84,7 +84,7 @@ export function DemoDirector({ me, onOpen }: { me: Me; onOpen: (visitId: string 
               <span className="block text-xs font-normal opacity-80">The one that raises the score to ORANGE</span>
             </span>
           </button>
-          <p className="px-1 text-[11px] leading-snug text-muted-foreground">
+          <p className="px-1 text-2xs leading-snug text-muted-foreground">
             Synthetic patients only. For the video, lower WATCH_INTERVAL_SECONDS and the reminder time in .env.
           </p>
         </div>

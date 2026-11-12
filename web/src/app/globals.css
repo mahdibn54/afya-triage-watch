@@ -11,6 +11,18 @@
   - One accent ("agent", violet) marks agent activity, so agent work never looks like a triage colour.
 */
 
+/*
+  Type scale for a busy emergency room, read at arm's length on a tablet: the smallest text (chips, table headers) is
+  12px, secondary lines 13px, body and controls 15-16px; names and times stay larger and semibold.
+*/
+@theme {
+  --text-2xs: 0.75rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.375rem;
+}
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
