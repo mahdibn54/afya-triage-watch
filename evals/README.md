@@ -40,6 +40,8 @@ check (the grep in the backlog) must return nothing under `evals/`; the logs hol
 | `synthetic` | 20 | `evals/fixtures/synthetic` | 6 tuning, 14 held_out |
 | `sign_coverage` | 13 | `evals/cases/sign_coverage` | held_out, pre-registered |
 
+**Always run 3 runs per case** (Dheker's decision, 2026-11-12): pass `--runs 3` (`RUNS=3`) explicitly, because the default in the code is still 5.
+
 Check a set's real coverage by counting `evals/runs/*.jsonl` per `set`, `model` and `run_index` (a model that skips a trial because of a provider limit leaves fewer rows than cases x runs). Current state and open items: the E8-3 notes in `docs/Afya_Tasks_BMAD.md`.
 
 ## Windows (no `make`, host cannot reach the containers)
