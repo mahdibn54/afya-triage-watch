@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import type { Colour, Me, Proposal } from "@/api/contract";
 import { ColourChip } from "@/components/afya/colour-chip";
 import { Complaint, reasonText } from "@/components/afya/complaint";
+import { appendText, DictateButton } from "@/components/afya/dictate-button";
 import { EvidenceTable } from "@/components/afya/evidence";
 import { GateSteps } from "@/components/afya/gate-steps";
 import { NoticeCallout } from "@/components/afya/notice-chip";
@@ -284,6 +285,11 @@ export function ApprovalCard({ me, proposal, hideNotices = [] }: { me: Me; propo
                   This is lower than the suggestion. Your reason is kept in the audit log.
                 </span>
               )}
+              <DictateButton
+                label="the reason"
+                className="mt-1.5 flex"
+                onText={(t) => setOverrideReason((r) => appendText(r, t, 300))}
+              />
               <textarea
                 data-testid="override-reason"
                 rows={2}
@@ -307,6 +313,11 @@ export function ApprovalCard({ me, proposal, hideNotices = [] }: { me: Me; propo
               <label className="block">
                 <span className="text-sm font-semibold">Why reject this suggestion?</span>
                 <span className="block text-xs text-muted-foreground">Plain words; kept in the audit log. The colour stays {p.current_colour ? SATS[p.current_colour].label : "as it is"}.</span>
+                <DictateButton
+                  label="the reason"
+                  className="mt-1.5 flex"
+                  onText={(t) => setRejectReason((r) => appendText(r, t, 300))}
+                />
                 <textarea
                   data-testid="reject-reason"
                   autoFocus

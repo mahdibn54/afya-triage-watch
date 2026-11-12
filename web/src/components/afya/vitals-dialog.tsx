@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 import type { Consciousness, Me, Mobility, QueuePatient, RemeasureProblem, VitalsRequest } from "@/api/contract";
 import { ColourChip } from "@/components/afya/colour-chip";
+import { appendText, DictateButton } from "@/components/afya/dictate-button";
 import { NoticeCallout } from "@/components/afya/notice-chip";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { ApiError, newIdempotencyKey } from "@/lib/api";
@@ -275,8 +276,11 @@ function VitalsForm({ me, patient, onClose }: { me: Me; patient: QueuePatient; o
         <label className="block">
           <span className="flex items-baseline justify-between text-sm font-medium">
             Complaint, in the patient&apos;s own words
-            <span className={cn("tnum text-xs font-normal text-muted-foreground", complaintLen > MAX_COMPLAINT && "text-destructive")}>
-              {complaintLen} / {MAX_COMPLAINT}
+            <span className="flex items-center gap-2">
+              <span className={cn("tnum text-xs font-normal text-muted-foreground", complaintLen > MAX_COMPLAINT && "text-destructive")}>
+                {complaintLen} / {MAX_COMPLAINT}
+              </span>
+              <DictateButton label="the complaint" onText={(t) => setForm((f) => ({ ...f, complaint: appendText(f.complaint, t, MAX_COMPLAINT) }))} />
             </span>
           </span>
           <textarea

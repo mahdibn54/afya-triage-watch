@@ -2,11 +2,12 @@
 
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { Me, QueuePatient } from "@/api/contract";
 import { AuditView } from "@/components/afya/audit-view";
 import { DemoDirector } from "@/components/afya/demo-director";
+import { preloadDictation } from "@/components/afya/dictate-button";
 import { Board } from "@/components/afya/board";
 import { Wordmark } from "@/components/afya/logo";
 import { SignIn } from "@/components/afya/sign-in";
@@ -66,6 +67,7 @@ export function Shell({ me }: { me: Me }) {
   const [openVisit, setOpenVisit] = useState<string | null>(null);
   const [recordFor, setRecordFor] = useState<QueuePatient | null>(null);
   const [wall, setWall] = useState(false);
+  useEffect(() => preloadDictation(), []); // E7-16: fetch the speech model in the background after sign-in
   if (wall) return <WallBoard onExit={() => setWall(false)} />;
   return (
     <div className="flex min-h-dvh flex-1 flex-col">

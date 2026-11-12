@@ -24,7 +24,7 @@ written before any run and never used for tuning. **Both misses are under-calls*
 expected), see section 4. The agent never proposed a wrong colour, never lowered one and took no action without a
 nurse's approval (0 ungated actions).
 
-**Compared models, same cases, 3 runs:** `openai/gpt-oss-20b` 50/50 cases on the first 50, sign coverage in progress;
+**Compared models, same cases, 3 runs:** `openai/gpt-oss-20b` 50/50 cases on the first 50 and 12/13 on sign coverage (35/39 trials; it gets s04 and s07 right but misses s06, aggression, in all 3 runs);
 `qwen/qwen3.8-27b` 140/150 trials on the first 50, all 10 misses under-calls on complaint-only signs
 (`evals/batches/20261109/README.md`). gpt-oss-120b stays the default.
 
