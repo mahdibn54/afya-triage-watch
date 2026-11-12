@@ -190,5 +190,5 @@ easy to audit; each one has a clear path to production.
 
 ## Licence
 
-Code: MIT (see `LICENSE`). `rules/charts/` is **not** covered by MIT: it holds SATS score bands transcribed from
-the EMSSA SATS Training Manual (2012); see [`rules/charts/NOTICE.md`](rules/charts/NOTICE.md).
+MIT (see `LICENSE`). `rules/charts/` holds SATS score bands transcribed from the EMSSA SATS Training Manual (2012),
+used with EMSSA's permission; see [`rules/charts/NOTICE.md`](rules/charts/NOTICE.md).
