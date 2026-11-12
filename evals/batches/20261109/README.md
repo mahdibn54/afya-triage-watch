@@ -32,7 +32,7 @@ Qwen3.8-27B is weaker than gpt-oss on the same cases. Synthetic cases only, 50 c
 | model | trials | matched expected proposal | model unavailable (rules fallback) |
 |---|---|---|---|
 | qwen/qwen3.8-27b | 150 | 140 (93%) | 11 |
-| openai/gpt-oss-120b (batches 20261110T073014Z, 20261110T074856Z, so far) | 86 | 86 | 0 |
+| openai/gpt-oss-120b (batches 20261110T073014Z, 20261110T074856Z) | 90 | 90 | 0 |
 | openai/gpt-oss-20b (batches 20261110T073035Z, 20261110T074535Z) | 90 | 90 | 6 |
 
 All 10 Qwen misses are under-calls on complaint-only signs: it proposed nothing where ORANGE was expected. There is no
@@ -44,3 +44,5 @@ false alarm and no wrong colour.
   pain). The rules fallback scores vitals only, so a complaint sign is lost.
 
 Proposal: keep `openai/gpt-oss-120b` as the default and report Qwen as a compared model.
+
+_Correction (2026-11-12, counted from the committed logs): gpt-oss-120b has 90 trials in those two batches (36 + 54), not 86. The 120b and 20b runs on the 20 synthetic patients and the 13 sign-coverage cases came later; see the E8-3 note in `docs/Afya_Tasks_BMAD.md`._

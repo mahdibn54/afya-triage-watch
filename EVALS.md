@@ -1,5 +1,7 @@
 # Evals
 
+> **Update 2026-11-12 (read this first).** Sections 1, 2, 4 and 5 below were written for the earlier k = 1 run on 38 cases and have not been re-checked; only the section 3 tables are regenerated from `evals/runs/`. Since then: the eval set is 63 cases (18 fixtures, 12 nurse sessions, 20 synthetic, 13 sign-coverage); `openai/gpt-oss-120b` ran 3 runs per case on all 63, `openai/gpt-oss-20b` on 50 plus 21 of 39 sign-coverage trials (Groq daily limit, resume batch `20261112T143847Z`), `qwen/qwen3.8-27b` 3 runs on the 50 earlier cases. Misses stay on complaint-only cases (`n02`, `s04`, `s07`); sign-coverage gpt-oss-120b is 34/39 trials, 11/13 cases. The single-run statements below (k = 1, "repeated runs not run") are out of date. Details and open items: the E8-3 notes in `docs/Afya_Tasks_BMAD.md`.
+
 Status: **two hosted open-weights runs on all 38 cases, k = 1 run per case each.** `openai/gpt-oss-120b` (Apache-2.0)
 on Groq's free plan (`groq:openai/gpt-oss-120b`), once per case on M's 18 fixture cases and on B's 20 synthetic
 patients (6 tuning, 14 held-out), with the rules-only baseline rerun at the same commit each time:
@@ -57,7 +59,7 @@ in `evals/runs/superseded/`). The log inventory in section 3 lists the commit of
 - **Statistics.** k/n with Wilson 95% intervals (`evals/stats.py`, unit-tested), n = cases for the headline (majority of
   a case's runs, `metrics.case_counts`), n = trials for the secondary table. Metrics are defined in
   `evals/README.md` and `evals/metrics.py`.
-- **Not run.** OpenRouter and Ollama Cloud models (both need paid credits); repeated runs of the Groq model (k = 1,
+- **Not run.** OpenRouter and Ollama Cloud models (both need paid credits); repeated runs of the Groq model (at the time of this paragraph k = 1; now 3 runs per case, see the update above; k = 1 meant
   free-plan tokens); the final held-out run after the code freeze (E8-3). The 18 fixtures are author-seen
   (`split: fixture`). B's synthetic set has a fixed split, 6 `tuning` and 14 `held_out`. Run 1: nothing in the prompt
   or code was changed after seeing its results except a metric fix (section 2), which changes measurement, not the

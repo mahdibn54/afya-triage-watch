@@ -31,6 +31,25 @@ the real afya-mcp, WSO2, HAPI and Postgres. It never approves anything and rejec
 Do not commit smoke runs: everything in `evals/runs/*.jsonl` is read by `make eval-tables`. Before each push, the E8-7 secrets
 check (the grep in the backlog) must return nothing under `evals/`; the logs hold no key, header or URL with credentials.
 
+## Case sets (63 cases, 2026-11-12)
+
+| set | cases | path | split |
+|---|---|---|---|
+| `m_fixtures` | 18 | `evals/cases/m_fixtures` | fixture (author-seen) |
+| `nurse_session` | 12 | `evals/cases/nurse_session` | tuning / held_out |
+| `synthetic` | 20 | `evals/fixtures/synthetic` | 6 tuning, 14 held_out |
+| `sign_coverage` | 13 | `evals/cases/sign_coverage` | held_out, pre-registered |
+
+Check a set's real coverage by counting `evals/runs/*.jsonl` per `set`, `model` and `run_index` (a model that skips a trial because of a provider limit leaves fewer rows than cases x runs). Current state and open items: the E8-3 notes in `docs/Afya_Tasks_BMAD.md`.
+
+## Windows (no `make`, host cannot reach the containers)
+
+`make` is not installed and Docker Desktop on Windows does not route the host to the containers' internal IPs, so `python -m evals run` on the host makes every trial fail at once (0 ms, 0 tokens, `ExceptionGroup`, including the rules-only ones). Do not commit those logs. Run the harness from a Python 3.12 container instead: use an image with `api/` and `mcp/` installed (for example `afya-e8-2-mcp-required-group-a:latest`), mount the repo at `/workspace` (read-only), `evals/runs` at `/results` and `rules/` at `/rules`, join it to the stack networks `app`, `mcp`, `auth`, `borrowed`, `fhir_rw` plus one extra network with internet access for Groq, and set the same environment as the `api` service (`DATABASE_URL`, `AFYA_MCP_*`, `AFYA_AUTH_*` with the CA from the `authca` volume, `WSO2_MCP_URL`, `EVAL_HAPI_URL=http://hapi:8080/fhir`, `RULES_DIR=/rules`, `DEMO_MODE=1`, `DATA_CLASSIFICATION=synthetic`, `GROQ_API_KEY`). Service names (`afya-mcp`, `hapi`, `postgres`) then resolve. There is no git in the image: set `runner._commit` to the host's `git rev-parse --short=7 HEAD` before calling `evals.__main__.main([...])`. Codex's earlier setup for the Qwen batch is in the ignored `.playwright-mcp/qwen-eval/` (`compose.yaml`, `run.py`). On Linux, `eval "$(sh evals/stack_env.sh)"` and `make eval` work as written above.
+
+### Re-running failed provider calls
+
+A trial where Groq returned an error after the harness's 3 attempts (`model_unavailable: http_error`) falls back to the rules and is scored as that. To re-run it: move those rows out of the batch file into `evals/runs/superseded/<batch>_<set>_B_<model>_http_error_first_attempt.jsonl` (kept, not deleted), then `--resume <batch>` runs only the missing trials on the same code. Say in the notes that only failed calls were repeated.
+
 ## Case file format
 
 A case set is a path to one `.json` file or to a directory searched recursively for `*.json` (files in name order).
