@@ -1,6 +1,40 @@
 # Evals
 
-> **Update 2026-11-12 (read this first).** Sections 1, 2, 4 and 5 below were written for the earlier k = 1 run on 38 cases and have not been re-checked; only the section 3 tables are regenerated from `evals/runs/`. Since then: the eval set is 63 cases (18 fixtures, 12 nurse sessions, 20 synthetic, 13 sign-coverage); `openai/gpt-oss-120b` ran 3 runs per case on all 63, `openai/gpt-oss-20b` on 50 plus 21 of 39 sign-coverage trials (Groq daily limit, resume batch `20261112T143847Z`), `qwen/qwen3.8-27b` 3 runs on the 50 earlier cases. Three runs per case is the standing plan for every model (Dheker, 2026-11-12), not 5. Misses stay on complaint-only cases (`n02`, `s04`, `s07`); sign-coverage gpt-oss-120b is 34/39 trials, 11/13 cases. The single-run statements below (k = 1, "repeated runs not run") are out of date. Details and open items: the E8-3 notes in `docs/Afya_Tasks_BMAD.md`.
+## Headline (read this first)
+
+**Default model `openai/gpt-oss-120b` (Apache-2.0 open weights, on Groq), 3 runs per case on all 63 cases:**
+**61/63 cases correct (97%, 95% CI 89-99%)**, 184/189 trials. It caught 30 of 32 deteriorations (sensitivity) and
+raised **0 false alerts** on 31 cases that should not alert. The fixed SATS rules alone, with no model, get 43/63
+cases and catch 12 of 32, also with 0 false alerts: the model's gain is the warning signs that exist only in what the
+patient says. 1 of 189 trials had the model unavailable (the rules took over and the outcome was still right).
+
+| Set (cases) | gpt-oss-120b, cases correct | trials | caught / should alert | false alerts | rules only, cases |
+|---|---|---|---|---|---|
+| Nurse sessions (12) | 12/12 (76-100%) | 36/36 | 8/8 | 0/4 | 6/12 |
+| M fixtures (18) | 18/18 (82-100%) | 54/54 | 9/9 | 0/9 | 14/18 |
+| Synthetic patients, B (20) | 20/20 (84-100%) | 60/60 | 8/8 | 0/12 | 17/20 |
+| Sign coverage, held out (13) | 11/13 (58-96%) | 34/39 | 5/7 | 0/6 | 6/13 |
+| **All (63)** | **61/63 (89-99%)** | **184/189** | **30/32** | **0/31** | **43/63** |
+
+Batches: nurse `20261110T073014Z` (code `ceb3e52`), fixtures `20261110T074856Z` (`ceb3e52`), synthetic
+`20261112T012629Z` (`92aeda5`), sign coverage `20261112T015445Z` (`92aeda5`); rules-only baselines `20261109T095114Z`,
+`20261107T204909Z`, `20261107T203837Z`, `20261112T015445Z`. A case is correct when the majority of its runs give the
+labelled outcome (proposal colour, or no proposal). Intervals are Wilson 95% on cases. The sign-coverage cases were
+written before any run and never used for tuning. **Both misses are under-calls** (no proposal where ORANGE was
+expected), see section 4. The agent never proposed a wrong colour, never lowered one and took no action without a
+nurse's approval (0 ungated actions).
+
+**Compared models, same cases, 3 runs:** `openai/gpt-oss-20b` 50/50 cases on the first 50, sign coverage in progress;
+`qwen/qwen3.8-27b` 140/150 trials on the first 50, all 10 misses under-calls on complaint-only signs
+(`evals/batches/20261109/README.md`). gpt-oss-120b stays the default.
+
+**Cost per run.** About 3,200 tokens on average (max 11,600 when the agent investigates with several reads), about 2
+seconds of model time on average (max 20): $0 on Groq's free plan; tokens, seconds and cost are logged for every call.
+
+Sections 1 and 2 describe how the method grew, from the first single-run hosted runs on 38 cases; section 3 has
+the generated tables for every logged run; section 4 the unfixed failure; section 5 the limits.
+
+### History: the first hosted runs (k = 1, 38 cases)
 
 Status: **two hosted open-weights runs on all 38 cases, k = 1 run per case each.** `openai/gpt-oss-120b` (Apache-2.0)
 on Groq's free plan (`groq:openai/gpt-oss-120b`), once per case on M's 18 fixture cases and on B's 20 synthetic
@@ -596,7 +630,36 @@ trigger, proposal and colour are untouched, so batches that span the change are 
 
 <!-- END GENERATED TABLES -->
 
-## 4. One real unfixed failure: chest pain called "not current" (`qwen3:8b`, case `m17-chest-pain`)
+## 4. One real unfixed failure: "my father is confused" read as someone else (`gpt-oss-120b`, case `s07`)
+
+- **Case.** `s07-confused-said-by-family`, held out, written before any run. Confirmed YELLOW; a relative speaks for
+  the patient: "My father is confused since this morning, he does not know where he is." The nurse's reading records
+  him as alert (AVPU "A"), so the vital signs alone do not move him. Label: proposal to ORANGE with sign
+  LOC_REDUCED_CONFUSED.
+- **Result.** 0/3 runs correct (95% CI 0-56%): no proposal in all 3, a missed ORANGE. Batch `20261112T015445Z`
+  (`evals/runs/20261112T015445Z_sign_coverage_B_groq_openai_gpt-oss-120b.jsonl`); the `map_signs` step says
+  "0 current sign(s), 1 other mention(s)" in every run. The model found the confusion but marked it `other` (the
+  status the prompt reserves for something past, negated or **about someone else**): the sentence is about "my
+  father", so it read the sign as not the patient's. Code then did what it should: an `other` sign never counts.
+  When this happens the nurse's own triage stands, nothing is lowered, but the agent adds nothing.
+- **Why it matters.** At an outpatient desk a relative often speaks for an older or confused patient. The prompt's
+  "about someone else" rule (needed for "my neighbour was coughing blood", case m05) cannot tell the patient described
+  in the third person from a bystander.
+- **The second miss, same family.** `s04-coughing-blood-swahili`, "Nakohoa damu tangu jana usiku" ("I have been
+  coughing blood since last night"): in 2 of 3 runs the model's sign was rejected by code's evidence check (1 dropped,
+  0 kept), and in the third it chose VOMITING_FRESH_BLOOD, the wrong sign with the right colour. The rules-only
+  baseline misses both cases too.
+- **Next step.** Give `map_signs` who is speaking: a "the complaint is reported by a relative about the patient" flag
+  from the vitals form, and a prompt line that a relative's "my father / my child ..." is the patient. Then re-run the
+  "someone else" cases (m05, the neighbour) with s07 to check that the bystander case still does not alert. For s04,
+  add Swahili blood words ("damu", "kukohoa damu") to the review list for a native speaker before changing anything.
+- **Why not fixed.** The case is held out: tuning the prompt on it and re-scoring on it would be training on the test.
+  A fix needs new tuning cases of the same kind, written first, and the change checked on those; s07 stays as the
+  honest held-out miss.
+
+### 4.2 Earlier unfixed failure: chest pain called "not current" (`qwen3:8b`, case `m17-chest-pain`)
+
+Not the default model any more (gpt-oss-120b gets m17 right 3/3), kept because the analysis is still the method we follow.
 
 - **Case.** Confirmed YELLOW, vitals unremarkable, complaint "Crushing chest pain that started an hour ago." Label:
   proposal to ORANGE with sign CHEST_PAIN.
@@ -628,20 +691,21 @@ model keeps "coughing blood" and "dizzy" from the complaint), and the Swahili mi
 
 ## 5. Limits
 
-- **Synthetic and small.** 18 invented cases, one author. Intervals over 90 trials per model overstate the evidence:
-  the runs are near-copies (0/18 disagreements), so the independent sample is 18 cases; the headline therefore uses n = cases.
+- **Synthetic and small.** 63 invented cases by two authors (M: fixtures, nurse sessions, sign coverage; B: the 20
+  synthetic patients). Repeated runs of a case are near-copies, so the independent sample is the number of cases and
+  the headline uses n = cases; trial counts look tighter than the evidence is.
 - **Builder-authored labels.** Complaint signs and "no proposal" labels are M's reading, not a clinician's. Some are
   debatable (a headache mapped to MODERATE_PAIN counts as a wrong sign even though it changes nothing). No clinician has
   labelled any case.
 - **Fixture cases are author-seen.** Prompt and filters were developed while looking at some of these sentences
-  (P-014, the injections). The held-out result for a model is the single Groq run on B's 14 held-out patients (section 2).
+  (P-014, the injections). The held-out results are B's 14 held-out patients and the 13 sign-coverage cases (headline table).
 - **Adult chart only.** No paediatric case is exercised; a child gets no chart and no proposal.
-- **One hosted run per case.** The Groq model ran once per case (free plan: 200K tokens per day), so there is no
-  measure of agreement between its repeated runs and the intervals are wide; Groq's `seed` is best effort only. Local
-  latency is for this host's Ollama; hosted latency is Groq's, on a free plan that shares capacity.
-- **Held-out runs before the freeze.** The 14 held-out patients were run twice with the Groq model before the code
-  freeze (run 1, then run 2 once the E12-5 changes were developed on fixtures and tuning only); the planned final run
-  after the freeze is still to do (E8-3). The prompt change after run 2 (sign example) is not measured on them.
+- **Three runs per case.** Each model ran 3 times per case (free plan: about 200K tokens per day per model), enough to
+  see run-to-run disagreement (s04: 1 of 3 runs differs) but not to measure it well; Groq's `seed` is best effort
+  only. Hosted latency is Groq's, on a free plan that shares capacity.
+- **Held-out sets.** B's 14 held-out patients were run several times while the code still changed (each log records
+  its commit); the 13 sign-coverage cases were written before any run and run once per model, at a single commit. No
+  prompt was tuned on either set after it was run.
 - **Investigation depth is prompt-guided.** Whether the model reads depends on the prompt's when-to-use guidance and on
   what the facts leave out; in run 2 it never used `get_queue_state`, `fhir_read` or `compute_tews`, and 2 sign-only
   loops decided without a read. Nothing forces a read: the code-decided proposal is the same either way.
