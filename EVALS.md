@@ -260,6 +260,8 @@ trigger, proposal and colour are untouched, so batches that span the change are 
 
 ## 3. Tables (generated from `evals/runs/`)
 
+The `gpt-oss-20b` sign-coverage batch `20261112T143847Z` was resumed across three commits (`92aeda5`, `a844d41`, `061e1a5`); the two later ones change only `docs/`, so all 39 trials ran on the same agent, MCP and rules code.
+
 <!-- BEGIN GENERATED TABLES (python -m evals tables; do not edit by hand) -->
 
 #### Runs in the logs
@@ -295,6 +297,8 @@ trigger, proposal and colour are untouched, so batches that span the change are 
 | `nurse_session` | C | `rules-only` | - | 20261109T095114Z | `4bc77f5` | 12 | 12 | 20261109T095114Z_nurse_session_C_rules-only.jsonl |
 | `sign_coverage` | B | `groq:openai/gpt-oss-120b` | - | 20261112T015445Z | `92aeda5` | 13 | 39 | 20261112T015445Z_sign_coverage_B_groq_openai_gpt-oss-120b.jsonl |
 | `sign_coverage` | B | `groq:openai/gpt-oss-20b` | - | 20261112T143847Z | `92aeda5` | 13 | 21 | 20261112T143847Z_sign_coverage_B_groq_openai_gpt-oss-20b.jsonl |
+| `sign_coverage` | B | `groq:openai/gpt-oss-20b` | - | 20261112T143847Z | `a844d41` | 2 | 2 | 20261112T143847Z_sign_coverage_B_groq_openai_gpt-oss-20b.jsonl |
+| `sign_coverage` | B | `groq:openai/gpt-oss-20b` | - | 20261112T143847Z | `061e1a5` | 13 | 16 | 20261112T143847Z_sign_coverage_B_groq_openai_gpt-oss-20b.jsonl |
 | `sign_coverage` | C | `rules-only` | - | 20261112T015445Z | `92aeda5` | 13 | 13 | 20261112T015445Z_sign_coverage_C_rules-only.jsonl |
 | `synthetic` | B | `groq:openai/gpt-oss-120b` | - | 20261107T195756Z | `25dd96d` | 20 | 20 | 20261107T195756Z_synthetic_B_groq_openai_gpt-oss-120b.jsonl |
 | `synthetic` | B | `groq:openai/gpt-oss-120b` | - | 20261107T203837Z | `daaf763` | 20 | 20 | 20261107T203837Z_synthetic_B_groq_openai_gpt-oss-120b.jsonl |
@@ -374,7 +378,7 @@ trigger, proposal and colour are untouched, so batches that span the change are 
 | `nurse_session`/tuning | `groq:openai/gpt-oss-120b @ 20261110T073014Z` | 3 | 3/3 (100%, 95% CI 44-100%) | 3/3 (100%, 95% CI 44-100%) | n/a (0 trials) | 0 | 0/3 (0%, 95% CI 0-56%) | 3/3 (100%, 95% CI 44-100%) | 3/3 (100%, 95% CI 44-100%) | 3/3 (100%, 95% CI 44-100%) | 0/3 (0%, 95% CI 0-56%) | 0/3 (0%, 95% CI 0-56%) |
 | `nurse_session`/tuning | `groq:openai/gpt-oss-20b @ 20261110T073035Z` | 3 | 3/3 (100%, 95% CI 44-100%) | 3/3 (100%, 95% CI 44-100%) | n/a (0 trials) | 0 | 0/3 (0%, 95% CI 0-56%) | 3/3 (100%, 95% CI 44-100%) | 3/3 (100%, 95% CI 44-100%) | 3/3 (100%, 95% CI 44-100%) | 0/3 (0%, 95% CI 0-56%) | 0/3 (0%, 95% CI 0-56%) |
 | `sign_coverage`/held_out | `groq:openai/gpt-oss-120b` | 39 | 34/39 (87%, 95% CI 73-94%) | 16/21 (76%, 95% CI 55-89%) | 0/18 (0%, 95% CI 0-18%) | 0 | 0/39 (0%, 95% CI 0-9%) | 16/16 (100%, 95% CI 81-100%) | 27/28 (96%, 95% CI 82-99%) | 27/36 (75%, 95% CI 59-86%) | 0/39 (0%, 95% CI 0-9%) | 0/39 (0%, 95% CI 0-9%) |
-| `sign_coverage`/held_out | `groq:openai/gpt-oss-20b` | 21 | 19/21 (90%, 95% CI 71-97%) | 12/14 (86%, 95% CI 60-96%) | 0/7 (0%, 95% CI 0-35%) | 0 | 0/21 (0%, 95% CI 0-15%) | 12/12 (100%, 95% CI 76-100%) | 16/18 (89%, 95% CI 67-97%) | 16/20 (80%, 95% CI 58-92%) | 0/21 (0%, 95% CI 0-15%) | 0/21 (0%, 95% CI 0-15%) |
+| `sign_coverage`/held_out | `groq:openai/gpt-oss-20b` | 39 | 35/39 (90%, 95% CI 76-96%) | 17/21 (81%, 95% CI 60-92%) | 0/18 (0%, 95% CI 0-18%) | 0 | 0/39 (0%, 95% CI 0-9%) | 17/17 (100%, 95% CI 82-100%) | 28/31 (90%, 95% CI 75-97%) | 28/36 (78%, 95% CI 62-88%) | 0/39 (0%, 95% CI 0-9%) | 0/39 (0%, 95% CI 0-9%) |
 | `sign_coverage`/held_out | `rules-only` | 13 | 6/13 (46%, 95% CI 23-71%) | 0/7 (0%, 95% CI 0-35%) | 0/6 (0%, 95% CI 0-39%) | 0 | 0/13 (0%, 95% CI 0-23%) | 1/1 (100%, 95% CI 21-100%) | n/a (0 trials) | 0/12 (0%, 95% CI 0-24%) | 0/13 (0%, 95% CI 0-23%) | 0/13 (0%, 95% CI 0-23%) |
 | `synthetic`/held_out | `groq:openai/gpt-oss-120b @ 20261107T195756Z` | 14 | 14/14 (100%, 95% CI 78-100%) | 5/5 (100%, 95% CI 57-100%) | 0/9 (0%, 95% CI 0-30%) | 0 | 0/14 (0%, 95% CI 0-22%) | 5/5 (100%, 95% CI 57-100%) | 2/2 (100%, 95% CI 34-100%) | 2/2 (100%, 95% CI 34-100%) | 0/14 (0%, 95% CI 0-22%) | 0/14 (0%, 95% CI 0-22%) |
 | `synthetic`/held_out | `groq:openai/gpt-oss-120b @ 20261107T203837Z` | 14 | 14/14 (100%, 95% CI 78-100%) | 5/5 (100%, 95% CI 57-100%) | 0/9 (0%, 95% CI 0-30%) | 0 | 0/14 (0%, 95% CI 0-22%) | 5/5 (100%, 95% CI 57-100%) | 2/2 (100%, 95% CI 34-100%) | 2/2 (100%, 95% CI 34-100%) | 0/14 (0%, 95% CI 0-22%) | 0/14 (0%, 95% CI 0-22%) |
@@ -411,7 +415,7 @@ trigger, proposal and colour are untouched, so batches that span the change are 
 | `nurse_session` | `groq:openai/gpt-oss-20b @ 20261110T073035Z` | model, repeated | 24/24 (100%, 95% CI 86-100%) | 0/12 (0%, 95% CI 0-24%) | 0/24 (0%, 95% CI 0-14%) | 0/24 (0%, 95% CI 0-14%) |
 | `nurse_session` | `rules-only` | 1 (deterministic) | 2/8 (25%, 95% CI 7-59%) | 0/4 (0%, 95% CI 0-49%) | 6/8 (75%, 95% CI 41-93%) | 0/8 (0%, 95% CI 0-32%) |
 | `sign_coverage` | `groq:openai/gpt-oss-120b` | model, repeated | 16/21 (76%, 95% CI 55-89%) | 0/18 (0%, 95% CI 0-18%) | 5/21 (24%, 95% CI 11-45%) | 0/21 (0%, 95% CI 0-15%) |
-| `sign_coverage` | `groq:openai/gpt-oss-20b` | model, repeated | 12/14 (86%, 95% CI 60-96%) | 0/7 (0%, 95% CI 0-35%) | 2/14 (14%, 95% CI 4-40%) | 0/14 (0%, 95% CI 0-22%) |
+| `sign_coverage` | `groq:openai/gpt-oss-20b` | model, repeated | 17/21 (81%, 95% CI 60-92%) | 0/18 (0%, 95% CI 0-18%) | 4/21 (19%, 95% CI 8-40%) | 0/21 (0%, 95% CI 0-15%) |
 | `sign_coverage` | `rules-only` | 1 (deterministic) | 0/7 (0%, 95% CI 0-35%) | 0/6 (0%, 95% CI 0-39%) | 6/7 (86%, 95% CI 49-97%) | 1/7 (14%, 95% CI 3-51%) |
 | `synthetic` | `groq:openai/gpt-oss-120b @ 20261107T195756Z` | model, repeated | 8/8 (100%, 95% CI 68-100%) | 0/12 (0%, 95% CI 0-24%) | 0/8 (0%, 95% CI 0-32%) | 0/8 (0%, 95% CI 0-32%) |
 | `synthetic` | `groq:openai/gpt-oss-120b @ 20261107T203837Z` | model, repeated | 8/8 (100%, 95% CI 68-100%) | 0/12 (0%, 95% CI 0-24%) | 0/8 (0%, 95% CI 0-32%) | 0/8 (0%, 95% CI 0-32%) |
@@ -437,7 +441,7 @@ trigger, proposal and colour are untouched, so batches that span the change are 
 | `nurse_session` | `groq:openai/gpt-oss-20b @ 20261109T102002Z` | 31/35 (89%, 95% CI 74-95%) | 0/31 (0%, 95% CI 0-11%) | 0/31 (0%, 95% CI 0-11%) | 0/60 (0%, 95% CI 0-6%) | n/a (0 trials) | 4/60 (7%, 95% CI 3-16%) | 6/12 (50%, 95% CI 25-75%) (n05-face-arm-numb, n07-pregnant-belly-pain, n08-too-many-tablets, n10-becomes-drowsy, n11-cut-bandaged, n12-swahili-severe-pain) |
 | `nurse_session` | `groq:openai/gpt-oss-20b @ 20261110T073035Z` | 23/24 (96%, 95% CI 80-99%) | 0/23 (0%, 95% CI 0-14%) | 0/23 (0%, 95% CI 0-14%) | 0/36 (0%, 95% CI 0-10%) | n/a (0 trials) | 1/36 (3%, 95% CI 0-14%) | 6/12 (50%, 95% CI 25-75%) (n02-worst-headache, n06-french-blood-vomit, n07-pregnant-belly-pain, n08-too-many-tablets, n10-becomes-drowsy, n12-swahili-severe-pain) |
 | `sign_coverage` | `groq:openai/gpt-oss-120b` | 2/16 (12%, 95% CI 3-36%) | 14/16 (88%, 95% CI 64-97%) | 0/16 (0%, 95% CI 0-19%) | 1/39 (3%, 95% CI 0-13%) | n/a (0 trials) | 0/39 (0%, 95% CI 0-9%) | 2/13 (15%, 95% CI 4-42%) (s02-fitting-now, s04-coughing-blood-swahili) |
-| `sign_coverage` | `groq:openai/gpt-oss-20b` | 0/12 (0%, 95% CI 0-24%) | 9/9 (100%, 95% CI 70-100%) | 0/10 (0%, 95% CI 0-28%) | 0/21 (0%, 95% CI 0-15%) | n/a (0 trials) | 2/21 (10%, 95% CI 3-29%) | 2/8 (25%, 95% CI 7-59%) (s01-airway-choking, s04-coughing-blood-swahili) |
+| `sign_coverage` | `groq:openai/gpt-oss-20b` | 1/17 (6%, 95% CI 1-27%) | 13/14 (93%, 95% CI 69-99%) | 0/15 (0%, 95% CI 0-20%) | 0/39 (0%, 95% CI 0-9%) | n/a (0 trials) | 2/39 (5%, 95% CI 1-17%) | 6/13 (46%, 95% CI 23-71%) (s01-airway-choking, s02-fitting-now, s03-postictal-french, s04-coughing-blood-swahili, s05-bleeding-will-not-stop, s10-knee-pain-six) |
 | `synthetic` | `groq:openai/gpt-oss-120b @ 20261107T195756Z` | 3/8 (38%, 95% CI 14-69%) | 5/8 (62%, 95% CI 31-86%) | 0/8 (0%, 95% CI 0-32%) | 0/20 (0%, 95% CI 0-16%) | 0/1 (0%, 95% CI 0-79%) | 0/20 (0%, 95% CI 0-16%) | n/a (0 trials) |
 | `synthetic` | `groq:openai/gpt-oss-120b @ 20261107T203837Z` | 8/8 (100%, 95% CI 68-100%) | 0/8 (0%, 95% CI 0-32%) | 0/8 (0%, 95% CI 0-32%) | 0/20 (0%, 95% CI 0-16%) | 0/1 (0%, 95% CI 0-79%) | 0/20 (0%, 95% CI 0-16%) | n/a (0 trials) |
 | `synthetic` | `groq:openai/gpt-oss-120b @ 20261110T080103Z` | 18/24 (75%, 95% CI 55-88%) | 6/24 (25%, 95% CI 12-45%) | 0/24 (0%, 95% CI 0-14%) | 0/60 (0%, 95% CI 0-6%) | 0/3 (0%, 95% CI 0-56%) | 0/60 (0%, 95% CI 0-6%) | 3/20 (15%, 95% CI 5-36%) (b03-orange-red, b05-sign-only-confused, b08-code-switched) |
@@ -460,7 +464,7 @@ trigger, proposal and colour are untouched, so batches that span the change are 
 | `nurse_session` | `groq:openai/gpt-oss-20b @ 20261109T102002Z` | 35 | 35/35 (100%, 95% CI 90-100%) | 7 (0.2 per loop) | 35 (1.0 per loop) | 7/35 (20%, 95% CI 10-36%) | 2 / 3 | 0/35 (0%, 95% CI 0-10%) | 31/35 (89%, 95% CI 74-95%) |
 | `nurse_session` | `groq:openai/gpt-oss-20b @ 20261110T073035Z` | 24 | 24/24 (100%, 95% CI 86-100%) | 5 (0.2 per loop) | 24 (1.0 per loop) | 5/24 (21%, 95% CI 9-40%) | 2 / 3 | 0/24 (0%, 95% CI 0-14%) | 23/24 (96%, 95% CI 80-99%) |
 | `sign_coverage` | `groq:openai/gpt-oss-120b` | 16 | 16/16 (100%, 95% CI 81-100%) | 5 (0.3 per loop) | 15 (0.9 per loop) | 3/16 (19%, 95% CI 7-43%) | 2 / 4 | 0/16 (0%, 95% CI 0-19%) | 16/16 (100%, 95% CI 81-100%) |
-| `sign_coverage` | `groq:openai/gpt-oss-20b` | 12 | 12/12 (100%, 95% CI 76-100%) | 0 (0.0 per loop) | 12 (1.0 per loop) | 0/12 (0%, 95% CI 0-24%) | 2 / 2 | 0/12 (0%, 95% CI 0-24%) | 10/12 (83%, 95% CI 55-95%) |
+| `sign_coverage` | `groq:openai/gpt-oss-20b` | 17 | 17/17 (100%, 95% CI 82-100%) | 1 (0.1 per loop) | 17 (1.0 per loop) | 1/17 (6%, 95% CI 1-27%) | 2 / 3 | 0/17 (0%, 95% CI 0-18%) | 15/17 (88%, 95% CI 66-97%) |
 | `synthetic` | `groq:openai/gpt-oss-120b @ 20261107T195756Z` | 8 | 0/8 (0%, 95% CI 0-32%) | 0 (0.0 per loop) | 0 (0.0 per loop) | 0/8 (0%, 95% CI 0-32%) | 1 / 1 | 8/8 (100%, 95% CI 68-100%) | 8/8 (100%, 95% CI 68-100%) |
 | `synthetic` | `groq:openai/gpt-oss-120b @ 20261107T203837Z` | 8 | 8/8 (100%, 95% CI 68-100%) | 7 (0.9 per loop) | 8 (1.0 per loop) | 7/8 (88%, 95% CI 53-98%) | 3 / 3 | 0/8 (0%, 95% CI 0-32%) | 8/8 (100%, 95% CI 68-100%) |
 | `synthetic` | `groq:openai/gpt-oss-120b @ 20261110T080103Z` | 24 | 24/24 (100%, 95% CI 86-100%) | 11 (0.5 per loop) | 24 (1.0 per loop) | 10/24 (42%, 95% CI 24-61%) | 2 / 4 | 0/24 (0%, 95% CI 0-14%) | 24/24 (100%, 95% CI 86-100%) |
@@ -487,7 +491,7 @@ trigger, proposal and colour are untouched, so batches that span the change are 
 | `nurse_session` | `groq:openai/gpt-oss-20b @ 20261110T073035Z` | 33 | 4,453 / 5,608 | 283 / 469 | 1,383 / 2,143 | 2,102 / 2,943 | $0.00 |
 | `nurse_session` | `rules-only` | 0 | n/a / n/a | n/a / n/a | 0 / 0 | 276 / 379 | $0.00 |
 | `sign_coverage` | `groq:openai/gpt-oss-120b` | 39 | 1,001 / 6,685 | 165 / 478 | 1,280 / 6,277 | 2,802 / 11,772 | $0.00 |
-| `sign_coverage` | `groq:openai/gpt-oss-20b` | 21 | 2,508 / 4,452 | 151 / 469 | 1,448 / 5,016 | 4,866 / 8,501 | $0.00 |
+| `sign_coverage` | `groq:openai/gpt-oss-20b` | 39 | 1,002 / 4,456 | 122 / 469 | 1,096 / 5,046 | 2,350 / 8,128 | $0.00 |
 | `sign_coverage` | `rules-only` | 0 | n/a / n/a | n/a / n/a | 0 / 0 | 1,350 / 2,131 | $0.00 |
 | `synthetic` | `groq:openai/gpt-oss-120b @ 20261107T195756Z` | 17 | 889 / 1,699 | 158 / 227 | 1,287 / 1,808 | 1,465 / 2,159 | $0.00 |
 | `synthetic` | `groq:openai/gpt-oss-120b @ 20261107T203837Z` | 17 | 889 / 6,379 | 193 / 382 | 1,056 / 4,160 | 1,232 / 13,906 | $0.00 |
@@ -581,19 +585,19 @@ trigger, proposal and colour are untouched, so batches that span the change are 
 | `nurse_session` | `n10-becomes-drowsy` | nurse_session, fresh | proposal ORANGE | - | - | - | - | - | 4/4 | 3/3 | - | - | - | - | 5/5 | 3/3 | - | - | - | 1/1 | - | - | - | - |
 | `nurse_session` | `n11-cut-bandaged` | nurse_session, fresh | no proposal | - | - | - | - | - | 4/4 | 3/3 | - | - | - | - | 5/5 | 3/3 | - | - | - | 1/1 | - | - | - | - |
 | `nurse_session` | `n12-swahili-severe-pain` | nurse_session, fresh | proposal ORANGE | - | - | - | - | - | 4/4 | 3/3 | - | - | - | - | 5/5 | 3/3 | - | - | - | 0/1 | - | - | - | - |
-| `sign_coverage` | `s01-airway-choking` | sign_coverage, fresh | proposal RED | 3/3 | - | - | - | - | - | - | - | - | - | 2/2 | - | - | - | - | - | 0/1 | - | - | - | - |
-| `sign_coverage` | `s02-fitting-now` | sign_coverage, fresh | proposal RED | 3/3 | - | - | - | - | - | - | - | - | - | 2/2 | - | - | - | - | - | 0/1 | - | - | - | - |
-| `sign_coverage` | `s03-postictal-french` | sign_coverage, fresh | proposal ORANGE | 3/3 | - | - | - | - | - | - | - | - | - | 2/2 | - | - | - | - | - | 0/1 | - | - | - | - |
-| `sign_coverage` | `s04-coughing-blood-swahili` | sign_coverage, fresh | proposal ORANGE | 1/3 | - | - | - | - | - | - | - | - | - | 2/2 | - | - | - | - | - | 0/1 | - | - | - | - |
-| `sign_coverage` | `s05-bleeding-will-not-stop` | sign_coverage, fresh | proposal ORANGE | 3/3 | - | - | - | - | - | - | - | - | - | 2/2 | - | - | - | - | - | 0/1 | - | - | - | - |
-| `sign_coverage` | `s06-aggression` | sign_coverage, fresh | proposal ORANGE | 3/3 | - | - | - | - | - | - | - | - | - | 0/2 | - | - | - | - | - | 0/1 | - | - | - | - |
-| `sign_coverage` | `s07-confused-said-by-family` | sign_coverage, fresh | proposal ORANGE | 0/3 | - | - | - | - | - | - | - | - | - | 2/2 | - | - | - | - | - | 0/1 | - | - | - | - |
-| `sign_coverage` | `s08-vomiting-all-night` | sign_coverage, fresh | no proposal | 3/3 | - | - | - | - | - | - | - | - | - | 2/2 | - | - | - | - | - | 1/1 | - | - | - | - |
-| `sign_coverage` | `s09-belly-pain-swahili` | sign_coverage, fresh | no proposal | 3/3 | - | - | - | - | - | - | - | - | - | 1/1 | - | - | - | - | - | 1/1 | - | - | - | - |
-| `sign_coverage` | `s10-knee-pain-six` | sign_coverage, fresh | no proposal | 3/3 | - | - | - | - | - | - | - | - | - | 1/1 | - | - | - | - | - | 1/1 | - | - | - | - |
-| `sign_coverage` | `s11-pregnant-bleeding` | sign_coverage, fresh | no proposal | 3/3 | - | - | - | - | - | - | - | - | - | 1/1 | - | - | - | - | - | 1/1 | - | - | - | - |
-| `sign_coverage` | `s12-yellow-sign-already-yellow` | sign_coverage, fresh | no proposal | 3/3 | - | - | - | - | - | - | - | - | - | 1/1 | - | - | - | - | - | 1/1 | - | - | - | - |
-| `sign_coverage` | `s13-no-convulsions-swahili` | sign_coverage, fresh | no proposal | 3/3 | - | - | - | - | - | - | - | - | - | 1/1 | - | - | - | - | - | 1/1 | - | - | - | - |
+| `sign_coverage` | `s01-airway-choking` | sign_coverage, fresh | proposal RED | 3/3 | - | - | - | - | - | - | - | - | - | 3/3 | - | - | - | - | - | 0/1 | - | - | - | - |
+| `sign_coverage` | `s02-fitting-now` | sign_coverage, fresh | proposal RED | 3/3 | - | - | - | - | - | - | - | - | - | 3/3 | - | - | - | - | - | 0/1 | - | - | - | - |
+| `sign_coverage` | `s03-postictal-french` | sign_coverage, fresh | proposal ORANGE | 3/3 | - | - | - | - | - | - | - | - | - | 2/3 | - | - | - | - | - | 0/1 | - | - | - | - |
+| `sign_coverage` | `s04-coughing-blood-swahili` | sign_coverage, fresh | proposal ORANGE | 1/3 | - | - | - | - | - | - | - | - | - | 3/3 | - | - | - | - | - | 0/1 | - | - | - | - |
+| `sign_coverage` | `s05-bleeding-will-not-stop` | sign_coverage, fresh | proposal ORANGE | 3/3 | - | - | - | - | - | - | - | - | - | 3/3 | - | - | - | - | - | 0/1 | - | - | - | - |
+| `sign_coverage` | `s06-aggression` | sign_coverage, fresh | proposal ORANGE | 3/3 | - | - | - | - | - | - | - | - | - | 0/3 | - | - | - | - | - | 0/1 | - | - | - | - |
+| `sign_coverage` | `s07-confused-said-by-family` | sign_coverage, fresh | proposal ORANGE | 0/3 | - | - | - | - | - | - | - | - | - | 3/3 | - | - | - | - | - | 0/1 | - | - | - | - |
+| `sign_coverage` | `s08-vomiting-all-night` | sign_coverage, fresh | no proposal | 3/3 | - | - | - | - | - | - | - | - | - | 3/3 | - | - | - | - | - | 1/1 | - | - | - | - |
+| `sign_coverage` | `s09-belly-pain-swahili` | sign_coverage, fresh | no proposal | 3/3 | - | - | - | - | - | - | - | - | - | 3/3 | - | - | - | - | - | 1/1 | - | - | - | - |
+| `sign_coverage` | `s10-knee-pain-six` | sign_coverage, fresh | no proposal | 3/3 | - | - | - | - | - | - | - | - | - | 3/3 | - | - | - | - | - | 1/1 | - | - | - | - |
+| `sign_coverage` | `s11-pregnant-bleeding` | sign_coverage, fresh | no proposal | 3/3 | - | - | - | - | - | - | - | - | - | 3/3 | - | - | - | - | - | 1/1 | - | - | - | - |
+| `sign_coverage` | `s12-yellow-sign-already-yellow` | sign_coverage, fresh | no proposal | 3/3 | - | - | - | - | - | - | - | - | - | 3/3 | - | - | - | - | - | 1/1 | - | - | - | - |
+| `sign_coverage` | `s13-no-convulsions-swahili` | sign_coverage, fresh | no proposal | 3/3 | - | - | - | - | - | - | - | - | - | 3/3 | - | - | - | - | - | 1/1 | - | - | - | - |
 | `synthetic` | `b01-yellow-orange` | yellow-orange, english, numeric-rise | proposal ORANGE | - | - | 1/1 | 1/1 | - | - | - | - | 3/3 | 3/3 | 3/3 | - | - | - | - | - | - | - | 1/1 | 1/1 | - |
 | `synthetic` | `b02-green-yellow` | green-yellow, swahili, numeric-rise | proposal YELLOW | - | - | 1/1 | 1/1 | - | - | - | - | 3/3 | 3/3 | 3/3 | - | - | - | - | - | - | - | 1/1 | 1/1 | - |
 | `synthetic` | `b03-orange-red` | orange-red, french, numeric-rise | proposal RED | - | - | 1/1 | 1/1 | - | - | - | - | 3/3 | 3/3 | 3/3 | - | - | - | - | - | - | - | 1/1 | 1/1 | - |
