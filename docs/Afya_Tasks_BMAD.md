@@ -315,14 +315,14 @@ Scope frozen: only the UI that proves the rubric, in its simplest form. Extras a
 |---|---|---|---|---|---|---|
 | E10-1 | [~] | README | B | Day 9 | 2 h | – |
 | E10-2 | [x] | One-page ARCHITECTURE.md | M | Day 9 | 1.5 h | – |
-| E10-3 | [ ] | 300-word description | B | Day 9 | 0.5 h | – |
+| E10-3 | [~] | 300-word description | M | Day 9 | 0.5 h | – |
 | E10-4 | [ ] | Demo video (under 3 min, unedited) | B | Day 10 | 2 h | E2-7 |
-| E10-5 | [ ] | Pitch deck + workflow GIF | B | Day 10 | 2 h | – |
+| E10-5 | [ ] | Pitch deck + workflow GIF | M | Day 10 | 2 h | – |
 | E10-6 | [ ] | Tag the submitted commit | M | submission day | 0.1 h | all |
 
 **E10-1** · Acceptance: one-command run, hardware note, honest gaps, "path to a pilot" paragraph (Kenya DPA 2019, no compliance claim), licence split, say/avoid wording. · Notes: first version written Day 1.
 **E10-2** · Acceptance: one page: agent shape, MCP servers built vs borrowed and why, Postgres → FHIR write order, "append-only for the app role". · Notes: done: `docs/ARCHITECTURE.md` (53 lines): agent graph and what is fixed code, OpenRouter open-weights provider with the synthetic-data guard, built (afya-mcp, token on every mount) vs borrowed (WSO2) servers, the six networks, Postgres then FHIR write order (approve commits the intent, claim, conditional create, done plus audit), gates and the append-only grants. Linked from the README.
-**E10-3** · Acceptance: what it does, sub-theme, the facility and workflow it serves; ~300 words; English.
+**E10-3** · Acceptance: what it does, sub-theme, the facility and workflow it serves; ~300 words; English. · Notes: reassigned to M (Mahdi takes the description and the deck, Dheker the video). `docs/description.md`, about 300 words: the waiting-room problem, the agent and the nurse gate, the open-weights model and MCP servers, the eval headline (61/63, 0 false alerts, rules alone 43). `[~]` until one sentence from the nurse interview (E9-2) is added.
 **E10-4** · Acceptance: P-014 run with tool calls on screen, nurse confirms, one recovery (HR 400), a watch-loop reminder; public on YouTube or Vimeo.
 **E10-5** · Acceptance: 5–7 slides: problem, how it works, safety gates, evals, path to a pilot.
 **E10-6** · Acceptance: `git tag submission`; no commit after the deadline.
