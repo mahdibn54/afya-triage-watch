@@ -14,12 +14,18 @@ It loads the 20 E5-1 cases as `SYN-b01-…` through `SYN-b20-…` labels, with o
 Patient, one Encounter and the **first reading only** per case. This is the waiting-room
 starting state, not a replay or evaluation.
 
-It also loads four demo-video patients from the eval cases (`SYN-n02-…`, `SYN-m05-…`, `SYN-m16-…`, `SYN-n06-…`),
-again first reading only, with normal vitals and no complaint. For the demo, the nurse records a new reading with the
-case's complaint typed live (text in each case file under `evals/cases/`): n02 a complaint-only sign, m05 and m16 no
-flag expected (someone else's symptom, a denied sign), n06 the French complaint Qwen missed in 3 of 3 runs. Later readings (including HR 400 and
+It also loads seven demo-video patients from the eval cases (`SYN-n02-…`, `SYN-m17-…`, `SYN-m05-…`, `SYN-m06-…`,
+`SYN-s07-…`, and the French pair `SYN-m16-…`, `SYN-n06-…`), again first reading only, with normal vitals and no complaint.
+For the demo, the nurse records a new reading with the case's complaint typed live (text in each case file under
+`evals/cases/`): n02 a complaint-only sign, m17 chest pain, m05 and m06 no flag expected (someone else's symptom, an
+instruction to mark RED), s07 the documented miss (a relative reports the confusion), n06 the French complaint Qwen
+missed in 3 of 3 runs. Later readings (including HR 400 and
 Fahrenheit inputs), FHIR-note injection payloads, and expected evaluation labels are
-not imported. Complaints remain in Postgres through the existing recording service.
+not imported.
+
+For the demo video, `SEED_SET=video` loads only the five video cases (n02, m17, m05, m06, s07) and nothing else, all marked as arrived 1 minute ago so no waiting clock starts high:
+`docker compose --profile seed run --rm -e SEED_SET=video seed`. Run it on a freshly wiped stack (`docker compose --profile web
+down -v`, then up), because the seed never deletes patients. Complaints remain in Postgres through the existing recording service.
 No model calls, proposals, approvals or Flags are created by this job.
 
 The fixture's initial confirmed colour represents an existing synthetic staff decision;

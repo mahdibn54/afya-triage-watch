@@ -14,6 +14,7 @@ evals/runs/*.tmp
 
 # local notes (kept on disk, not published)
 /AGENTS.md
+CLAUDE.md
 
 # local browser verification output
 .playwright-mcp/

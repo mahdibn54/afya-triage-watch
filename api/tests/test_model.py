@@ -454,3 +454,26 @@ def test_ollama_cloud_settings_from_env_never_hold_the_key(monkeypatch):
 def test_a_limit_during_warm_up_is_recorded_for_healthz_and_the_eval_runner():
     m = Model(OllamaBackend(OC, transport=httpx.MockTransport(lambda r: httpx.Response(402)), api_key=OKEY), OC)
     assert run(m.warm_up()) is False and m.last == "usage_limit" and m.breaker.failures == 0
+
+
+def test_groq_list_prices_never_change_an_openrouter_cost(monkeypatch):
+    """GROQ_PRICE_* only feeds the Groq backend's estimate; OpenRouter keeps the billed usage.cost."""
+    monkeypatch.setenv("GROQ_PRICE_INPUT_PER_M", "0.15")
+    monkeypatch.setenv("GROQ_PRICE_OUTPUT_PER_M", "0.60")
+    handler = lambda request: httpx.Response(200, json=or_answer('{"verdict": "none", "signs": []}'))  # noqa: E731
+    backend = OpenRouterBackend(OR, transport=httpx.MockTransport(handler), api_key=KEY)
+    reply = run(backend.chat([{"role": "user", "content": "x"}], options=OR.options("map_signs", seed=7),
+                             tools=None, format={"type": "object"}))
+    assert reply.cost_usd == 0.000042
+
+
+def test_openrouter_groq_for_gpt_oss_routes_without_strict_parameters_and_low_reasoning(monkeypatch):
+    for k, v in {"MODEL_PROVIDER": "openrouter", "OPENROUTER_MODEL": "openai/gpt-oss-120b",
+                 "OPENROUTER_PROVIDER": "groq", "OPENROUTER_REQUIRE_PARAMETERS": "0"}.items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.delenv("MODEL_REASONING_EFFORT", raising=False)
+    s = ModelSettings.from_env()
+    body = OpenRouterBackend(s, api_key=KEY).body([{"role": "user", "content": "x"}], s.options("map_signs", seed=1),
+                                                  None, None)
+    assert body["provider"] == {"order": ["groq"], "allow_fallbacks": False, "require_parameters": False}
+    assert body["reasoning"] == {"effort": "low"}

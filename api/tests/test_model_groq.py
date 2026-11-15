@@ -336,3 +336,16 @@ def test_groq_no_new_sample_past_the_call_deadline():
     with pytest.raises(httpx.HTTPStatusError):
         run(go())
     assert len(answers) == 1
+
+
+def test_groq_cost_is_zero_by_default_and_a_list_price_estimate_when_prices_are_set(monkeypatch):
+    from afya_api.model import groq_list_price_cost
+    monkeypatch.delenv("GROQ_PRICE_INPUT_PER_M", raising=False)
+    monkeypatch.delenv("GROQ_PRICE_OUTPUT_PER_M", raising=False)
+    assert groq_list_price_cost(1000, 100) == 0.0
+    monkeypatch.setenv("GROQ_PRICE_INPUT_PER_M", "0.15")
+    monkeypatch.setenv("GROQ_PRICE_OUTPUT_PER_M", "0.60")
+    assert groq_list_price_cost(1_000_000, 1_000_000) == 0.75
+    assert groq_list_price_cost(None, None) == 0.0
+    monkeypatch.setenv("GROQ_PRICE_INPUT_PER_M", "not a number")
+    assert groq_list_price_cost(1000, 100) == 0.0

@@ -9,6 +9,8 @@ import { appendText, DictateButton } from "@/components/afya/dictate-button";
 import { NoticeCallout } from "@/components/afya/notice-chip";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { ApiError, newIdempotencyKey } from "@/lib/api";
+import { fullName } from "@/lib/identity";
+import { PatientName } from "@/components/afya/patient-name";
 import { useRecordVitals } from "@/lib/queries";
 import { INPUT_LABEL } from "@/lib/sats";
 import { cn } from "@/lib/utils";
@@ -81,7 +83,7 @@ export const DEMO_LABEL = "P-014";
 export function VitalsDialog({ me, patient, onClose }: { me: Me; patient: QueuePatient | null; onClose: () => void }) {
   return (
     <Dialog open={!!patient} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[94dvh] overflow-x-hidden overflow-y-auto p-0 sm:max-w-2xl" showCloseButton>
+      <DialogContent className="max-h-[94dvh] scroll-pb-24 overflow-x-hidden overflow-y-auto p-0 sm:max-w-2xl" showCloseButton>
         {patient && <VitalsForm key={patient.visit_id} me={me} patient={patient} onClose={onClose} />}
       </DialogContent>
     </Dialog>
@@ -168,7 +170,7 @@ function VitalsForm({ me, patient, onClose }: { me: Me; patient: QueuePatient; o
         </span>
         <DialogTitle className="mt-5 font-display text-3xl font-normal">Reading saved</DialogTitle>
         <DialogDescription className="mt-2 max-w-sm text-base">
-          {patient.patient_label}&apos;s new reading is in the record as{" "}
+          {fullName(patient)}&apos;s new reading is in the record as{" "}
           <span className="font-mono text-foreground">{saved.observation_id}</span>. The watch agent re-scores it now and
           will ask you for a second look if the patient is worse.
         </DialogDescription>
@@ -194,7 +196,7 @@ function VitalsForm({ me, patient, onClose }: { me: Me; patient: QueuePatient; o
       <div className="border-b px-6 pt-6 pb-4">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pr-8">
           <DialogTitle className="font-display text-2xl font-normal whitespace-nowrap sm:text-3xl">Record vitals</DialogTitle>
-          <span className="font-mono text-lg font-semibold whitespace-nowrap">{patient.patient_label}</span>
+          <span className="text-lg font-semibold whitespace-nowrap"><PatientName who={patient} /></span>
           <ColourChip colour={patient.confirmed_colour} size="sm" />
         </div>
         <DialogDescription className="mt-1">

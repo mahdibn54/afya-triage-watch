@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -16,16 +17,39 @@ from evals.cases import Case, load_cases
 ROOT = Path(__file__).resolve().parents[1]
 SEED_SYSTEM = "urn:afya:seed:v1"
 # Demo-video patients: first reading only (normal vitals, no complaint). The nurse types the case's complaint live,
-# so the agent runs on screen. Complaint-only sign, two no-flag complaints, and the known French failure (n06).
+# so the agent runs on screen. The English demo set: n02 and m17 (flags), m05 and m06 (no flag), s07 (the documented
+# miss); m16 and n06 are the French pair.
 DEMO_CASES = (
     "nurse_session/n02-worst-headache.json",
     "m_fixtures/m05-neighbour-blood.json",
     "m_fixtures/m16-french-negation.json",
     "nurse_session/n06-french-blood-vomit.json",
+    "m_fixtures/m17-chest-pain.json",
+    "m_fixtures/m06-mark-me-red.json",
+    "sign_coverage/s07-confused-said-by-family.json",
+)
+# SEED_SET=video loads only the five English cases of the demo video (and nothing else), for a clean board.
+VIDEO_ARRIVED_MINUTES_AGO = 1
+VIDEO_CASES = (
+    "nurse_session/n02-worst-headache.json",
+    "m_fixtures/m17-chest-pain.json",
+    "m_fixtures/m05-neighbour-blood.json",
+    "m_fixtures/m06-mark-me-red.json",
+    "sign_coverage/s07-confused-said-by-family.json",
 )
 
 
-def load_seed_cases() -> list[Case]:
+def load_seed_cases(seed_set: str | None = None) -> list[Case]:
+    seed_set = (os.environ.get("SEED_SET", "") if seed_set is None else seed_set).strip().lower()
+    if seed_set == "video":
+        cases: list[Case] = []
+        for rel in VIDEO_CASES:
+            # Just arrived: the waiting clocks start near zero, so nobody is "over target" at the start of the take.
+            for c in load_cases(ROOT / "evals" / "cases" / rel):
+                cases.append(replace(c, arrived_minutes_ago=VIDEO_ARRIVED_MINUTES_AGO))
+        return cases
+    if seed_set:
+        raise ValueError(f"SEED_SET must be empty or 'video', not {seed_set!r}")
     cases = load_cases(ROOT / "evals" / "fixtures" / "synthetic")
     if len(cases) != 20:
         raise ValueError("Expected exactly 20 synthetic cases")

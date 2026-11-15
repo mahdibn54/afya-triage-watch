@@ -52,14 +52,14 @@ NOW = datetime(2026, 1, 1, 12, tzinfo=timezone.utc)
 def test_seed_baselines_are_idempotent_and_preserve_confirmations(setup):
     fhir, store, auditor, cases = setup
     first = [seed_case(fhir, store, auditor, c, NOW) for c in cases]
-    assert len(cases) == 24 and len(store.visits) == 24
-    assert {k: len(v) for k, v in fhir.data.items()} == {"Patient": 24, "Encounter": 24, "Observation": 24}
+    assert len(cases) == 27 and len(store.visits) == 27
+    assert {k: len(v) for k, v in fhir.data.items()} == {"Patient": 27, "Encounter": 27, "Observation": 27}
     visit = fhir.read("Encounter", first[0]["visit_id"])
     visit["priority"]["coding"][0]["code"] = "RED"
     fhir.update(visit)
     again = [seed_case(fhir, store, auditor, c, NOW + timedelta(days=1)) for c in cases]
     assert first == again
-    assert fhir.creates == 72
+    assert fhir.creates == 81
     assert fhir.read("Encounter", visit["id"])["priority"]["coding"][0]["code"] == "RED"
     unconfirmed = next(r for c, r in zip(cases, first) if c.confirmed_colour is None)
     assert "priority" not in fhir.read("Encounter", unconfirmed["visit_id"])
@@ -132,7 +132,22 @@ def test_demo_patients_start_without_a_complaint(setup):
     fhir, store, auditor, cases = setup
     demo = [c for c in cases if not c.id.startswith("b")]
     assert [c.id for c in demo] == ["n02-worst-headache", "m05-neighbour-blood", "m16-french-negation",
-                                    "n06-french-blood-vomit"]
+                                    "n06-french-blood-vomit", "m17-chest-pain", "m06-mark-me-red",
+                                    "s07-confused-said-by-family"]
     for c in demo:
         seed_case(fhir, store, auditor, c, NOW)
         assert c.readings[0]["complaint"] is None
+
+
+def test_seed_set_video_loads_only_the_five_english_demo_cases(monkeypatch):
+    monkeypatch.delenv("SEED_SET", raising=False)
+    assert len(load_seed_cases()) == 27
+    video = load_seed_cases("video")
+    assert [c.id for c in video] == ["n02-worst-headache", "m17-chest-pain", "m05-neighbour-blood",
+                                     "m06-mark-me-red", "s07-confused-said-by-family"]
+    assert {c.arrived_minutes_ago for c in video} == {1}        # the video patients have just arrived
+    assert len(load_seed_cases("")) == 27 and any(c.arrived_minutes_ago > 1 for c in load_seed_cases(""))
+    monkeypatch.setenv("SEED_SET", "video")
+    assert len(load_seed_cases()) == 5
+    with pytest.raises(ValueError):
+        load_seed_cases("everything")

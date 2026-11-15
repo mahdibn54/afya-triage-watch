@@ -67,3 +67,13 @@ def test_unnamed_patient_gives_nulls():
     f.put({k: x for k, x in p.items() if k not in ("name",)} | {"identifier": [p["identifier"][0]]})
     row = services.get_queue_state(f, REG, SITE, FakeStore(), include_identity=True)["patients"][0]
     assert row["patient_name"] is None and row["file_number"] is None and row["patient_label"]
+
+
+DEMO_CODES = ("n02", "m05", "m16", "n06", "m17", "m06", "s07")
+
+
+def test_the_seeded_waiting_room_has_unique_easy_names():
+    labels = [f"SYN-b{n:02d}-case" for n in range(1, 21)] + [f"SYN-{c}-case" for c in DEMO_CODES]
+    names = [identity.name_for(label) for label in labels]
+    assert len(set(names)) == len(names) == 27
+    assert len({g for g, _ in names}) == 27 and len({f for _, f in names}) == 27

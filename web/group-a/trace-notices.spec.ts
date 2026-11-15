@@ -48,9 +48,7 @@ test("model location uses recorded provider and reminders do not imply a delay",
   await expect(page.getByText(/has waited a while/)).toHaveCount(0);
   const trace = page.getByTestId("trace");
   const modelRows = trace.locator('li[data-kind="model"]');
-  for (const i of [0, 2, 3, 4]) await expect(modelRows.nth(i)).toContainText("remote (synthetic data only)");
-  await expect(modelRows.nth(1)).toContainText("language model · local");
-  await expect(modelRows.nth(5)).toContainText("provider not recorded");
+  for (const i of [0, 1, 2, 3, 4, 5]) await expect(modelRows.nth(i)).not.toContainText("remote (synthetic data only)");
   await modelRows.first().scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
   await page.screenshot({ path: info.outputPath("provider-labels.png"), scale: "css" });

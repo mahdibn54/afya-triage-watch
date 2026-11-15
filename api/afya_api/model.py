@@ -83,6 +83,7 @@ class ModelSettings:
     model: str = OLLAMA_MODEL
     openrouter_url: str = "https://openrouter.ai/api/v1"
     openrouter_provider: str = OPENROUTER_PROVIDER
+    openrouter_require_parameters: bool = True   # False: a provider that ignores an option (Groq: top_k) still routes
     ollama_cloud_url: str = OLLAMA_CLOUD_URL
     cloud_format: bool = False      # Ollama Cloud: send `format` (documented as unsupported) instead of the prompt
     cloud_concurrency: int = 1
@@ -128,13 +129,14 @@ class ModelSettings:
         think: bool | str = {"false": False, "true": True}.get(think_raw, think_raw)
         # Groq: gpt-oss reasons always, "low" keeps it short. MODEL_REASONING_EFFORT overrides (empty = this default,
         # "off" = not sent; Groq's own values such as "none" are sent as they are).
-        effort_default = "low" if provider == "groq" and "gpt-oss" in model else "off"
+        effort_default = "low" if provider in ("groq", "openrouter") and "gpt-oss" in model else "off"
         effort_raw = (env("MODEL_REASONING_EFFORT") or effort_default).strip().lower()
         effort = None if effort_raw == "off" else effort_raw
         predict_default = 1024 if provider in ("ollama_cloud", "groq") else cls.num_predict
         return cls(provider=provider, base_url=env("OLLAMA_BASE_URL", cls.base_url), model=model,
                    openrouter_url=env("OPENROUTER_BASE_URL", cls.openrouter_url),
                    openrouter_provider=env("OPENROUTER_PROVIDER", OPENROUTER_PROVIDER),
+                   openrouter_require_parameters=env("OPENROUTER_REQUIRE_PARAMETERS", "1") != "0",
                    ollama_cloud_url=env("OLLAMA_CLOUD_BASE_URL", OLLAMA_CLOUD_URL).rstrip("/"),
                    cloud_format=env("OLLAMA_CLOUD_FORMAT", "0") == "1",
                    cloud_concurrency=max(1, int(env("OLLAMA_CLOUD_CONCURRENCY", "1"))), think=think,
@@ -169,7 +171,8 @@ class Reply:
     load_ms: float | None = None
     eval_ms: float | None = None
     model: str | None = None
-    cost_usd: float | None = None      # billed cost (OpenRouter usage.cost); 0 for a local model and Groq's free plan
+    # billed cost (OpenRouter usage.cost); 0 for a local model; Groq: 0, or a list-price estimate if GROQ_PRICE_* is set
+    cost_usd: float | None = None
     provider: str | None = None        # who served it (OpenRouter's answer); None for a local model
 
 
@@ -446,8 +449,10 @@ class OpenRouterBackend:
             "temperature": options["temperature"], "top_p": options["top_p"], "top_k": options["top_k"],
             "seed": options["seed"], "max_tokens": options["num_predict"],
             "provider": {"order": [self.s.openrouter_provider], "allow_fallbacks": False,
-                         "require_parameters": True},
+                         "require_parameters": self.s.openrouter_require_parameters},
             "usage": {"include": True}}
+        if self.s.reasoning_effort:
+            body["reasoning"] = {"effort": self.s.reasoning_effort}     # gpt-oss: keep its reasoning short
         if tools:
             body["tools"], body["tool_choice"] = tools, "auto"
         if format is not None:
@@ -530,6 +535,18 @@ class RateState:
 
 
 _GROQ_RATES: dict[str, RateState] = {}
+
+
+def groq_list_price_cost(tokens_in: int | None, tokens_out: int | None) -> float:
+    """What this call would cost at Groq's on-demand list price, for the trace on the free plan (nothing is billed).
+    Prices in USD per 1M tokens from `GROQ_PRICE_INPUT_PER_M` / `GROQ_PRICE_OUTPUT_PER_M` (local `.env`); unset or not
+    a number = 0.0, the free-plan behaviour. An estimate: cached-input discounts are not applied."""
+    try:
+        p_in = float(os.environ.get("GROQ_PRICE_INPUT_PER_M", "") or 0)
+        p_out = float(os.environ.get("GROQ_PRICE_OUTPUT_PER_M", "") or 0)
+    except ValueError:
+        return 0.0
+    return max(0.0, (tokens_in or 0) * p_in + (tokens_out or 0) * p_out) / 1_000_000
 
 
 class GroqBackend:
@@ -633,7 +650,8 @@ class GroqBackend:
                         continue
                     raise
         reply = openai_reply(r.json(), self.s.model, start)
-        reply.cost_usd, reply.provider = 0.0, "groq"      # free plan: nothing billed
+        # Free plan: nothing is billed. cost_usd is 0 unless list prices are set in .env, then the list-price estimate.
+        reply.cost_usd, reply.provider = groq_list_price_cost(reply.tokens_in, reply.tokens_out), "groq"
         log.info("groq limits left: tokens/min=%s requests/day=%s", self.rates.tokens_left, self.rates.requests_left)
         return reply
 

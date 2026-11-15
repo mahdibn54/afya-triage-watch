@@ -7,6 +7,7 @@ import { ColourChip } from "@/components/afya/colour-chip";
 import { NoticeCallout, NoticeChip } from "@/components/afya/notice-chip";
 import { useAcknowledgeNotice, useProposals, useQueue } from "@/lib/queries";
 import { fullName } from "@/lib/identity";
+import { PatientName } from "@/components/afya/patient-name";
 import { SATS } from "@/lib/sats";
 import { ago, clockShort, mmss, useClientNow, useNow } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -108,7 +109,7 @@ export function Board({
               </span>
               <span className="min-w-0 flex-1 basis-3/4 [overflow-wrap:anywhere] sm:basis-0">
                 <span className="block font-semibold text-agent-foreground">
-                  Second look suggested for <span className="font-mono">{pr.patient_label ?? pr.visit_id}</span>
+                  Second look suggested for <span className="font-semibold"><PatientName who={q.data?.patients.find((x) => x.visit_id === pr.visit_id) ?? pr} /></span>
                 </span>
                 <span className="block text-sm text-agent-foreground/80">
                   {pr.reasons[0] && pr.reasons[0].charAt(0).toUpperCase() + pr.reasons[0].slice(1).replace("->", "→")} · {citesText(pr)}

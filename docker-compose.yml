@@ -181,6 +181,7 @@ services:
       RULES_DIR: /rules
       DEMO_MODE: ${DEMO_MODE:-1}
       DATA_CLASSIFICATION: ${DATA_CLASSIFICATION:-synthetic}
+      SEED_SET: ${SEED_SET:-}          # empty = all 27 patients; "video" = only the five cases of the demo video
       PYTHONPATH: /workspace
     volumes:
       - ./seed:/workspace/seed:ro
@@ -217,10 +218,13 @@ services:
       GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}           # Apache-2.0 open weights (backup: qwen/qwen3.8-27b)
       GROQ_BASE_URL: ${GROQ_BASE_URL:-https://api.groq.com/openai/v1}
       GROQ_CONCURRENCY: ${GROQ_CONCURRENCY:-1}                  # free plan: 8K tokens/min, one call at a time
+      GROQ_PRICE_INPUT_PER_M: ${GROQ_PRICE_INPUT_PER_M:-}       # optional USD per 1M tokens: shows a list-price estimate
+      GROQ_PRICE_OUTPUT_PER_M: ${GROQ_PRICE_OUTPUT_PER_M:-}     # on the free plan (empty = 0, nothing billed)
       GROQ_API_KEY: ${GROQ_API_KEY:-}                           # api only; empty = rules only (model_unavailable)
       MODEL_REASONING_EFFORT: ${MODEL_REASONING_EFFORT:-}       # Groq; empty = "low" for gpt-oss, off otherwise
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-qwen/qwen3-30b-a3b-instruct-2507}
       OPENROUTER_PROVIDER: ${OPENROUTER_PROVIDER:-nebius/fp8}   # pinned, no fallback to another provider
+      OPENROUTER_REQUIRE_PARAMETERS: ${OPENROUTER_REQUIRE_PARAMETERS:-1}   # 0 for providers without top_k (Groq)
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}               # empty = rules only (model_unavailable notice)
       DATA_CLASSIFICATION: ${DATA_CLASSIFICATION:-synthetic}    # anything else refuses the remote provider
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}

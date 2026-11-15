@@ -4,6 +4,8 @@ import { Bot, ShieldCheck, User } from "lucide-react";
 import { useState } from "react";
 
 import type { AuditRow } from "@/api/contract";
+import { fullName } from "@/lib/identity";
+import { caseRef } from "@/components/afya/patient-name";
 import { useAudit, useQueue, useUserName } from "@/lib/queries";
 import { clock } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -74,7 +76,7 @@ export function AuditView() {
             <option value="">All</option>
             {queue.data?.patients.map((p) => (
               <option key={p.visit_id} value={p.visit_id}>
-                {p.patient_label}
+                {fullName(p)}{caseRef(p) ? ` · ${caseRef(p)}` : ""}
               </option>
             ))}
           </select>
@@ -111,7 +113,8 @@ export function AuditView() {
             {audit.data?.map((r) => {
               const tone = KIND[r.kind]?.tone;
               const machine = r.actor === "agent" || r.actor === "system";
-              const label = queue.data?.patients.find((p) => p.visit_id === r.visit_id)?.patient_label ?? r.visit_id;
+              const row = queue.data?.patients.find((p) => p.visit_id === r.visit_id);
+              const label = row ? `${fullName(row)}${caseRef(row) ? ` · ${caseRef(row)}` : ""}` : r.visit_id;
               const ids = Object.entries(r.payload)
                 .filter(([k, v]) => typeof v === "string" && (k.endsWith("_id") || k === "obs_id"))
                 .map(([k, v]) => [k, String(v)] as const);

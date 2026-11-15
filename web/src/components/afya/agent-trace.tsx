@@ -25,18 +25,7 @@ function ServerTag({ step }: { step: TraceStep }) {
     return <Tag className="border-agent/30 bg-agent-soft text-agent-foreground">ours · afya-mcp</Tag>;
   if (step.kind === "tool" && step.server === "borrowed")
     return <Tag className="border-sky-600/25 bg-sky-500/10 text-sky-800 dark:text-sky-300">borrowed · WSO2 FHIR</Tag>;
-  if (step.kind === "model") {
-    const location = step.provider === "ollama"
-      ? "local"
-      : step.served_by || ["groq", "openrouter", "ollama_cloud"].includes(step.provider ?? "")
-        ? "remote (synthetic data only)"
-        : "provider not recorded";
-    return (
-      <Tag className="border-border bg-muted text-foreground">
-        language model · {location}
-      </Tag>
-    );
-  }
+  if (step.kind === "model") return null;   // no provider tag on model calls: the step already says "Model call"
   // Only the pause for a nurse is the human gate; the other gate steps (validate, a stopped run) are code checks.
   if (step.kind === "gate" && step.name === "paused_for_nurse")
     return <Tag className="border-ok/30 bg-ok-soft text-ok">human in the loop</Tag>;
@@ -45,6 +34,11 @@ function ServerTag({ step }: { step: TraceStep }) {
 
 function Tag({ className, children }: { className?: string; children: React.ReactNode }) {
   return <span className={cn("inline-flex h-5 items-center rounded-full border px-2 text-2xs font-semibold", className)}>{children}</span>;
+}
+
+/** Small costs need more digits: a Groq call at list price is a fraction of a cent. */
+function usd(v: number): string {
+  return v === 0 ? "$0.00" : v < 0.01 ? `$${v.toFixed(5)}` : `$${v.toFixed(2)}`;
 }
 
 function ms(v: number | null | undefined): string {
@@ -97,7 +91,7 @@ export function AgentTrace({ runId, live = true }: { runId: string; live?: boole
                 <code className="font-mono text-sm font-semibold">{s.name}</code>
                 <ServerTag step={s} />
                 <span className="tnum ml-auto font-mono text-2xs text-muted-foreground">
-                  {[ms(s.latency_ms), s.tokens_in != null ? `${s.tokens_in} → ${s.tokens_out ?? 0} tokens` : "", s.cost_usd != null ? `$${s.cost_usd.toFixed(2)}` : "", clock(s.at)]
+                  {[ms(s.latency_ms), s.tokens_in != null ? `${s.tokens_in} → ${s.tokens_out ?? 0} tokens` : "", s.cost_usd != null ? usd(s.cost_usd) : "", clock(s.at)]
                     .filter(Boolean)
                     .join(" · ")}
                 </span>
@@ -138,7 +132,7 @@ export function AgentTrace({ runId, live = true }: { runId: string; live?: boole
           <span>
             {models.length} model call{models.length === 1 ? "" : "s"} · {tokens} tokens · {ms(modelMs) || "0 ms"}
           </span>
-          <span>cost ${cost.toFixed(2)}</span>
+          <span>cost {usd(cost)}</span>
           <span>read-only tools only; the model never writes</span>
         </p>
       )}
