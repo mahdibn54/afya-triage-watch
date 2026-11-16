@@ -4,7 +4,6 @@ import { ArrowRight, Eye, Loader2, ShieldCheck, Stethoscope, UserRound } from "l
 import { useState } from "react";
 
 import type { Role, User } from "@/api/contract";
-import { DemoBadge } from "@/components/afya/demo-badge";
 import { Wordmark } from "@/components/afya/logo";
 import { ApiError } from "@/lib/api";
 import { useDemoUsers, useLoginAs } from "@/lib/queries";
@@ -28,7 +27,6 @@ export function SignIn() {
     <main className="paper-grain relative flex min-h-dvh flex-1 flex-col">
       <header className="flex items-center justify-between px-6 py-5 sm:px-10">
         <Wordmark />
-        {!notDemo && <DemoBadge />}
       </header>
 
       <div className="mx-auto grid w-full max-w-6xl flex-1 items-center gap-12 px-6 pb-16 sm:px-10 lg:grid-cols-[1.1fr_1fr]">
@@ -65,12 +63,9 @@ export function SignIn() {
           className="animate-rise rounded-3xl border bg-card p-6 shadow-[0_1px_0_oklch(0_0_0/0.03),0_24px_60px_-28px_oklch(0.3_0.04_262/0.35)] sm:p-8"
           style={{ animationDelay: "80ms" }}
         >
-          <div className="flex items-center justify-between">
-            <h2 id="signin-title" className="text-lg font-semibold">
-              Sign in as…
-            </h2>
-            {!notDemo && <DemoBadge compact />}
-          </div>
+          <h2 id="signin-title" className="text-lg font-semibold">
+            Sign in as…
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">Pick a person to try the demo. No password in demo mode.</p>
 
           <div className="mt-6 grid gap-3">

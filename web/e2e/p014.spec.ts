@@ -21,7 +21,6 @@ test("P-014: vitals, suggestion, manager refused, nurse confirms ORANGE", async 
   // First screen: sign in as the nurse by clicking.
   await page.context().clearCookies();
   await page.goto("/");
-  await expect(page.getByTestId("demo-badge").first()).toBeVisible();
   await page.getByTestId("login-nurse-a").click();
   await expect(page.getByRole("heading", { name: "Waiting room" })).toBeVisible();
 

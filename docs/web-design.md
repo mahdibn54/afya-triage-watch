@@ -69,7 +69,7 @@ Playwright for one end-to-end test of the P-014 flow (also used to rehearse the 
 - Quotes and model text rendered as plain text only (never `dangerouslySetInnerHTML`).
 - Nothing on screen suggests a diagnosis or treatment. The UI never calls it "AI triage".
 - The manager sees no approve button anywhere.
-- The demo director and "sign in as…" exist only when `DEMO_MODE=1`, with a visible DEMO badge.
+- The demo director and "sign in as…" exist only when `DEMO_MODE=1`.
 
 ## Session and notice integration follow-up
 

@@ -3,7 +3,6 @@
 import { Check, ChevronDown, Loader2, LogOut } from "lucide-react";
 
 import type { Me } from "@/api/contract";
-import { DemoBadge } from "@/components/afya/demo-badge";
 import { ROLE } from "@/components/afya/sign-in";
 import {
   DropdownMenu,
@@ -39,7 +38,6 @@ export function UserSwitcher({ me }: { me: Me }) {
   const logout = useLogout();
   return (
     <div className="flex items-center gap-2">
-      {me.demo && <DemoBadge compact />}
       <DropdownMenu>
         <DropdownMenuTrigger
           data-testid="user-switcher"
@@ -56,8 +54,8 @@ export function UserSwitcher({ me }: { me: Me }) {
         <DropdownMenuContent align="end" className="w-80">
           {me.demo && (
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="flex items-center justify-between">
-                Sign in as… <DemoBadge compact />
+              <DropdownMenuLabel>
+                Sign in as…
               </DropdownMenuLabel>
               {users.data?.map((u) => (
                 <DropdownMenuItem
