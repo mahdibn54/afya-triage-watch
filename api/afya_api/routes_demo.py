@@ -129,9 +129,9 @@ async def fresh_waiting_room_from_url(user: User = Depends(demo_user),
 @router.post("/demo/waiting-room", response_model=DemoWaitingRoomOut, responses=ERROR_RESPONSES)
 async def fresh_waiting_room(user: User = Depends(demo_user),
                              gateway: Gateway = Depends(get_gateway)) -> DemoWaitingRoomOut:
-    """Start the demo from a fresh waiting room: the 27 synthetic patients arrive again, 25 to 60 minutes ago, each with
-    a new visit and its first reading (seed_demo_visit finishes the patient's earlier waiting visit). Open cards are
-    closed first. Deletes nothing; one demo_scenario audit row records the click. No model call: the first reading is
+    """Start the demo from a fresh waiting room: the 27 synthetic patients arrive again, 2 to 30 minutes ago (each
+    inside its colour's target), each with a new visit and its first reading (seed_demo_visit finishes the patient's
+    earlier waiting visit). Open cards are closed first. Deletes nothing; one demo_scenario audit row records the click. No model call: the first reading is
     the baseline, as in the seed job."""
     closed = await anyio.to_thread.run_sync(_close_open_cards)
     # The click is audited first: GET /audit?since_reset=true starts at this row, so the reload's own rows are included.

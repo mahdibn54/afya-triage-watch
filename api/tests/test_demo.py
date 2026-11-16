@@ -71,7 +71,7 @@ def test_demo_is_nurse_or_clinician_only_and_every_click_is_audited_with_the_use
 
 
 def test_fresh_waiting_room_reloads_the_27_patients_arriving_now(client, as_user, fhir, monkeypatch):
-    """A fresh waiting room for a demo: every synthetic patient gets a new visit that started 25 to 60 minutes ago,
+    """A fresh waiting room for a demo: every synthetic patient gets a new visit that started 2 to 30 minutes ago,
     with its first reading; loading again finishes the previous visits instead of deleting them."""
     from afya_api.waiting_room import PATIENTS
     monkeypatch.setenv("DEMO_MODE", "1")
