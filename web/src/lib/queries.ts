@@ -133,10 +133,11 @@ export function useGates(proposalId: string | null, live = true) {
   });
 }
 
-export function useAudit(params: { visit_id?: string; run_id?: string; limit?: number } = {}) {
+export function useAudit(params: { visit_id?: string; run_id?: string; limit?: number; since_reset?: boolean } = {}) {
   const q = new URLSearchParams();
   if (params.visit_id) q.set("visit_id", params.visit_id);
   if (params.run_id) q.set("run_id", params.run_id);
+  if (params.since_reset) q.set("since_reset", "true");
   q.set("limit", String(params.limit ?? 100));
   const qs = q.toString();
   return useQuery({ queryKey: keys.audit(qs), queryFn: () => api<AuditRow[]>(`/audit?${qs}`), refetchInterval: POLL_MS });
@@ -210,5 +211,12 @@ export function useDemo() {
     mutationFn: () => api<{ obs_id: string }>("/demo/scenario/next", { method: "POST" }),
     onSettled: refresh,
   });
-  return { load, next };
+  const room = useMutation({
+    mutationFn: () => api<{ patients: number; cards_closed: number }>("/demo/waiting-room", { method: "POST" }),
+    onSettled: async () => {
+      qc.removeQueries({ queryKey: ["trace"] });
+      await refresh();
+    },
+  });
+  return { load, next, room };
 }

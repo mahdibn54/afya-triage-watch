@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Clapperboard, Loader2, Play, RotateCcw } from "lucide-react";
+import { ChevronDown, Clapperboard, Loader2, Play, RotateCcw, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -12,13 +12,14 @@ import { cn } from "@/lib/utils";
 
 /** W6 demo scenario loader (E7-9). Rendered only when the API says DEMO_MODE=1. */
 export function DemoDirector({ me, onOpen }: { me: Me; onOpen: (visitId: string | null) => void }) {
-  const { load, next } = useDemo();
+  const { load, next, room } = useDemo();
   const queue = useQueue();
   const [open, setOpen] = useState(false);
+  const [confirmRoom, setConfirmRoom] = useState(false);
   if (!me.demo || me.role === "manager") return null;
 
   const p014 = queue.data?.patients.find((p) => p.patient_label === DEMO_LABEL);
-  const busy = load.isPending || next.isPending;
+  const busy = load.isPending || next.isPending || room.isPending;
 
   return (
     <aside
@@ -39,6 +40,38 @@ export function DemoDirector({ me, onOpen }: { me: Me; onOpen: (visitId: string 
       </button>
       {open && (
         <div className="space-y-2 p-3">
+          <button
+            type="button"
+            data-testid="demo-room"
+            disabled={busy}
+            onClick={() => {
+              if (!confirmRoom) {
+                setConfirmRoom(true);
+                return;
+              }
+              setConfirmRoom(false);
+              room.mutate(undefined, {
+                onSuccess: (r) => {
+                  onOpen(null);
+                  toast.success("Fresh waiting room", { description: `${r.patients} synthetic patients, arrived in the last hour.` });
+                },
+                onError: (e) => toast.error("Could not load the waiting room", { description: e.message }),
+              });
+            }}
+            onBlur={() => setConfirmRoom(false)}
+            className={cn(
+              "flex h-12 w-full items-center gap-3 rounded-xl border bg-background px-3 text-left text-sm font-medium hover:bg-muted disabled:opacity-50",
+              confirmRoom && "border-warn bg-warn-soft",
+            )}
+          >
+            {room.isPending ? <Loader2 className="size-4 animate-spin" /> : <Users className="size-4" />}
+            <span>
+              {confirmRoom ? "Click again to reload the room" : "0 · Fresh waiting room"}
+              <span className="block text-xs font-normal text-muted-foreground">
+                {room.isPending ? "Loading 27 patients…" : "27 synthetic patients, arrived in the last hour"}
+              </span>
+            </span>
+          </button>
           <button
             type="button"
             data-testid="demo-load"

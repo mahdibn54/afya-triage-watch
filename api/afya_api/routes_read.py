@@ -38,13 +38,18 @@ async def queue(_user: User = Depends(current_user), gateway: Gateway = Depends(
 @router.get("/audit", response_model=list[AuditRowOut], responses=ERROR_RESPONSES)
 def audit(visit_id: str | None = Query(None, max_length=64), run_id: str | None = Query(None, max_length=128),
           kind: str | None = Query(None, max_length=64), limit: int = Query(100, ge=1, le=AUDIT_MAX),
-          include_screen_reads: bool = Query(False),
+          include_screen_reads: bool = Query(False), since_reset: bool = Query(False),
           _user: User = Depends(current_user),
           conn: psycopg.Connection[DictRow] = Depends(get_conn)) -> list[AuditRowOut]:
     """Newest first. Payloads hold ids, codes and numbers only (written that way by the audit wrapper). Rows of the
     read-only screen tools (mode `ui`: visit_timeline, demo_visit, written on every screen refresh) are left out
-    unless include_screen_reads=true or `kind` asks for one of them; they are still written, never deleted."""
+    unless include_screen_reads=true or `kind` asks for one of them; they are still written, never deleted.
+    since_reset=true shows only the rows from the last demo "Fresh waiting room" reset onward (that reset's own row
+    included): a view filter for the demo, the older rows stay in the table untouched."""
     where, args = [], []
+    if since_reset:
+        where.append("id >= (SELECT COALESCE(MAX(id), 0) FROM audit_log WHERE kind = 'demo_scenario' "
+                     "AND payload->>'action' = 'waiting_room')")
     if not include_screen_reads and not kind:
         where.append("COALESCE(payload->>'mount', '') <> 'ui'")
     for column, value in (("visit_id", visit_id), ("run_id", run_id), ("kind", kind)):

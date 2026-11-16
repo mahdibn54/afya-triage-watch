@@ -51,8 +51,14 @@ function describe(r: AuditRow): string {
 /** Read-only audit viewer. Payloads hold ids, codes and numbers only (never free text). */
 export function AuditView() {
   const [visit, setVisit] = useState<string>("");
-  const audit = useAudit({ visit_id: visit || undefined, limit: 200 });
+  const [history, setHistory] = useState(false);
+  const audit = useAudit({ visit_id: visit || undefined, limit: 200, since_reset: !history });
   const queue = useQueue();
+  const who = (visitId: string | null | undefined) => {
+    const p = queue.data?.patients.find((x) => x.visit_id === visitId);
+    if (!p) return null;
+    return { name: fullName(p), file: [p.file_number, caseRef(p)].filter(Boolean).join(" · ") };
+  };
   const name = useUserName();
 
   return (
@@ -66,6 +72,17 @@ export function AuditView() {
             <ShieldCheck className="size-4" /> Every action by people and by the agent, newest first. Append-only: nobody can edit it.
           </p>
         </div>
+        <div className="flex flex-wrap items-center gap-4">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            data-testid="audit-history"
+            checked={history}
+            onChange={(e) => setHistory(e.target.checked)}
+            className="size-4"
+          />
+          <span className="text-muted-foreground">Show full history</span>
+        </label>
         <label className="text-sm">
           <span className="mr-2 text-muted-foreground">Patient</span>
           <select
@@ -76,12 +93,18 @@ export function AuditView() {
             <option value="">All</option>
             {queue.data?.patients.map((p) => (
               <option key={p.visit_id} value={p.visit_id}>
-                {fullName(p)}{caseRef(p) ? ` · ${caseRef(p)}` : ""}
+                {fullName(p)}{p.file_number ? ` · ${p.file_number}` : ""}
               </option>
             ))}
           </select>
         </label>
+        </div>
       </div>
+      {!history && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Showing entries since the last demo reset. Older entries are kept, never deleted: tick “Show full history” to see them.
+        </p>
+      )}
 
       <div className="mt-6 overflow-x-auto rounded-2xl border bg-card">
         <table data-testid="audit" className="w-full min-w-[760px] text-sm">
@@ -113,8 +136,7 @@ export function AuditView() {
             {audit.data?.map((r) => {
               const tone = KIND[r.kind]?.tone;
               const machine = r.actor === "agent" || r.actor === "system";
-              const row = queue.data?.patients.find((p) => p.visit_id === r.visit_id);
-              const label = row ? `${fullName(row)}${caseRef(row) ? ` · ${caseRef(row)}` : ""}` : r.visit_id;
+              const patient = who(r.visit_id);
               const ids = Object.entries(r.payload)
                 .filter(([k, v]) => typeof v === "string" && (k.endsWith("_id") || k === "obs_id"))
                 .map(([k, v]) => [k, String(v)] as const);
@@ -139,7 +161,16 @@ export function AuditView() {
                       {describe(r)}
                     </span>
                   </td>
-                  <td className="px-4 py-2.5 font-mono text-xs">{label ?? "–"}</td>
+                  <td className="px-4 py-2.5">
+                    {patient ? (
+                      <span className="leading-tight">
+                        <span className="block font-medium">{patient.name}</span>
+                        <span className="block font-mono text-2xs text-muted-foreground">{patient.file}</span>
+                      </span>
+                    ) : (
+                      <span className="font-mono text-xs text-muted-foreground">{r.visit_id ? `visit ${r.visit_id}` : "–"}</span>
+                    )}
+                  </td>
                   <td className="px-4 py-2.5">
                     <span className="flex flex-wrap gap-1">
                       {ids.map(([k, v]) => (

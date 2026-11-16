@@ -17,7 +17,8 @@ from .demo_scenario import SCENARIOS, birth_date
 from .deps import User, current_user, demo_mode, get_agent, get_gateway
 from .errors import ERROR_RESPONSES, ApiError
 from .mcp_client import Gateway
-from .schemas import DemoNextOut, DemoScenarioIn, DemoVisitOut
+from .schemas import DemoNextOut, DemoScenarioIn, DemoVisitOut, DemoWaitingRoomOut
+from .waiting_room import PATIENTS
 
 
 def require_demo_mode() -> None:
@@ -102,3 +103,54 @@ async def next_reading(background: BackgroundTasks, user: User = Depends(demo_us
     await _audit_click(user, "next", visit["visit_id"], scenario="p014", reading=n + 1, obs_id=obs)
     background.add_task(agent.run_event, visit["visit_id"], obs, DEMO_ACTOR)   # the agent run, as after POST /vitals
     return DemoNextOut(obs_id=obs)
+
+
+def _close_open_cards() -> int:
+    """Every second-look card still waiting for someone (pending, or superseded and not yet seen) is marked superseded
+    and seen, and its clinician reminders are closed: the old waiting room leaves the review queue. Nothing is deleted;
+    the audit log is untouched."""
+    with db.connect() as conn, conn.transaction():
+        rows = conn.execute(
+            "UPDATE proposals SET status = 'superseded', reviewed = true "
+            "WHERE status = 'pending' OR (status = 'superseded' AND NOT reviewed) RETURNING id").fetchall()
+        workflow.close_reminders(conn, [r["id"] for r in rows])
+    return len(rows)
+
+
+@router.get("/demo/waiting-room/reset", response_model=DemoWaitingRoomOut, responses=ERROR_RESPONSES)
+async def fresh_waiting_room_from_url(user: User = Depends(demo_user),
+                                      gateway: Gateway = Depends(get_gateway)) -> DemoWaitingRoomOut:
+    """The same reload as POST /demo/waiting-room, for typing in the browser's address bar on the event day
+    (/api/demo/waiting-room/reset through the web proxy). DEMO_MODE only, signed-in nurse or clinician, audited. The
+    session cookie is SameSite=strict, so a link on another site cannot trigger it. Only synthetic data changes."""
+    return await fresh_waiting_room(user, gateway)
+
+
+@router.post("/demo/waiting-room", response_model=DemoWaitingRoomOut, responses=ERROR_RESPONSES)
+async def fresh_waiting_room(user: User = Depends(demo_user),
+                             gateway: Gateway = Depends(get_gateway)) -> DemoWaitingRoomOut:
+    """Start the demo from a fresh waiting room: the 27 synthetic patients arrive again, 25 to 60 minutes ago, each with
+    a new visit and its first reading (seed_demo_visit finishes the patient's earlier waiting visit). Open cards are
+    closed first. Deletes nothing; one demo_scenario audit row records the click. No model call: the first reading is
+    the baseline, as in the seed job."""
+    closed = await anyio.to_thread.run_sync(_close_open_cards)
+    # The click is audited first: GET /audit?since_reset=true starts at this row, so the reload's own rows are included.
+    await _audit_click(user, "waiting_room", None, patients=len(PATIENTS), cards_closed=closed)
+    for p in PATIENTS:
+        try:
+            seeded = await gateway.act("seed_demo_visit", {
+                "label": p["label"], "birth_date": birth_date(p["age_years"]),
+                "arrived_minutes_ago": p["arrived_minutes_ago"], "confirmed_colour": p["confirmed_colour"],
+                "actor": DEMO_ACTOR})
+            if seeded["status"] != "seeded":
+                raise ApiError(409, f"{p['label']} could not be loaded ({seeded.get('reason', seeded['status'])})")
+            out = await gateway.act("record_vitals", {
+                "visit_id": seeded["visit_id"], "values": p["values"], "idempotency_key": f"room-{seeded['visit_id']}",
+                "actor": DEMO_ACTOR, "complaint": p["complaint"], "reported_worsening": p["reported_worsening"]})
+        except ApiError:
+            raise
+        except Exception as e:
+            raise helpers.tool_error(e) from e
+        if out["status"] != "saved":
+            raise ApiError(409, f"the first reading of {p['label']} was not saved ({out['status']})")
+    return DemoWaitingRoomOut(patients=len(PATIENTS), cards_closed=closed)

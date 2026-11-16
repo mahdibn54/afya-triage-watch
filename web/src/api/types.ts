@@ -259,6 +259,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/demo/waiting-room/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fresh Waiting Room From Url
+         * @description The same reload as POST /demo/waiting-room, for typing in the browser's address bar on the event day
+         *     (/api/demo/waiting-room/reset through the web proxy). DEMO_MODE only, signed-in nurse or clinician, audited. The
+         *     session cookie is SameSite=strict, so a link on another site cannot trigger it. Only synthetic data changes.
+         */
+        get: operations["fresh_waiting_room_from_url_demo_waiting_room_reset_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/demo/waiting-room": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fresh Waiting Room
+         * @description Start the demo from a fresh waiting room: the 24 synthetic patients arrive again, 25 to 60 minutes ago, each with
+         *     a new visit and its first reading (seed_demo_visit finishes the patient's earlier waiting visit). Open cards are
+         *     closed first. Deletes nothing; one demo_scenario audit row records the click. No model call: the first reading is
+         *     the baseline, as in the seed job.
+         */
+        post: operations["fresh_waiting_room_demo_waiting_room_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/login-as": {
         parameters: {
             query?: never;
@@ -473,6 +518,13 @@ export interface components {
         DemoVisitOut: {
             /** Visit Id */
             visit_id: string;
+        };
+        /** DemoWaitingRoomOut */
+        DemoWaitingRoomOut: {
+            /** Patients */
+            patients: number;
+            /** Cards Closed */
+            cards_closed: number;
         };
         /** ErrorBody */
         ErrorBody: {
@@ -1758,6 +1810,158 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DemoNextOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    fresh_waiting_room_from_url_demo_waiting_room_reset_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                afya_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoWaitingRoomOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    fresh_waiting_room_demo_waiting_room_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                afya_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoWaitingRoomOut"];
                 };
             };
             /** @description Unauthorized */

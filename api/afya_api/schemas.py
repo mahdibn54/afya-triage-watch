@@ -219,6 +219,11 @@ class DemoNextOut(BaseModel):
     obs_id: str
 
 
+class DemoWaitingRoomOut(BaseModel):
+    patients: int
+    cards_closed: int
+
+
 # ---------- session and read endpoints (E6-1a, E6-2) ----------
 
 class LoginIn(BaseModel):
