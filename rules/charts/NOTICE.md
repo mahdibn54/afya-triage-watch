@@ -15,5 +15,6 @@ published by the Emergency Medicine Society of South Africa (EMSSA): https://ems
 ## Afya note (not chart content)
 
 The pain-scale cutoffs are not in `sats_adult_2012.yaml`. The sign mapper's prompt maps patient-stated severity to
-`SEVERE_PAIN` / `MODERATE_PAIN`; Afya's working numbers (8-10 out of 10 severe, 5-7 moderate) are an assumption
-**to be confirmed by the nurse review** (see `evals/cases/nurse_session/README.md`).
+`SEVERE_PAIN` / `MODERATE_PAIN` from the patient's words, as SATS does (severe = unbearable, the worst ever; moderate =
+intense but bearable). When a patient gives a number, the bands agreed with the nurse interviewed are 7-10 severe and
+4-6 moderate (`FIELD_NOTES.md`), replacing the earlier working assumption of 8-10 and 5-7.

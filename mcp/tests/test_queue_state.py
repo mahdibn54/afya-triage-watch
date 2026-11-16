@@ -63,11 +63,11 @@ def test_minutes_waited_against_the_sats_target_of_the_confirmed_colour(fhir):
 def test_overdue_recheck_uses_the_site_interval_from_the_last_reading(fhir):
     q = by_visit(services.get_queue_state(fhir, REG, SITE, FakeStore(), NOW))
     r = q["v-orange"]["recheck"]
-    assert r["rule"] == "site rule" and r["interval_minutes"] == SITE["recheck_minutes"]["ORANGE"] == 15
-    assert (r["overdue"], r["overdue_minutes"]) == (True, 5)   # reading 20 min ago + 15
+    assert r["rule"] == "site rule" and r["interval_minutes"] == SITE["recheck_minutes"]["ORANGE"] == 10
+    assert (r["overdue"], r["overdue_minutes"]) == (True, 10)   # reading 20 min ago + 10
     assert q["v-orange"]["last_reading"]["observation_id"].startswith("Observation/")
     g = q["v-green"]["recheck"]
-    assert (g["overdue"], g["overdue_minutes"], g["due_at"]) == (False, 0, ago(10 - 60).isoformat())
+    assert (g["overdue"], g["overdue_minutes"], g["due_at"]) == (False, 0, ago(10 - 120).isoformat())
 
 
 def test_first_reading_is_due_on_arrival_and_nothing_is_guessed_without_a_colour(fhir):
@@ -80,7 +80,7 @@ def test_first_reading_is_due_on_arrival_and_nothing_is_guessed_without_a_colour
 def test_waiting_visits_only_oldest_arrival_first(fhir):
     state = services.get_queue_state(fhir, REG, SITE, FakeStore(), NOW)
     assert [p["visit_id"] for p in state["patients"]] == ["v-green", "v-orange", "v-kid", "v-new"]
-    assert state["site_rule_source"] == "provisional site rule, to review with nurse"
+    assert state["site_rule_source"] == "site rule (FIELD_NOTES, Day 10)"
     assert state["truncated"] is False
 
 

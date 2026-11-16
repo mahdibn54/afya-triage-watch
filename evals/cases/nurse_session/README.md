@@ -41,5 +41,5 @@ set is the other 11 cases. The results above (11/12 in the UI pass, and 11/12 in
 batch `20261109T095114Z`, n02 missed 5/5) stand as recorded, measured before the change.
 
 Pain-severity cutoffs used by the prompt are patient-stated: "severe" (unbearable, the worst, a top score out of 10)
-and "moderate" (a middling score). Afya working assumption, not taken from the chart: 8-10 out of 10 = SEVERE_PAIN,
-5-7 = MODERATE_PAIN. **To be confirmed by the nurse review**; the chart file (`rules/charts/`) is unchanged.
+and "moderate" (a middling score). Bands agreed with the nurse interviewed (`FIELD_NOTES.md`), not taken from the chart: 7-10 out of 10 =
+SEVERE_PAIN, 4-6 = MODERATE_PAIN (the earlier working assumption was 8-10 and 5-7); the chart file is unchanged.
