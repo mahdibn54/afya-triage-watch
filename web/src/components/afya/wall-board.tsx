@@ -4,6 +4,7 @@ import { ColourChip } from "@/components/afya/colour-chip";
 import { NoticeCallout } from "@/components/afya/notice-chip";
 import { secondsLeft, sortByTimeLeft, TargetBar } from "@/components/afya/board";
 import { useQueue } from "@/lib/queries";
+import { shortName } from "@/lib/identity";
 import { ago, useClientNow, useNow } from "@/lib/time";
 
 /** A display-only view for a staff-only screen; all decisions remain on the board. */
@@ -43,7 +44,10 @@ export function WallBoard({ onExit }: { onExit: () => void }) {
             {patients.map((p) => (
               <li key={p.visit_id} className="grid gap-3 px-4 py-5 sm:grid-cols-[minmax(8rem,1fr)_minmax(9rem,1fr)_minmax(14rem,2fr)] sm:items-center sm:px-6">
                 <div className="min-w-0">
-                  <p className="break-all font-mono text-2xl font-semibold">{p.patient_label || "Label unavailable"}</p>
+                  <p className="break-all text-2xl font-semibold">
+                    {p.patient_name ? shortName(p) : p.patient_label || "Label unavailable"}
+                    {p.file_number && <span className="ml-3 font-mono text-lg font-normal text-muted-foreground">{p.file_number}</span>}
+                  </p>
                   {p.pending_proposals > 0 && <p className="mt-1 font-semibold text-agent-foreground">Second look suggested · review on board</p>}
                   {p.flags.length > 0 && <p className="mt-1 font-semibold">Second-look flag recorded</p>}
                   {p.notices.length > 0 && <p className="mt-1 text-sm font-medium">Notice on board · review patient</p>}

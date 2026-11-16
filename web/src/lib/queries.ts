@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 
 import type {
   ApproveRequest,
@@ -31,6 +32,7 @@ export const keys = {
   trace: (run: string) => ["trace", run] as const,
   gates: (id: string) => ["gates", id] as const,
   audit: (q: string) => ["audit", q] as const,
+  running: ["agent-running"] as const,
 };
 
 export function useMe() {
@@ -219,4 +221,31 @@ export function useDemo() {
     },
   });
   return { load, next, room };
+}
+
+
+/** Agent runs in progress (GET /agent/running), polled fast so the "agent checking" spinner feels live. When a run
+ * finishes, the queue, proposals and traces are refreshed at once so its card appears without waiting for the poll. */
+export function useAgentRunning() {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: keys.running,
+    queryFn: () => api<{ run_id: string; visit_id: string }[]>("/agent/running"),
+    refetchInterval: 1200,
+  });
+  const ids = (q.data ?? []).map((r) => r.run_id).join(",");
+  const prev = useRef(ids);
+  useEffect(() => {
+    if (prev.current && prev.current !== ids) {
+      const done = prev.current.split(",").filter((id) => id && !ids.split(",").includes(id));
+      if (done.length) {
+        void qc.invalidateQueries({ queryKey: keys.queue });
+        void qc.invalidateQueries({ queryKey: ["proposals"] });
+        void qc.invalidateQueries({ queryKey: ["trace"] });
+        void qc.invalidateQueries({ queryKey: ["timeline"] });
+      }
+    }
+    prev.current = ids;
+  }, [ids, qc]);
+  return new Set((q.data ?? []).map((r) => r.visit_id));
 }

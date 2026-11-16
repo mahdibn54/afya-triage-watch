@@ -175,6 +175,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agent/running": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Agent Running
+         * @description Agent runs in progress right now (a reading saved, the run not yet paused or ended): the screens show "agent
+         *     checking" on those patients. Not audited (screens poll it), no patient data beyond the visit id.
+         */
+        get: operations["agent_running_agent_running_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runs/{run_id}/trace": {
         parameters: {
             query?: never;
@@ -292,7 +313,7 @@ export interface paths {
         put?: never;
         /**
          * Fresh Waiting Room
-         * @description Start the demo from a fresh waiting room: the 24 synthetic patients arrive again, 25 to 60 minutes ago, each with
+         * @description Start the demo from a fresh waiting room: the 27 synthetic patients arrive again, 25 to 60 minutes ago, each with
          *     a new visit and its first reading (seed_demo_visit finishes the patient's earlier waiting visit). Open cards are
          *     closed first. Deletes nothing; one demo_scenario audit row records the click. No model call: the first reading is
          *     the baseline, as in the seed job.
@@ -414,6 +435,8 @@ export interface paths {
          * @description Newest first. Payloads hold ids, codes and numbers only (written that way by the audit wrapper). Rows of the
          *     read-only screen tools (mode `ui`: visit_timeline, demo_visit, written on every screen refresh) are left out
          *     unless include_screen_reads=true or `kind` asks for one of them; they are still written, never deleted.
+         *     since_reset=true shows only the rows from the last demo "Fresh waiting room" reset onward (that reset's own row
+         *     included): a view filter for the demo, the older rows stay in the table untouched.
          */
         get: operations["audit_audit_get"];
         put?: never;
@@ -824,6 +847,13 @@ export interface components {
              * @constant
              */
             status: "rejected";
+        };
+        /** RunningRun */
+        RunningRun: {
+            /** Run Id */
+            run_id: string;
+            /** Visit Id */
+            visit_id: string;
         };
         /** Sign */
         Sign: {
@@ -1498,6 +1528,82 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Timeline"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    agent_running_agent_running_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                afya_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunningRun"][];
                 };
             };
             /** @description Unauthorized */
@@ -2406,6 +2512,7 @@ export interface operations {
                 kind?: string | null;
                 limit?: number;
                 include_screen_reads?: boolean;
+                since_reset?: boolean;
             };
             header?: never;
             path?: never;

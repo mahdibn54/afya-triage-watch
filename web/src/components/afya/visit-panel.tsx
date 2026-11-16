@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, ChevronDown, Flag, PenLine, ScanEye, Sparkles, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, Flag, Loader2, PenLine, ScanEye, Sparkles, XCircle } from "lucide-react";
 
 import type { Me, Proposal, QueuePatient } from "@/api/contract";
 import { AgentTrace, runIdFor } from "@/components/afya/agent-trace";
@@ -10,7 +10,7 @@ import { ColourChip } from "@/components/afya/colour-chip";
 import { GateSteps } from "@/components/afya/gate-steps";
 import { NoticeCallout } from "@/components/afya/notice-chip";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
-import { useAcknowledgeNotice, useAcknowledgeProposal, useProposals, useQueue, useTimeline, useUserName } from "@/lib/queries";
+import { useAcknowledgeNotice, useAcknowledgeProposal, useAgentRunning, useProposals, useQueue, useTimeline, useUserName } from "@/lib/queries";
 import { fullName } from "@/lib/identity";
 import { SATS } from "@/lib/sats";
 import { clockShort, useNow } from "@/lib/time";
@@ -47,6 +47,7 @@ function VisitBody({ me, visitId, onRecord }: { me: Me; visitId: string; onRecor
   const name = useUserName();
   const ackProposal = useAcknowledgeProposal();
   const ackNotice = useAcknowledgeNotice();
+  const checking = useAgentRunning().has(visitId);
   const canWrite = me.role !== "manager";
 
   const p = queue.data?.patients.find((x) => x.visit_id === visitId);
@@ -138,11 +139,21 @@ function VisitBody({ me, visitId, onRecord }: { me: Me; visitId: string; onRecor
           />
         ))}
 
+        {checking && (
+          <div data-testid="agent-checking-panel" className="flex items-center gap-3 rounded-2xl border border-agent/40 bg-agent-soft p-4">
+            <Loader2 className="size-5 shrink-0 animate-spin text-agent" />
+            <div>
+              <p className="font-medium text-agent-foreground">The agent is checking this reading…</p>
+              <p className="text-sm text-muted-foreground">Scoring, reading the patient&apos;s words, then deciding. Usually a few seconds.</p>
+            </div>
+          </div>
+        )}
+
         {pending.map((x) => (
           <ApprovalCard key={x.id} me={me} proposal={x} hideNotices={visitNotices.map((n) => n.code)} />
         ))}
 
-        {pending.length === 0 && decided.length === 0 && (
+        {pending.length === 0 && decided.length === 0 && !checking && (
           <div className="rounded-2xl border border-dashed p-8 text-center">
             <Sparkles className="mx-auto size-6 text-muted-foreground" />
             <p className="mt-2 font-medium">No second look suggested</p>

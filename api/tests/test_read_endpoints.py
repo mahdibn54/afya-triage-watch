@@ -99,3 +99,12 @@ def test_read_endpoints_need_a_session(client):
     client.cookies.clear()
     for path in ("/queue", "/audit", "/me"):
         assert client.get(path).status_code == 401, path
+
+
+def test_agent_running_lists_runs_in_progress(client, as_user, agent):
+    assert client.get("/agent/running").json() == []
+    agent._running.add("42:43")
+    try:
+        assert client.get("/agent/running").json() == [{"run_id": "42:43", "visit_id": "42"}]
+    finally:
+        agent._running.discard("42:43")

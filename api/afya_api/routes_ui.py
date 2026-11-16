@@ -10,10 +10,11 @@ from fastapi import APIRouter, Depends
 from psycopg.rows import DictRow
 
 from . import helpers
-from .deps import User, current_user, get_conn, get_gateway
+from .agent import Agent
+from .deps import User, current_user, get_agent, get_conn, get_gateway
 from .errors import ERROR_RESPONSES, ApiError
 from .mcp_client import Gateway
-from .schemas import Gate, Refusal, Timeline, TraceStep
+from .schemas import Gate, Refusal, RunningRun, Timeline, TraceStep
 
 router = APIRouter(tags=["evidence"])
 
@@ -83,6 +84,13 @@ def trace_steps(rows: list[dict[str, Any]]) -> list[TraceStep]:
                 cost_usd=p.get("cost_usd"), provider=model.get("provider"), served_by=model.get("served_by"),
                 cited_ids=[workflow.obs_ref(i) for i in p.get("cited_ids", [])]))
     return steps
+
+
+@router.get("/agent/running", response_model=list[RunningRun], responses=ERROR_RESPONSES)
+def agent_running(_user: User = Depends(current_user), agent: Agent = Depends(get_agent)) -> list[RunningRun]:
+    """Agent runs in progress right now (a reading saved, the run not yet paused or ended): the screens show "agent
+    checking" on those patients. Not audited (screens poll it), no patient data beyond the visit id."""
+    return [RunningRun(run_id=r, visit_id=r.split(":", 1)[0]) for r in agent.running]
 
 
 @router.get("/runs/{run_id}/trace", response_model=list[TraceStep], responses=ERROR_RESPONSES)

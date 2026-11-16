@@ -174,6 +174,11 @@ class Timeline(BaseModel):
     readings: list[Reading]
 
 
+class RunningRun(BaseModel):
+    run_id: str
+    visit_id: str
+
+
 class TraceStep(BaseModel):
     step: int
     at: str

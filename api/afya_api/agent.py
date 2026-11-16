@@ -417,6 +417,12 @@ class Agent:
     def config(run_id: str) -> dict[str, Any]:
         return {"configurable": {"thread_id": run_id}, "recursion_limit": RECURSION_LIMIT}
 
+    @property
+    def running(self) -> list[str]:
+        """Run ids whose graph is executing right now in this process (between a saved reading and its pause or end).
+        Read-only, for the screens' "agent checking" indicator."""
+        return sorted(self._running)
+
     async def run_event(self, visit_id: str, obs_id: str, actor: str = "agent") -> dict[str, Any]:
         """Run the graph for one saved reading, up to the pause. Never raises. A second start for the same reading
         (a retried POST /vitals) is a no-op when the run finished or is paused; a run that stopped half-way (a crash,

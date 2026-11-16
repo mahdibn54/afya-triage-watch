@@ -1,11 +1,11 @@
 "use client";
 
-import { Activity, ChevronRight, Clock3, Flag, PenLine, RefreshCw, Sparkles, WifiOff } from "lucide-react";
+import { Activity, ChevronRight, Clock3, Flag, Loader2, PenLine, RefreshCw, Sparkles, WifiOff } from "lucide-react";
 
 import type { Me, Notice, Proposal, QueuePatient } from "@/api/contract";
 import { ColourChip } from "@/components/afya/colour-chip";
 import { NoticeCallout, NoticeChip } from "@/components/afya/notice-chip";
-import { useAcknowledgeNotice, useProposals, useQueue } from "@/lib/queries";
+import { useAcknowledgeNotice, useAgentRunning, useProposals, useQueue } from "@/lib/queries";
 import { fullName } from "@/lib/identity";
 import { PatientName } from "@/components/afya/patient-name";
 import { SATS } from "@/lib/sats";
@@ -60,6 +60,7 @@ export function Board({
   openVisit: string | null;
 }) {
   const q = useQueue();
+  const running = useAgentRunning();
   const pending = useProposals("pending");
   const now = useNow(1000);
   const clientNow = useClientNow(1000);
@@ -83,7 +84,15 @@ export function Board({
             Sorted by time left to the SATS target of each patient&apos;s confirmed colour.
           </p>
         </div>
-        <LiveStatus updatedAt={q.dataUpdatedAt} failed={q.isError} fetching={q.isFetching} now={clientNow} />
+        <div className="flex flex-col items-end gap-2">
+          <LiveStatus updatedAt={q.dataUpdatedAt} failed={q.isError} fetching={q.isFetching} now={clientNow} />
+          {running.size > 0 && (
+            <span data-testid="agent-working" className="inline-flex items-center gap-2 rounded-full bg-agent-soft px-3 py-1 text-sm font-medium text-agent-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              Agent checking {running.size === 1 ? "1 reading" : `${running.size} readings`}
+            </span>
+          )}
+        </div>
       </div>
 
       <dl className="mt-5 grid grid-cols-3 gap-3 sm:max-w-xl">
@@ -156,6 +165,7 @@ export function Board({
               now={now}
               canWrite={canWrite}
               selected={openVisit === p.visit_id}
+              checking={running.has(p.visit_id)}
               onOpen={() => onOpen(p.visit_id)}
               onRecord={() => onRecord(p)}
             />
@@ -356,6 +366,7 @@ function PatientRow({
   now,
   canWrite,
   selected,
+  checking,
   onOpen,
   onRecord,
 }: {
@@ -363,6 +374,7 @@ function PatientRow({
   now: number;
   canWrite: boolean;
   selected: boolean;
+  checking: boolean;
   onOpen: () => void;
   onRecord: () => void;
 }) {
@@ -463,8 +475,14 @@ function PatientRow({
         <ChevronRight className="size-5 text-muted-foreground transition group-hover:translate-x-0.5" />
       </div>
 
-      {(proposal || p.flags.length > 0 || p.notices.length > 0) && (
+      {(checking || proposal || p.flags.length > 0 || p.notices.length > 0) && (
         <div className="col-span-3 flex flex-wrap items-center gap-1.5 xl:col-span-5 xl:col-start-2 xl:-mt-1">
+          {checking && (
+            <span data-testid="agent-checking" className="inline-flex h-7 items-center gap-1.5 rounded-full border border-agent/40 bg-agent-soft px-3 text-2xs font-semibold text-agent-foreground">
+              <Loader2 className="size-3.5 animate-spin" />
+              Agent checking this reading…
+            </span>
+          )}
           {proposal && (
             <span className="inline-flex h-7 items-center gap-1 rounded-full bg-agent px-3 text-2xs font-semibold text-white animate-pulse-ring">
               <Sparkles className="size-3.5" />
