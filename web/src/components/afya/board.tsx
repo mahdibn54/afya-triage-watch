@@ -7,7 +7,7 @@ import { ColourChip } from "@/components/afya/colour-chip";
 import { NoticeCallout, NoticeChip } from "@/components/afya/notice-chip";
 import { useAcknowledgeNotice, useAgentRunning, useProposals, useQueue } from "@/lib/queries";
 import { fullName } from "@/lib/identity";
-import { PatientName } from "@/components/afya/patient-name";
+import { caseRef, PatientName } from "@/components/afya/patient-name";
 import { SATS } from "@/lib/sats";
 import { ago, clockShort, mmss, useClientNow, useNow } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -407,6 +407,7 @@ function PatientRow({
         >
           {fullName(p)}
         </button>
+        {caseRef(p) && <span className="ml-2 font-mono text-xs text-muted-foreground">{caseRef(p)}</span>}
         <p className="tnum text-xs text-muted-foreground">
           {p.file_number && <span className="font-mono xl:hidden">{p.file_number} · </span>}
           {arrivedMs(p) === null ? "No arrival time" : `Arrived ${clockShort(p.arrived_at)} · waited ${minutesWaited(p, now)} min`}
